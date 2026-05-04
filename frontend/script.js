@@ -18,13 +18,23 @@ async function apiCall(method, path, body = null) {
   const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
 
+  // Build URL - path should be like "/auth/login" -> becomes "/api/auth/login"
+  const apiPath = path.startsWith('/') ? path : '/' + path;
+  const fullUrl = `${window.location.origin}/api${apiPath}`;
+  
+  console.log(`API Call: ${method} ${fullUrl}`, body ? 'with body' : '');
+
   try {
-    const res  = await fetch(`${API_BASE}${path}`, opts);
+    const res = await fetch(fullUrl, opts);
+    console.log(`Response status: ${res.status}`);
+    
     const data = await res.json();
+    console.log(`Response data:`, data);
+    
     return { ok: res.ok, status: res.status, data };
   } catch (err) {
     console.error('API error:', err);
-    return { ok: false, status: 0, data: { message: 'Network error — is the backend running?' } };
+    return { ok: false, status: 0, data: { message: 'Network error: ' + err.message } };
   }
 }
 
@@ -191,8 +201,12 @@ async function handleAuth(event) {
     });
   }
 
+  console.log('Auth result:', result);
+  
   if (!result.ok) {
-    alert(result.data.message || 'Authentication failed');
+    const errorMsg = result.data?.message || result.data?.error || 'Authentication failed';
+    console.error('Auth error:', errorMsg);
+    alert('Error: ' + errorMsg);
     return;
   }
 
