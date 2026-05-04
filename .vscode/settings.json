@@ -1,4 +1,6 @@
 {
   "typescript.tsdk": "node_modules/typescript/lib",
-  "javascript.tsdk": "node_modules/typescript/lib"
+  "javascript.tsdk": "node_modules/typescript/lib",
+  "nextjs.enableInteractiveComponentsApi": false,
+  "extensions.ignoreRecommendations": true
 }
