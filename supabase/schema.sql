@@ -101,6 +101,27 @@ ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 -- Create policies for service role access
 -- Note: For serverless API, we'll use service role key which bypasses RLS
 
+-- Plans table (treatment and fitness plans)
+CREATE TABLE IF NOT EXISTS plans (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN ('treatment', 'fitness')),
+  title TEXT NOT NULL,
+  patient_name TEXT,
+  summary TEXT,
+  exercises JSONB,
+  diet_plan TEXT,
+  supplements TEXT,
+  medicines TEXT,
+  instructions TEXT,
+  follow_up TEXT,
+  lifestyle_tips TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE plans ENABLE ROW LEVEL SECURITY;
+
 -- Insert default products
 INSERT INTO products (name, description, price, category, icon, in_stock) VALUES
   ('Omega-3 Fish Oil', 'High-purity EPA/DHA for heart and brain health.', 24.99, 'supplement', 'fa-capsules', true),

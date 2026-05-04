@@ -228,6 +228,9 @@ async function handleAuth(event) {
   document.getElementById('menuDisplayEmail').innerText = emailInp;
   document.getElementById('chat-stream').innerHTML      = '';
 
+  // Load latest plan for the user
+  loadLatestPlan();
+
   if (currentUser.role === 'doctor' || currentUser.role === 'coach') {
     showProfessionalDashboard();
   } else {
@@ -1299,4 +1302,147 @@ function clearMyOrders() {
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('myBookingsOverlay').addEventListener('click', function(e) { if (e.target === this) closeMyBookings(); });
   document.getElementById('myOrdersOverlay').addEventListener('click',  function(e) { if (e.target === this) closeMyOrders(); });
+  document.getElementById('planModal').addEventListener('click', function(e) { if (e.target === this) closePlanModal(); });
 });
+
+// ── Plans Functions ─────────────────────────────────────────
+let currentPlan = null;
+
+async function loadLatestPlan() {
+  if (!currentUser.auth) return;
+  
+  const result = await apiCall('GET', '/plans?type=latest');
+  if (result.ok && result.data) {
+    currentPlan = result.data;
+    showPlanInMenu(result.data);
+  } else {
+    hidePlanInMenu();
+  }
+}
+
+function showPlanInMenu(plan) {
+  const planSection = document.getElementById('menuPlanSection');
+  const planCard = document.getElementById('menuPlanCard');
+  
+  if (planSection && planCard) {
+    planSection.style.display = 'block';
+    document.getElementById('menuPlanTitle').innerText = plan.title;
+    document.getElementById('menuPlanSummary').innerText = plan.summary || 'Your personalized plan is ready';
+  }
+}
+
+function hidePlanInMenu() {
+  const planSection = document.getElementById('menuPlanSection');
+  if (planSection) planSection.style.display = 'none';
+}
+
+function openPlanModal() {
+  if (!currentPlan) return;
+  
+  document.getElementById('profileMenu').classList.remove('active');
+  const modal = document.getElementById('planModal');
+  modal.style.display = 'flex';
+  
+  // Fill plan details
+  document.getElementById('planModalTitle').innerText = currentPlan.type === 'treatment' ? '🏥 Treatment Plan' : '💪 Fitness Plan';
+  document.getElementById('planTitle').innerText = currentPlan.title;
+  document.getElementById('planPatientName').innerText = currentPlan.patient_name || currentUser.name;
+  document.getElementById('planSummary').innerText = currentPlan.summary || 'No summary available';
+  
+  // Exercises
+  let exercisesHtml = '';
+  if (currentPlan.exercises) {
+    try {
+      const exercises = typeof currentPlan.exercises === 'string' ? JSON.parse(currentPlan.exercises) : currentPlan.exercises;
+      exercises.forEach(ex => {
+        exercisesHtml += `<li><strong>${ex.name}</strong>: ${ex.sets}x${ex.reps} - ${ex.rest}</li>`;
+      });
+    } catch(e) {
+      exercisesHtml = currentPlan.exercises;
+    }
+  }
+  document.getElementById('planExercises').innerHTML = exercisesHtml || '<li>No exercises specified</li>';
+  
+  document.getElementById('planDiet').innerText = currentPlan.diet_plan || 'No diet plan specified';
+  document.getElementById('planSupplements').innerText = currentPlan.supplements || 'No supplements specified';
+  document.getElementById('planMedicines').innerText = currentPlan.medicines || 'No medicines specified';
+  document.getElementById('planInstructions').innerText = currentPlan.instructions || 'No special instructions';
+  document.getElementById('planFollowUp').innerText = currentPlan.follow_up || 'No follow-up specified';
+  document.getElementById('planLifestyle').innerText = currentPlan.lifestyle_tips || 'No lifestyle tips specified';
+}
+
+function closePlanModal() {
+  document.getElementById('planModal').style.display = 'none';
+}
+
+// Generate Treatment Plan after doctor booking
+async function generateTreatmentPlan(doctorName, patientName) {
+  const planData = {
+    type: 'treatment',
+    title: `Treatment Plan - ${doctorName}`,
+    patientName: patientName,
+    summary: 'Prescribed treatment plan based on your consultation',
+    medicines: '• Paracetamol 500mg - 1 tablet 3 times daily\n• Vitamin C 1000mg - 1 tablet daily\n• Follow prescribed dosage as directed',
+    instructions: '• Complete full course of medicines\n• Rest for 2-3 days\n• Avoid heavy physical activity\n• Stay hydrated\n• Take medicines after meals',
+    followUp: 'Follow-up appointment in 1 week or if symptoms worsen',
+    lifestyleTips: '• Get 7-8 hours of sleep\n• Eat healthy, balanced meals\n• Avoid stress\n• Exercise lightly after recovery'
+  };
+  
+  const result = await apiCall('POST', '/plans', planData);
+  if (result.ok && result.data) {
+    currentPlan = result.data;
+    showPlanInMenu(result.data);
+  }
+}
+
+// Generate Fitness Plan after gym/home booking
+async function generateFitnessPlan(userName, location, fitnessGoal) {
+  const focusAreas = {
+    muscle: ['Chest', 'Back', 'Shoulders', 'Arms'],
+    fat: ['Cardio', 'HIIT', 'Core'],
+    general: ['Full Body', 'Core', 'Cardio']
+  };
+  
+  const exercises = location === 'gym' 
+    ? [
+        { name: 'Bench Press', sets: '4', reps: '10-12', rest: '90s' },
+        { name: 'Lat Pulldown', sets: '3', reps: '12', rest: '60s' },
+        { name: 'Shoulder Press', sets: '3', reps: '10', rest: '60s' },
+        { name: 'Leg Press', sets: '4', reps: '12', rest: '90s' },
+        { name: 'Cable Curls', sets: '3', reps: '12', rest: '45s' }
+      ]
+    : [
+        { name: 'Push-ups', sets: '4', reps: '15', rest: '60s' },
+        { name: 'Squats', sets: '4', reps: '20', rest: '60s' },
+        { name: 'Plank', sets: '3', reps: '45s', rest: '30s' },
+        { name: 'Lunges', sets: '3', reps: '12 each', rest: '60s' },
+        { name: 'Burpees', sets: '3', reps: '10', rest: '45s' }
+      ];
+  
+  const dietPlan = fitnessGoal === 'muscle' 
+    ? '• High protein diet (1.6-2g per kg bodyweight)\n• Chicken, fish, eggs, legumes\n• Complex carbs: rice, oats, potatoes\n• Healthy fats: nuts, avocado'
+    : fitnessGoal === 'fat'
+    ? '• Calorie deficit diet\n• Lean proteins: chicken breast, fish\n• High fiber vegetables\n• Limit carbs, avoid sugar\n• Small frequent meals'
+    : '• Balanced diet\n• Moderate protein\n• Whole grains, fruits, vegetables\n• Stay hydrated';
+  
+  const planData = {
+    type: 'fitness',
+    title: `Fitness Plan - ${location === 'gym' ? 'Gym' : 'Home'} Training`,
+    patientName: userName,
+    summary: `Your personalized ${location} training plan for ${fitnessGoal} goal`,
+    exercises: exercises,
+    dietPlan: dietPlan,
+    supplements: '• Protein powder (optional)\n• Creatine 5g daily\n• Multivitamin\n• Fish Oil',
+    instructions: location === 'gym' 
+      ? '• Warm up 5-10 mins before starting\n• Rest 60-90s between heavy exercises\n• Stay hydrated throughout\n• Cool down stretch after workout'
+      : '• Clear space for exercises\n• Use proper form over weight\n• Rest 45-60s between exercises\n• Stay consistent',
+    followUp: 'Weekly progress check-in',
+    lifestyleTips: '• Sleep 7-8 hours\n• Track your meals\n• Consistency is key\n• Listen to your body'
+  };
+  
+  const result = await apiCall('POST', '/plans', planData);
+  if (result.ok && result.data) {
+    currentPlan = result.data;
+    showPlanInMenu(result.data);
+  }
+}
