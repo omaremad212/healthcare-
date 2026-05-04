@@ -1,0 +1,16 @@
+{
+  "name": "healthcare-platform",
+  "version": "1.0.0",
+  "description": "Healthcare platform with Vercel deployment",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
