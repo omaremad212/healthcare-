@@ -1,6 +1,18 @@
-// api/booking.js - Vercel Serverless API
+// api/booking.js - Vercel Serverless API with Supabase
 
-global.bookings = global.bookings || [];
+const { supabase } = require('../../lib/supabase');
+
+// Helper to get user ID from token
+function getUserIdFromToken(authHeader) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  try {
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'secret123');
+    return decoded.id;
+  } catch (e) {
+    return null;
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST' && req.method !== 'PATCH') {
@@ -8,51 +20,80 @@ export default async function handler(req, res) {
   }
 
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const userId = getUserIdFromToken(authHeader);
+  
+  if (!userId) {
     return res.status(401).json({ success: false, message: 'Not authorized' });
   }
 
   try {
     if (req.method === 'POST') {
-      const { targetId, targetType, date, timeSlot, paymentMethod, fee, notes, doctorName } = req.body;
+      const { doctor_id, doctor_name, date, time_slot, payment_method, fee, notes } = req.body;
 
       if (!date) {
         return res.status(400).json({ success: false, message: 'Date is required' });
       }
 
-      const booking = {
-        _id: 'booking_' + Date.now(),
-        patient: 'patient_user',
-        target: targetId || 'doctor',
-        targetType: targetType || 'doctor',
-        date,
-        timeSlot,
-        paymentMethod: paymentMethod || 'cash',
-        paymentStatus: paymentMethod === 'visa' ? 'paid' : 'pending',
-        fee,
-        notes: notes || `Booked with ${doctorName || 'Doctor'}`,
-        status: 'confirmed',
-        createdAt: new Date().toISOString(),
-      };
+      const { data: booking, error } = await supabase
+        .from('bookings')
+        .insert({
+          user_id: userId,
+          doctor_id: doctor_id || null,
+          doctor_name: doctor_name || 'Doctor',
+          date: date,
+          time_slot: time_slot || null,
+          payment_method: payment_method || 'cash',
+          payment_status: payment_method === 'visa' ? 'paid' : 'pending',
+          fee: fee || 0,
+          notes: notes || null,
+          status: 'confirmed',
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-      global.bookings.push(booking);
+      if (error) {
+        console.error('Supabase insert error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to create booking: ' + error.message });
+      }
 
       res.status(201).json({ success: true, data: booking });
     } 
     else if (req.method === 'GET') {
-      const bookings = global.bookings.slice(-20).reverse();
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.error('Supabase query error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to fetch bookings' });
+      }
+
       res.status(200).json({ success: true, count: bookings.length, data: bookings });
     }
     else if (req.method === 'PATCH') {
       const { id } = req.query;
-      const booking = global.bookings.find(b => b._id === id);
-      if (!booking) {
+      
+      const { data: booking, error } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase update error:', error);
         return res.status(404).json({ success: false, message: 'Booking not found' });
       }
-      booking.status = 'cancelled';
+
       res.status(200).json({ success: true, data: booking });
     }
   } catch (err) {
+    console.error('Booking error:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 }

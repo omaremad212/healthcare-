@@ -1,7 +1,18 @@
-// api/dashboard.js - Vercel Serverless API
+// api/dashboard.js - Vercel Serverless API with Supabase
 
-global.chatbotResults = global.chatbotResults || [];
-global.bookings = global.bookings || [];
+const { supabase } = require('../../lib/supabase');
+
+// Helper to get user ID from token
+function getUserIdFromToken(authHeader) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  try {
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'secret123');
+    return decoded.id;
+  } catch (e) {
+    return null;
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -9,35 +20,77 @@ export default async function handler(req, res) {
   }
 
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const userId = getUserIdFromToken(authHeader);
+  
+  if (!userId) {
     return res.status(401).json({ success: false, message: 'Not authorized' });
   }
 
   try {
-    // Return mock dashboard data based on user role
-    // In production, this would fetch real user data from DB
-    const dashboardData = {
+    // Fetch user profile
+    const { data: users, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .limit(1);
+
+    if (userError || !users || users.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const user = users[0];
+
+    // Fetch latest chatbot result
+    const { data: results, error: resultsError } = await supabase
+      .from('chatbot_results')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const latestResult = results && results.length > 0 ? results[0] : null;
+
+    // Fetch chatbot history
+    const { data: history, error: historyError } = await supabase
+      .from('chatbot_results')
+      .select('id, status, risk_level, recommendation, health_score, bmi, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    // Fetch bookings
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    // Fetch orders
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    res.status(200).json({
       success: true,
       data: {
-        profile: {
-          id: 'user_1',
-          name: 'User',
-          email: 'user@example.com',
-          role: 'patient'
-        },
-        latestResult: global.chatbotResults.length > 0 ? global.chatbotResults[global.chatbotResults.length - 1] : null,
-        chatbotHistory: global.chatbotResults.slice(-5).reverse(),
-        bookings: global.bookings.slice(-10).reverse(),
+        profile: user,
+        latestResult,
+        chatbotHistory: history || [],
+        bookings: bookings || [],
+        orders: orders || [],
         stats: {
-          totalBookings: global.bookings.length,
-          totalOrders: 0,
-          assessments: global.chatbotResults.length
+          totalBookings: bookings ? bookings.length : 0,
+          totalOrders: orders ? orders.length : 0,
+          assessments: history ? history.length : 0
         }
       }
-    };
-
-    res.status(200).json(dashboardData);
+    });
   } catch (err) {
+    console.error('Dashboard error:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 }

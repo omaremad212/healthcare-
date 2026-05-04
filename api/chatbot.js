@@ -1,6 +1,6 @@
-// api/chatbot.js - Vercel Serverless API
+// api/chatbot.js - Vercel Serverless API with Supabase
 
-global.chatbotResults = global.chatbotResults || [];
+const { supabase } = require('../../lib/supabase');
 
 function calculateHealthScore(ans) {
   let score = 0;
@@ -65,14 +65,27 @@ function buildAdviceSummary(answers, status, riskLevel) {
   return tips.join(' | ');
 }
 
+// Helper to get user ID from token (simplified for demo)
+function getUserIdFromToken(authHeader) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  try {
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'secret123');
+    return decoded.id;
+  } catch (e) {
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   }
 
-  // Simple auth check (in production, use proper JWT verification)
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const userId = getUserIdFromToken(authHeader);
+  
+  if (!userId) {
     return res.status(401).json({ success: false, message: 'Not authorized' });
   }
 
@@ -98,20 +111,44 @@ export default async function handler(req, res) {
       const recommendation = determineRecommendation(answers, healthScore, bmi);
       const adviceSummary = buildAdviceSummary(answers, status, riskLevel);
 
-      const result = {
-        _id: 'result_' + Date.now(),
-        patient: 'patient_user',
-        answers,
-        healthScore,
-        status,
-        riskLevel,
-        bmi,
-        recommendation,
-        adviceSummary,
-        createdAt: new Date().toISOString(),
-      };
+      // Insert into Supabase
+      const { data: result, error } = await supabase
+        .from('chatbot_results')
+        .insert({
+          user_id: userId,
+          flow_type: answers.flowType,
+          sleep: answers.sleep,
+          water: answers.water,
+          headache: answers.headache,
+          pain_severity: answers.painSeverity,
+          symptoms: answers.symptoms,
+          temperature: answers.temperature,
+          breath_short: answers.breathShort,
+          duration: answers.duration,
+          health_goal: answers.healthGoal,
+          fitness_goal: answers.fitnessGoal,
+          train_freq: answers.trainFreq,
+          location: answers.location,
+          level: answers.level,
+          weight: answers.weight,
+          height: answers.height,
+          injury: answers.injury,
+          diet: answers.diet,
+          health_score: healthScore,
+          status: status,
+          risk_level: riskLevel,
+          bmi: bmi,
+          recommendation: recommendation,
+          advice_summary: adviceSummary,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-      global.chatbotResults.push(result);
+      if (error) {
+        console.error('Supabase insert error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to save result: ' + error.message });
+      }
 
       res.status(200).json({
         success: true,
@@ -122,15 +159,27 @@ export default async function handler(req, res) {
           bmi,
           recommendation,
           adviceSummary,
-          resultId: result._id,
+          resultId: result.id,
         },
       });
     } else {
       // GET - return history
-      const results = global.chatbotResults.slice(-10).reverse();
+      const { data: results, error } = await supabase
+        .from('chatbot_results')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Supabase query error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to fetch history' });
+      }
+
       res.status(200).json({ success: true, count: results.length, data: results });
     }
   } catch (err) {
+    console.error('Chatbot error:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 }
