@@ -7,7 +7,7 @@
 'use strict';
 
 // ── API Configuration ──────────────────────────────────────
-const API_BASE = 'http://localhost:5000'; // Change to your server URL in production
+const API_BASE = ''; // Empty for same-origin (Vercel) - uses /api/* paths
 
 /** Generic API helper — automatically attaches JWT if present */
 async function apiCall(method, path, body = null) {
