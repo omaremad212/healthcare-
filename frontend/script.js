@@ -230,6 +230,9 @@ async function handleAuth(event) {
 
   // Load latest plan for the user
   loadLatestPlan();
+  
+  // Hide landing sections after login
+  updateLandingSectionsVisibility();
 
   if (currentUser.role === 'doctor' || currentUser.role === 'coach') {
     showProfessionalDashboard();
@@ -1314,7 +1317,40 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('myBookingsOverlay').addEventListener('click', function(e) { if (e.target === this) closeMyBookings(); });
   document.getElementById('myOrdersOverlay').addEventListener('click',  function(e) { if (e.target === this) closeMyOrders(); });
   document.getElementById('planModal').addEventListener('click', function(e) { if (e.target === this) closePlanModal(); });
+  
+  // Initialize landing sections visibility based on login
+  updateLandingSectionsVisibility();
 });
+
+// ── Landing Sections Visibility ─────────────────────────────
+function updateLandingSectionsVisibility() {
+  const landingSections = document.getElementById('landing-sections');
+  if (!landingSections) return;
+  
+  if (currentUser.auth) {
+    landingSections.style.display = 'none';
+  } else {
+    landingSections.style.display = 'block';
+  }
+}
+
+// ── Testimonial Carousel ───────────────────────────────────
+let currentTestimonial = 0;
+const testimonialCards = 10;
+
+function nextTestimonial() {
+  const carousel = document.getElementById('testimonial-carousel');
+  if (!carousel) return;
+  currentTestimonial = (currentTestimonial + 1) % testimonialCards;
+  carousel.style.transform = `translateX(-${currentTestimonial * 380}px)`;
+}
+
+function prevTestimonial() {
+  const carousel = document.getElementById('testimonial-carousel');
+  if (!carousel) return;
+  currentTestimonial = (currentTestimonial - 1 + testimonialCards) % testimonialCards;
+  carousel.style.transform = `translateX(-${currentTestimonial * 380}px)`;
+}
 
 // ── Plans Functions ─────────────────────────────────────────
 let currentPlan = null;

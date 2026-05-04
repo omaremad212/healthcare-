@@ -687,13 +687,114 @@ footer { background: white; padding: 80px 8% 40px; border-top: 1px solid var(--g
     </div>
   </section>
 
+  <section id="landing-sections">
   <section id="why-us" class="why-us-section">
-    <h2 style="font-size: 2.5rem; font-weight: 800;">Why Healthcare?</h2>
+    <h2 style="font-size: 2.5rem; font-weight: 800;">Why choose HealthAI Pro?</h2>
+    <p style="color:var(--text-muted); max-width:700px; margin: 15px auto 40px; font-size:1.1rem;">
+      HealthAI Pro combines AI analysis, doctors, and fitness coaches to deliver personalized health and fitness plans.
+    </p>
     <div class="grid-layout">
-      <div class="glass-card"><i class="fa-solid fa-bolt"></i><h3>Fast Analysis</h3><p>Real-time health insights via AI engine.</p></div>
-      <div class="glass-card"><i class="fa-solid fa-user-shield"></i><h3>Secure</h3><p>Your data is 100% encrypted.</p></div>
-      <div class="glass-card"><i class="fa-solid fa-chart-line"></i><h3>Accuracy</h3><p>Neural pattern recognition for metrics.</p></div>
+      <div class="glass-card"><i class="fa-solid fa-robot"></i><h3>AI-Powered Assessment</h3><p>Real-time health & fitness insights via AI engine.</p></div>
+      <div class="glass-card"><i class="fa-solid fa-user-doctor"></i><h3>Personalized Treatment Plans</h3><p>Custom plans after doctor consultation.</p></div>
+      <div class="glass-card"><i class="fa-solid fa-dumbbell"></i><h3>Fitness & Nutrition Plans</h3><p>Custom workout and nutrition plans.</p></div>
+      <div class="glass-card"><i class="fa-solid fa-calendar-check"></i><h3>Easy Booking</h3><p>Book doctors & coaches easily.</p></div>
+      <div class="glass-card"><i class="fa-solid fa-shield-halved"></i><h3>Secure Data</h3><p>Secure user data with Supabase.</p></div>
+      <div class="glass-card"><i class="fa-solid fa-chart-line"></i><h3>Progress Tracking</h3><p>Track your progress from dashboard.</p></div>
     </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section id="stats-section" class="services-section" style="background: linear-gradient(135deg, #0077ff15, #00d4ff15);">
+    <div style="display:flex; justify-content:center; gap:60px; flex-wrap:wrap; margin-top:30px;">
+      <div style="text-align:center;"><div style="font-size:3rem; font-weight:800; color:var(--primary);">95%</div><div style="font-size:1rem; color:var(--text-muted);">Analysis Accuracy</div></div>
+      <div style="text-align:center;"><div style="font-size:3rem; font-weight:800; color:var(--primary);">5 min</div><div style="font-size:1rem; color:var(--text-muted);">Assessment Time</div></div>
+      <div style="text-align:center;"><div style="font-size:3rem; font-weight:800; color:var(--success);">200+</div><div style="font-size:1rem; color:var(--text-muted);">Doctors & Coaches</div></div>
+      <div style="text-align:center;"><div style="font-size:3rem; font-weight:800; color:var(--secondary);">AI</div><div style="font-size:1rem; color:var(--text-muted);">Powered Plans</div></div>
+    </div>
+  </section>
+
+  <!-- Testimonials Carousel -->
+  <section id="testimonials-section" class="why-us-section">
+    <h2 style="font-size: 2.5rem; font-weight: 800;">What Our Users Say</h2>
+    <div style="margin-top:40px; position:relative; overflow:hidden; padding:20px 0;">
+      <div id="testimonial-carousel" style="display:flex; transition:transform 0.5s ease;">
+        <div class="testimonial-card" style="min-width:350px; background:white; border-radius:20px; padding:30px; margin:0 15px; border:1px solid var(--glass-border);">
+          <div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
+          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"HealthAI Pro helped me understand my health condition and follow a clear plan after consultation."</p>
+          <div style="font-weight:700; color:var(--text-main);">Ahmed Mohamed</div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">Patient</div>
+        </div>
+        <div class="testimonial-card" style="min-width:350px; background:white; border-radius:20px; padding:30px; margin:0 15px; border:1px solid var(--glass-border);">
+          <div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
+          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"The AI assessment was quick, simple, and gave me useful next steps."</p>
+          <div style="font-weight:700; color:var(--text-main);">Sarah Johnson</div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">Patient</div>
+        </div>
+        <div class="testimonial-card" style="min-width:350px; background:white; border-radius:20px; padding:30px; margin:0 15px; border:1px solid var(--glass-border);">
+          <div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
+          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"The platform makes patient follow-up and treatment planning much more organized."</p>
+          <div style="font-weight:700; color:var(--text-main);">Dr. Sara Ahmed</div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">Doctor</div>
+        </div>
+        <div class="testimonial-card" style="min-width:350px; background:white; border-radius:20px; padding:30px; margin:0 15px; border:1px solid var(--glass-border);">
+          <div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
+          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"Personalized workout and nutrition plans help users stay committed to their goals."</p>
+          <div style="font-weight:700; color:var(--text-main);">Mohamed Ali</div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">Fitness Coach</div>
+        </div>
+        <div class="testimonial-card" style="min-width:350px; background:white; border-radius:20px; padding:30px; margin:0 15px; border:1px solid var(--glass-border);">
+          <div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
+          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"I liked having my bookings, orders, and plan all in one dashboard."</p>
+          <div style="font-weight:700; color:var(--text-main);">Omar Hassan</div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">Patient</div>
+        </div>
+        <div class="testimonial-card" style="min-width:350px; background:white; border-radius:20px; padding:30px; margin:0 15px; border:1px solid var(--glass-border);">
+          <div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
+          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"The treatment plan feature feels like having a digital prescription I can follow."</p>
+          <div style="font-weight:700; color:var(--text-main);">Lina Mostafa</div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">Patient</div>
+        </div>
+        <div class="testimonial-card" style="min-width:350px; background:white; border-radius:20px; padding:30px; margin:0 15px; border:1px solid var(--glass-border);">
+          <div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
+          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"The fitness plan gave me clear exercises, meals, and supplements to follow."</p>
+          <div style="font-weight:700; color:var(--text-main);">Karim Youssef</div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">Gym Trainee</div>
+        </div>
+        <div class="testimonial-card" style="min-width:350px; background:white; border-radius:20px; padding:30px; margin:0 15px; border:1px solid var(--glass-border);">
+          <div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
+          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"Booking a doctor was easy, and the follow-up plan was very helpful."</p>
+          <div style="font-weight:700; color:var(--text-main);">Nour Adel</div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">Patient</div>
+        </div>
+        <div class="testimonial-card" style="min-width:350px; background:white; border-radius:20px; padding:30px; margin:0 15px; border:1px solid var(--glass-border);">
+          <div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
+          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"The coach flow makes it easier to guide users whether they train at home or in the gym."</p>
+          <div style="font-weight:700; color:var(--text-main);">Hany Samir</div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">Coach</div>
+        </div>
+        <div class="testimonial-card" style="min-width:350px; background:white; border-radius:20px; padding:30px; margin:0 15px; border:1px solid var(--glass-border);">
+          <div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
+          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"The interface is clean, and the health journey feels simple from signup to plan."</p>
+          <div style="font-weight:700; color:var(--text-main);">Mariam Khaled</div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">Patient</div>
+        </div>
+      </div>
+      <div style="text-align:center; margin-top:20px;">
+        <button onclick="prevTestimonial()" style="background:var(--primary); color:white; border:none; width:40px; height:40px; border-radius:50%; cursor:pointer; margin:0 10px;"><i class="fa-solid fa-chevron-left"></i></button>
+        <button onclick="nextTestimonial()" style="background:var(--primary); color:white; border:none; width:40px; height:40px; border-radius:50%; cursor:pointer; margin:0 10px;"><i class="fa-solid fa-chevron-right"></i></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section id="cta-section" style="background:linear-gradient(135deg, var(--primary), var(--secondary)); padding:80px 8%; text-align:center;">
+    <h2 style="font-size:2.5rem; font-weight:800; color:white; margin-bottom:20px;">Start your health journey today</h2>
+    <p style="color:rgba(255,255,255,0.9); font-size:1.1rem; max-width:600px; margin:0 auto 30px;">
+      Join HealthAI Pro and get an AI-powered assessment with a personalized health or fitness plan.
+    </p>
+    <button class="btn-glow" onclick="openModal('signup')" style="background:white; color:var(--primary); font-size:1.1rem; padding:1rem 2.5rem;">
+      Sign Up for Free <i class="fa-solid fa-arrow-right"></i>
+    </button>
   </section>
 
   <section id="services" class="services-section">
@@ -724,6 +825,7 @@ footer { background: white; padding: 80px 8% 40px; border-top: 1px solid var(--g
       </div>
     </div>
   </section>
+</section>
 </main>
 
 <!-- BOOK DOCTOR VIEW (landing page section) -->
