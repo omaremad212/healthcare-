@@ -4,14 +4,14 @@ const { supabase } = require('../../lib/supabase');
 
 function calculateHealthScore(ans) {
   let score = 0;
-  if (Number(ans.sleep) < 5) score += 2;
-  if (ans.water === 'no') score += 1;
-  if (ans.headache === 'yes') score += 2;
-  if (ans.symptoms === 'fever') score += 3;
-  if (ans.temperature === 'yes') score += 2;
-  if (ans.duration === 'more3') score += 2;
-  if (ans.painSeverity === 'severe') score += 3;
-  if (ans.breathShort === 'yes') score += 3;
+  if (ans && Number(ans.sleep) < 5) score += 2;
+  if (ans && ans.water === 'no') score += 1;
+  if (ans && ans.headache === 'yes') score += 2;
+  if (ans && ans.symptoms === 'fever') score += 3;
+  if (ans && ans.temperature === 'yes') score += 2;
+  if (ans && ans.duration === 'more3') score += 2;
+  if (ans && ans.painSeverity === 'severe') score += 3;
+  if (ans && ans.breathShort === 'yes') score += 3;
   return score;
 }
 
@@ -28,6 +28,8 @@ function calcBMI(weight, height) {
 }
 
 function determineRecommendation(answers, score, bmi) {
+  if (!answers) return 'none';
+  
   let needsDoctor = false;
   let needsCoach = false;
 
@@ -50,7 +52,9 @@ function determineRecommendation(answers, score, bmi) {
   return 'none';
 }
 
-function buildAdviceSummary(answers, status, riskLevel) {
+function buildAdviceSummary(answers, status) {
+  if (!answers) return 'No advice available';
+  
   const tips = [];
   if (Number(answers.sleep) < 5) tips.push('Improve your sleep — aim for 7-8 hours.');
   if (answers.water === 'no') tips.push('Drink at least 2 litres of water daily.');
@@ -65,7 +69,6 @@ function buildAdviceSummary(answers, status, riskLevel) {
   return tips.join(' | ');
 }
 
-// Helper to get user ID from token (simplified for demo)
 function getUserIdFromToken(authHeader) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   try {
@@ -78,108 +81,112 @@ function getUserIdFromToken(authHeader) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST' && req.method !== 'GET') {
-    return res.status(405).json({ success: false, message: 'Method not allowed' });
-  }
-
-  const authHeader = req.headers.authorization;
-  const userId = getUserIdFromToken(authHeader);
-  
-  if (!userId) {
-    return res.status(401).json({ success: false, message: 'Not authorized' });
-  }
-
   try {
-    if (req.method === 'POST') {
-      const answers = req.body;
-      let healthScore = 0;
-      let status = 'Stable';
-      let riskLevel = 'Low';
-      let bmi = null;
-
-      if (answers.flowType === 'health') {
-        healthScore = calculateHealthScore(answers);
-        ({ status, riskLevel } = calculateStatus(healthScore));
-      } else {
-        bmi = calcBMI(answers.weight, answers.height);
-        if (bmi && bmi >= 30) riskLevel = 'High';
-        else if (bmi && bmi >= 25) riskLevel = 'Medium';
-        else riskLevel = 'Low';
-        status = 'Active';
-      }
-
-      const recommendation = determineRecommendation(answers, healthScore, bmi);
-      const adviceSummary = buildAdviceSummary(answers, status, riskLevel);
-
-      // Insert into Supabase
-      const { data: result, error } = await supabase
-        .from('chatbot_results')
-        .insert({
-          user_id: userId,
-          flow_type: answers.flowType,
-          sleep: answers.sleep,
-          water: answers.water,
-          headache: answers.headache,
-          pain_severity: answers.painSeverity,
-          symptoms: answers.symptoms,
-          temperature: answers.temperature,
-          breath_short: answers.breathShort,
-          duration: answers.duration,
-          health_goal: answers.healthGoal,
-          fitness_goal: answers.fitnessGoal,
-          train_freq: answers.trainFreq,
-          location: answers.location,
-          level: answers.level,
-          weight: answers.weight,
-          height: answers.height,
-          injury: answers.injury,
-          diet: answers.diet,
-          health_score: healthScore,
-          status: status,
-          risk_level: riskLevel,
-          bmi: bmi,
-          recommendation: recommendation,
-          advice_summary: adviceSummary,
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Supabase insert error:', error);
-        return res.status(500).json({ success: false, message: 'Failed to save result: ' + error.message });
-      }
-
-      res.status(200).json({
-        success: true,
-        data: {
-          healthScore,
-          status,
-          riskLevel,
-          bmi,
-          recommendation,
-          adviceSummary,
-          resultId: result.id,
-        },
+    // GET - return health/status response
+    if (req.method === 'GET') {
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Chatbot API is running',
+        endpoints: {
+          GET: 'Returns this status message',
+          POST: 'Submit health/fitness assessment answers'
+        }
       });
-    } else {
-      // GET - return history
-      const { data: results, error } = await supabase
-        .from('chatbot_results')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) {
-        console.error('Supabase query error:', error);
-        return res.status(500).json({ success: false, message: 'Failed to fetch history' });
-      }
-
-      res.status(200).json({ success: true, count: results.length, data: results });
     }
+
+    // POST - handle assessment
+    if (req.method !== 'POST') {
+      return res.status(405).json({ success: false, message: 'Method not allowed' });
+    }
+
+    const authHeader = req.headers.authorization;
+    const userId = getUserIdFromToken(authHeader);
+    
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Not authorized - no valid token' });
+    }
+
+    // Validate request body
+    const answers = req.body;
+    if (!answers || typeof answers !== 'object') {
+      return res.status(400).json({ success: false, message: 'Invalid request body - expected object' });
+    }
+
+    let healthScore = 0;
+    let status = 'Stable';
+    let riskLevel = 'Low';
+    let bmi = null;
+
+    if (answers.flowType === 'health') {
+      healthScore = calculateHealthScore(answers);
+      const result = calculateStatus(healthScore);
+      status = result.status;
+      riskLevel = result.riskLevel;
+    } else {
+      bmi = calcBMI(answers.weight, answers.height);
+      if (bmi && bmi >= 30) riskLevel = 'High';
+      else if (bmi && bmi >= 25) riskLevel = 'Medium';
+      else riskLevel = 'Low';
+      status = 'Active';
+    }
+
+    const recommendation = determineRecommendation(answers, healthScore, bmi);
+    const adviceSummary = buildAdviceSummary(answers, status);
+
+    // Insert into Supabase - match exact column names from schema
+    const { data: result, error } = await supabase
+      .from('chatbot_results')
+      .insert({
+        user_id: userId,
+        flow_type: answers.flowType || null,
+        sleep: answers.sleep || null,
+        water: answers.water || null,
+        headache: answers.headache || null,
+        pain_severity: answers.painSeverity || null,
+        symptoms: answers.symptoms || null,
+        temperature: answers.temperature || null,
+        breath_short: answers.breathShort || null,
+        duration: answers.duration || null,
+        health_goal: answers.healthGoal || null,
+        fitness_goal: answers.fitnessGoal || null,
+        train_freq: answers.trainFreq || null,
+        location: answers.location || null,
+        level: answers.level || null,
+        weight: answers.weight || null,
+        height: answers.height || null,
+        injury: answers.injury || null,
+        diet: answers.diet || null,
+        health_score: healthScore,
+        status: status,
+        risk_level: riskLevel,
+        bmi: bmi,
+        recommendation: recommendation,
+        advice_summary: adviceSummary,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase insert error:', error);
+      return res.status(500).json({ success: false, message: 'Failed to save result: ' + error.message });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        healthScore,
+        status,
+        riskLevel,
+        bmi,
+        recommendation,
+        adviceSummary,
+        resultId: result.id,
+      },
+    });
+
   } catch (err) {
     console.error('Chatbot error:', err);
-    res.status(500).json({ success: false, message: err.message });
+    return res.status(500).json({ success: false, message: err.message || 'Internal server error' });
   }
 }

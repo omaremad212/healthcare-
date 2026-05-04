@@ -391,7 +391,18 @@ function handleDashboardNavigation() {
 
 function toggleChat() {
   const chat = document.getElementById('chat-ui');
+  const stream = document.getElementById('chat-stream');
+  
+  // Show/hide chat
   chat.style.display = (chat.style.display === 'flex') ? 'none' : 'flex';
+  
+  // If chat is now visible, has messages, and user is logged in - start conversation
+  if (chat.style.display === 'flex' && currentUser.auth && stream.children.length === 0) {
+    currentStep = 0;
+    flowType = '';
+    chatSubFlow = '';
+    askNextQuestion();
+  }
 }
 
 // ── Products — load from API ────────────────────────────────
