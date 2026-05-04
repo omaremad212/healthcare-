@@ -688,28 +688,47 @@ footer { background: white; padding: 80px 8% 40px; border-top: 1px solid var(--g
   </section>
 
   <section id="landing-sections">
+  <section id="services" class="services-section">
+    <h2 style="font-size: 2.5rem; font-weight: 800;">Our Services</h2>
+    <p style="color:var(--text-muted); max-width:600px; margin: 12px auto 0; font-size:1rem;">
+      A data-driven healthcare platform that combines smart analysis with real medical and fitness support — all in one place.
+    </p>
+    <div class="grid-layout" style="margin-top:40px;">
+      <div class="glass-card" style="background: white;">
+        <i class="fa-solid fa-robot"></i>
+        <h3>Smart Chatbot</h3>
+        <p>Collects your data and provides an instant health assessment.</p>
+      </div>
+      <div class="glass-card" style="background: white; cursor:pointer;" onclick="showBookDoctor()">
+        <i class="fa-solid fa-user-doctor"></i>
+        <h3>Doctor Consultation</h3>
+        <p>Book instantly with top-rated doctors across all specializations.</p>
+      </div>
+      <div class="glass-card" style="background: white;">
+        <i class="fa-solid fa-dumbbell"></i>
+        <h3>Health Coaching</h3>
+        <p>Personalized fitness and nutrition plans with continuous follow-up.</p>
+      </div>
+      <div class="glass-card" style="background: white;">
+        <i class="fa-solid fa-capsules"></i>
+        <h3>Store</h3>
+        <p>Buy recommended supplements and medications.</p>
+      </div>
+    </div>
+  </section>
+
   <section id="why-us" class="why-us-section">
     <h2 style="font-size: 2.5rem; font-weight: 800;">Why choose HealthAI Pro?</h2>
     <p style="color:var(--text-muted); max-width:700px; margin: 15px auto 40px; font-size:1.1rem;">
       HealthAI Pro combines AI analysis, doctors, and fitness coaches to deliver personalized health and fitness plans.
     </p>
-    <div class="grid-layout">
+    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:25px; max-width:1100px; margin:0 auto;">
       <div class="glass-card"><i class="fa-solid fa-robot"></i><h3>AI-Powered Assessment</h3><p>Real-time health & fitness insights via AI engine.</p></div>
       <div class="glass-card"><i class="fa-solid fa-user-doctor"></i><h3>Personalized Treatment Plans</h3><p>Custom plans after doctor consultation.</p></div>
       <div class="glass-card"><i class="fa-solid fa-dumbbell"></i><h3>Fitness & Nutrition Plans</h3><p>Custom workout and nutrition plans.</p></div>
       <div class="glass-card"><i class="fa-solid fa-calendar-check"></i><h3>Easy Booking</h3><p>Book doctors & coaches easily.</p></div>
       <div class="glass-card"><i class="fa-solid fa-shield-halved"></i><h3>Secure Data</h3><p>Secure user data with Supabase.</p></div>
       <div class="glass-card"><i class="fa-solid fa-chart-line"></i><h3>Progress Tracking</h3><p>Track your progress from dashboard.</p></div>
-    </div>
-  </section>
-
-  <!-- Stats Section -->
-  <section id="stats-section" class="services-section" style="background: linear-gradient(135deg, #0077ff15, #00d4ff15);">
-    <div style="display:flex; justify-content:center; gap:60px; flex-wrap:wrap; margin-top:30px;">
-      <div style="text-align:center;"><div style="font-size:3rem; font-weight:800; color:var(--primary);">95%</div><div style="font-size:1rem; color:var(--text-muted);">Analysis Accuracy</div></div>
-      <div style="text-align:center;"><div style="font-size:3rem; font-weight:800; color:var(--primary);">5 min</div><div style="font-size:1rem; color:var(--text-muted);">Assessment Time</div></div>
-      <div style="text-align:center;"><div style="font-size:3rem; font-weight:800; color:var(--success);">200+</div><div style="font-size:1rem; color:var(--text-muted);">Doctors & Coaches</div></div>
-      <div style="text-align:center;"><div style="font-size:3rem; font-weight:800; color:var(--secondary);">AI</div><div style="font-size:1rem; color:var(--text-muted);">Powered Plans</div></div>
     </div>
   </section>
 
@@ -786,8 +805,8 @@ footer { background: white; padding: 80px 8% 40px; border-top: 1px solid var(--g
     </div>
   </section>
 
-  <!-- CTA Section -->
-  <section id="cta-section" style="background:linear-gradient(135deg, var(--primary), var(--secondary)); padding:80px 8%; text-align:center;">
+  <!-- CTA Section (logged-out only) -->
+  <section id="cta-section-logged-out" style="background:linear-gradient(135deg, var(--primary), var(--secondary)); padding:80px 8%; text-align:center;">
     <h2 style="font-size:2.5rem; font-weight:800; color:white; margin-bottom:20px;">Start your health journey today</h2>
     <p style="color:rgba(255,255,255,0.9); font-size:1.1rem; max-width:600px; margin:0 auto 30px;">
       Join HealthAI Pro and get an AI-powered assessment with a personalized health or fitness plan.
@@ -795,35 +814,6 @@ footer { background: white; padding: 80px 8% 40px; border-top: 1px solid var(--g
     <button class="btn-glow" onclick="openModal('signup')" style="background:white; color:var(--primary); font-size:1.1rem; padding:1rem 2.5rem;">
       Sign Up for Free <i class="fa-solid fa-arrow-right"></i>
     </button>
-  </section>
-
-  <section id="services" class="services-section">
-    <h2 style="font-size: 2.5rem; font-weight: 800;">Our Services</h2>
-    <p style="color:var(--text-muted); max-width:600px; margin: 12px auto 0; font-size:1rem;">
-      A data-driven healthcare platform that combines smart analysis with real medical and fitness support — all in one place.
-    </p>
-    <div class="grid-layout" style="margin-top:40px;">
-      <div class="glass-card" style="background: white;">
-        <i class="fa-solid fa-robot"></i>
-        <h3>Smart Chatbot</h3>
-        <p>Collects your data and provides an instant health assessment.</p>
-      </div>
-      <div class="glass-card" style="background: white; cursor:pointer;" onclick="showBookDoctor()">
-        <i class="fa-solid fa-user-doctor"></i>
-        <h3>Doctor Consultation</h3>
-        <p>Book instantly with top-rated doctors across all specializations.</p>
-      </div>
-      <div class="glass-card" style="background: white;">
-        <i class="fa-solid fa-dumbbell"></i>
-        <h3>Health Coaching</h3>
-        <p>Personalized fitness and nutrition plans with continuous follow-up.</p>
-      </div>
-      <div class="glass-card" style="background: white;">
-        <i class="fa-solid fa-capsules"></i>
-        <h3>Store</h3>
-        <p>Buy recommended supplements and medications.</p>
-      </div>
-    </div>
   </section>
 </section>
 </main>

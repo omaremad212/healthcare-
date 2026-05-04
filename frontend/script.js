@@ -72,6 +72,8 @@ function restoreSession() {
     document.getElementById('nav-shop-link').style.display = 'block';
     document.getElementById('menuShopItem').style.display  = 'flex';
   }
+  // Hide logged-out CTA section
+  updateLandingSectionsVisibility();
 }
 
 // ── Health Score Helpers (mirrors backend logic) ───────────
@@ -1324,13 +1326,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── Landing Sections Visibility ─────────────────────────────
 function updateLandingSectionsVisibility() {
-  const landingSections = document.getElementById('landing-sections');
-  if (!landingSections) return;
+  // Keep home page visible, only hide the logged-out CTA section
+  const ctaSection = document.getElementById('cta-section-logged-out');
+  if (!ctaSection) return;
   
   if (currentUser.auth) {
-    landingSections.style.display = 'none';
+    ctaSection.style.display = 'none';
   } else {
-    landingSections.style.display = 'block';
+    ctaSection.style.display = 'block';
   }
 }
 
