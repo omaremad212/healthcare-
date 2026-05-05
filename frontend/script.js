@@ -718,6 +718,9 @@ function setSkipDashboard(location) {
   });
   if (location === 'gym') injectGymDashSection();
   else injectHomeDashSection();
+  
+  // Generate fitness plan after skip flow
+  generateFitnessPlan(currentUser?.name || 'User', location, answers.fitnessGoal || 'general');
 }
 
 // ── Append Message ──────────────────────────────────────────
@@ -1137,6 +1140,11 @@ async function selectPayment(method) {
       const booking = result.data.data;
       console.log('[selectPayment] Booking saved to Supabase:', booking);
       await loadBookings(); // Refresh from API
+      
+      // Generate treatment plan after doctor booking
+      if (!isShop && currentPayDoc) {
+        await generateTreatmentPlan(currentPayDoc, currentUser?.name || 'Patient');
+      }
     } else {
       console.error('[selectPayment] Booking API failed:', result.data?.message);
       alert('Booking failed: ' + (result.data?.message || 'Unknown error'));
@@ -1346,6 +1354,9 @@ async function finalize() {
       document.getElementById('doctors-section').style.display = 'none';
       if (answers.location === 'gym')  injectGymDashSection();
       else if (answers.location === 'home') injectHomeDashSection();
+
+      // Generate fitness plan after full flow
+      await generateFitnessPlan(currentUser?.name || 'User', answers.location, answers.fitnessGoal);
 
       await apiCall('POST', '/chatbot', answers);
     }
@@ -1827,10 +1838,11 @@ const result = await apiCall('POST', '/plans', planData);
     currentPlan = result.data.data;
     showPlanInMenu(currentPlan);
     showDashboardPlan(currentPlan);
+    await loadLatestPlan();
   } else {
     const errMsg = result.data?.message || result.data?.details || 'Unknown error';
     console.error('[generateTreatmentPlan] Failed to save plan:', errMsg);
-    alert('Failed to save treatment plan: ' + errMsg);
+    // Still display currentPlan since it's already set above
   }
 }
 
@@ -2056,9 +2068,9 @@ const result = await apiCall('POST', '/plans', planData);
     currentPlan = result.data.data;
     showPlanInMenu(currentPlan);
     showDashboardPlan(currentPlan);
+    await loadLatestPlan();
   } else {
     const errMsg = result.data?.message || result.data?.details || 'Unknown error';
     console.error('[generateFitnessPlan] Failed to save plan:', errMsg);
-    alert('Failed to save fitness plan: ' + errMsg);
   }
 }
