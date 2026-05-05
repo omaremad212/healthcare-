@@ -116,6 +116,8 @@ CREATE TABLE IF NOT EXISTS plans (
   instructions TEXT,
   follow_up TEXT,
   lifestyle_tips TEXT,
+  workout_location TEXT,
+  goal TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

@@ -79,36 +79,43 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const { 
         type, title, patientName, summary, exercises, dietPlan, 
-        supplements, medicines, instructions, followUp, lifestyleTips 
+        supplements, medicines, instructions, followUp, lifestyleTips,
+        workoutLocation, goal
       } = req.body;
 
       if (!type || !title) {
         return res.status(400).json({ success: false, message: 'Type and title are required' });
       }
 
+      const insertPayload = {
+        user_id: userId,
+        type: type,
+        title: title,
+        patient_name: patientName || null,
+        summary: summary || null,
+        exercises: exercises ? JSON.stringify(exercises) : null,
+        diet_plan: dietPlan || null,
+        supplements: supplements || null,
+        medicines: medicines || null,
+        instructions: instructions || null,
+        follow_up: followUp || null,
+        lifestyle_tips: lifestyleTips || null,
+        workout_location: workoutLocation || null,
+        goal: goal || null,
+        created_at: new Date().toISOString()
+      };
+
+      console.log('[plans] Insert payload:', JSON.stringify(insertPayload, null, 2));
+
       const { data: plan, error } = await supabase
         .from('plans')
-        .insert({
-          user_id: userId,
-          type: type,
-          title: title,
-          patient_name: patientName || null,
-          summary: summary || null,
-          exercises: exercises ? JSON.stringify(exercises) : null,
-          diet_plan: dietPlan || null,
-          supplements: supplements || null,
-          medicines: medicines || null,
-          instructions: instructions || null,
-          follow_up: followUp || null,
-          lifestyle_tips: lifestyleTips || null,
-          created_at: new Date().toISOString()
-        })
+        .insert(insertPayload)
         .select()
         .single();
 
       if (error) {
-        console.error('Supabase insert error:', error);
-        return res.status(500).json({ success: false, message: 'Failed to create plan: ' + error.message });
+        console.error('[plans] Supabase insert error details:', JSON.stringify(error, null, 2));
+        return res.status(500).json({ success: false, message: error.message, details: error });
       }
 
       res.status(201).json({ success: true, data: plan });

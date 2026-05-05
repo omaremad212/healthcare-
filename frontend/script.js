@@ -1507,8 +1507,12 @@ async function generateFitnessPlanWithDetails() {
       supplements: trainGoal === 'muscle' ? '• Whey Protein\n• Creatine 5g\n• Multivitamin' : trainGoal === 'fatloss' ? '• L-Carnitine\n• Fat Burner\n• Electrolytes' : '• Multivitamin\n• Fish Oil',
       instructions: '• Follow the weekly schedule\n• Rest on rest days\n• Stay hydrated\n• Track your progress',
       followUp: 'Weekly progress check-in',
-      lifestyleTips: '• Sleep 7-8 hours\n• Consistency is key\n• Progressive overload'
+      lifestyleTips: '• Sleep 7-8 hours\n• Consistency is key\n• Progressive overload',
+      workoutLocation: location,
+      goal: trainGoal
     };
+    
+    console.log('[Fitness] Saving plan data:', JSON.stringify(planData));
     
     // Save to Supabase with error handling
     try {
