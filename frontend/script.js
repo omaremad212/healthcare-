@@ -1433,6 +1433,9 @@ const result = await apiCall('POST', '/plans', planData);
   if (result.ok && result.data) {
     currentPlan = result.data;
     showPlanInMenu(result.data);
+  } else {
+    console.error('[generateTreatmentPlan] Failed to save plan:', result.data?.message || result.data);
+    alert('Failed to save treatment plan: ' + (result.data?.message || 'Unknown error'));
   }
 }
 
@@ -1521,13 +1524,15 @@ async function generateFitnessPlanWithDetails() {
         currentPlan = result.data;
         showPlanInMenu(result.data);
       } else {
-        throw new Error(result.message || 'Failed to save plan');
+        const errMsg = result.data?.message || result.data?.details || 'Failed to save plan';
+        console.error('[Fitness] Plan save error:', errMsg);
+        throw new Error(errMsg);
       }
     } catch (err) {
-      console.error('Plan save error:', err);
+      console.error('Plan save error:', err.message);
       const errorMsg = document.createElement('div');
       errorMsg.style.cssText = 'background:#fff0f0; border:1px solid #ff4444; color:#cc0000; padding:12px; border-radius:10px; margin:10px 0; font-size:0.85rem;';
-      errorMsg.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Could not save plan to database. Your plan is still displayed above.';
+      errorMsg.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Could not save plan: ' + err.message + '. Your plan is still displayed above.';
       stream.appendChild(errorMsg);
     }
     
@@ -1650,9 +1655,12 @@ async function generateFitnessPlan(userName, location, fitnessGoal) {
     lifestyleTips: '• Sleep 7-8 hours\n• Track your meals\n• Consistency is key\n• Listen to your body'
   };
   
-  const result = await apiCall('POST', '/plans', planData);
+const result = await apiCall('POST', '/plans', planData);
   if (result.ok && result.data) {
     currentPlan = result.data;
     showPlanInMenu(result.data);
+  } else {
+    console.error('[generateFitnessPlan] Failed to save plan:', result.data?.message || result.data);
+    alert('Failed to save fitness plan: ' + (result.data?.message || 'Unknown error'));
   }
 }

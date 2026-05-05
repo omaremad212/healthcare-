@@ -15,18 +15,19 @@ function getUserIdFromToken(authHeader) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET' && req.method !== 'POST') {
-    return res.status(405).json({ success: false, message: 'Method not allowed' });
-  }
-
-  const authHeader = req.headers.authorization;
-  const userId = getUserIdFromToken(authHeader);
-  
-  if (!userId) {
-    return res.status(401).json({ success: false, message: 'Not authorized' });
-  }
+  res.setHeader('Content-Type', 'application/json');
 
   try {
+    if (req.method !== 'GET' && req.method !== 'POST') {
+      return res.status(405).json({ success: false, message: 'Method not allowed' });
+    }
+
+    const authHeader = req.headers.authorization;
+    const userId = getUserIdFromToken(authHeader);
+    
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
     // GET /api/plans?type=latest|history
     if (req.method === 'GET') {
       const type = req.query.type || 'latest';
@@ -48,8 +49,8 @@ export default async function handler(req, res) {
         const { data: plans, error } = await query;
         
         if (error) {
-          console.error('Supabase query error:', error);
-          return res.status(500).json({ success: false, message: 'Failed to fetch plan' });
+          console.error('[plans] Supabase fetch error:', error.message);
+          return res.status(500).json({ success: false, message: error.message || 'Failed to fetch plan' });
         }
         
         if (!plans || plans.length === 0) {
@@ -67,8 +68,8 @@ export default async function handler(req, res) {
           .limit(20);
         
         if (error) {
-          console.error('Supabase query error:', error);
-          return res.status(500).json({ success: false, message: 'Failed to fetch history' });
+          console.error('[plans] Supabase history error:', error.message);
+          return res.status(500).json({ success: false, message: error.message || 'Failed to fetch history' });
         }
         
         return res.status(200).json({ success: true, count: plans.length, data: plans });
@@ -85,6 +86,11 @@ export default async function handler(req, res) {
 
       if (!type || !title) {
         return res.status(400).json({ success: false, message: 'Type and title are required' });
+      }
+
+      const validTypes = ['treatment', 'fitness'];
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({ success: false, message: 'Type must be either "treatment" or "fitness"' });
       }
 
       const insertPayload = {
@@ -114,14 +120,19 @@ export default async function handler(req, res) {
         .single();
 
       if (error) {
-        console.error('[plans] Supabase insert error details:', JSON.stringify(error, null, 2));
-        return res.status(500).json({ success: false, message: error.message, details: error });
+        console.error('[plans] Supabase insert error:', error.message, error.details, error.hint);
+        return res.status(500).json({ 
+          success: false, 
+          message: error.message || 'Database error',
+          details: error.details || null,
+          hint: error.hint || null
+        });
       }
 
       res.status(201).json({ success: true, data: plan });
     }
   } catch (err) {
-    console.error('Plans error:', err);
-    res.status(500).json({ success: false, message: err.message });
+    console.error('[plans] Unexpected error:', err.message, err.stack);
+    res.status(500).json({ success: false, message: err.message || 'Internal server error' });
   }
 }
