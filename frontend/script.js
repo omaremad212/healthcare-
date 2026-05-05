@@ -247,11 +247,34 @@ async function confirmBooking() {
   const time = document.getElementById('bookTime').value;
   if (!date || !time) { alert('Please select a date and time.'); return; }
 
-  const bookings = getStoredBookings();
-  bookings.push({ doctor: 'Dr. Essam Mark', date, time, savedAt: new Date().toISOString() });
-  saveStoredBookings(bookings);
-  alert(`Appointment Confirmed with Dr. Essam Mark for ${date} at ${time}.`);
-  closeModal();
+  const selectedDoctor = window.selectedDoctor || { id: null, name: 'Dr. Essam Mark' };
+  const bookingData = {
+    doctor_id: selectedDoctor.id || null,
+    doctor_name: selectedDoctor.name || 'Doctor',
+    date: date,
+    time_slot: time,
+    payment_method: 'cash',
+    fee: 0,
+    notes: null
+  };
+
+  console.log('[confirmBooking] Sending booking payload:', JSON.stringify(bookingData, null, 2));
+
+  const result = await apiCall('POST', '/booking', bookingData);
+  console.log('[confirmBooking] Response:', result);
+
+  if (result.ok && result.data && result.data.success) {
+    const booking = result.data.data;
+    const bookings = getStoredBookings();
+    bookings.unshift(booking);
+    saveStoredBookings(bookings);
+    alert(`Appointment Confirmed with ${booking.doctor_name || 'Doctor'} for ${date} at ${time}.`);
+    closeModal();
+  } else {
+    const errMsg = result.data?.message || 'Failed to save booking';
+    console.error('[confirmBooking] Error:', errMsg);
+    alert('Booking failed: ' + errMsg);
+  }
 }
 
 function closeModal() { document.getElementById('authModal').style.display = 'none'; }
@@ -1097,20 +1120,31 @@ async function selectPayment(method) {
   const isShop = currentPayDoc === 'Shop Order';
 
   if (!isShop && currentPayDoc && currentPaySlot) {
-    // Try to save booking to API
-    const result = await apiCall('POST', '/booking', {
-      targetId:      null, // no DB doctor ID in frontend-only static data
-      targetType:    'doctor',
-      date:          'Today',
-      timeSlot:      currentPaySlot,
-      paymentMethod: method,
-      fee:           currentPayPrice,
-      notes:         `Booked with ${currentPayDoc}`,
-    });
-    // Also save locally as fallback
-    const bookings = getStoredBookings();
-    bookings.push({ doctor: currentPayDoc, date: 'Today', time: currentPaySlot, price: currentPayPrice, method, savedAt: new Date().toISOString() });
-    saveStoredBookings(bookings);
+    const bookingData = {
+      doctor_name: currentPayDoc,
+      date: new Date().toISOString().split('T')[0],
+      time_slot: currentPaySlot,
+      payment_method: method,
+      fee: parseInt(currentPayPrice) || 0,
+      notes: `Booked with ${currentPayDoc}`
+    };
+    console.log('[selectPayment] Saving booking:', JSON.stringify(bookingData, null, 2));
+    
+    const result = await apiCall('POST', '/booking', bookingData);
+    console.log('[selectPayment] Booking response:', result);
+    
+    if (result.ok && result.data && result.data.success) {
+      const booking = result.data.data;
+      const bookings = getStoredBookings();
+      bookings.unshift(booking);
+      saveStoredBookings(bookings);
+      console.log('[selectPayment] Booking saved to Supabase:', booking);
+    } else {
+      console.error('[selectPayment] Booking API failed:', result.data?.message);
+    }
+  } else {
+    // Refresh bookings from API for any payment method
+    await refreshBookingsFromAPI();
   }
 
   document.getElementById('pay-step-1').style.display = 'none';
@@ -1156,6 +1190,29 @@ async function submitVisa() {
     cart.forEach(item => orders.push({ name: item.name, price: item.price, qty: item.qty, savedAt: new Date().toISOString() }));
     saveStoredOrders(orders);
     cart = []; updateCartBar();
+  } else if (currentPayDoc !== '') {
+    // Save doctor booking via API
+    const bookingData = {
+      doctor_name: currentPayDoc,
+      date: new Date().toISOString().split('T')[0],
+      time_slot: currentPaySlot,
+      payment_method: 'visa',
+      fee: currentPayPrice,
+      notes: null
+    };
+    console.log('[paymentVisaConfirm] Saving booking:', JSON.stringify(bookingData, null, 2));
+    const bookingResult = await apiCall('POST', '/booking', bookingData);
+    if (bookingResult.ok && bookingResult.data && bookingResult.data.success) {
+      const booking = bookingResult.data.data;
+      const bookings = getStoredBookings();
+      bookings.unshift(booking);
+      saveStoredBookings(bookings);
+      console.log('[paymentVisaConfirm] Booking saved:', booking);
+    } else {
+      console.error('[paymentVisaConfirm] Booking failed:', bookingResult.data?.message);
+    }
+  } else {
+    await refreshBookingsFromAPI();
   }
 
   document.getElementById('pay-step-visa').style.display = 'none';
@@ -1330,6 +1387,14 @@ function getStoredBookings() { try { return JSON.parse(localStorage.getItem('hc_
 function saveStoredBookings(arr) { localStorage.setItem('hc_bookings', JSON.stringify(arr)); }
 function getStoredOrders() { try { return JSON.parse(localStorage.getItem('hc_orders') || '[]'); } catch { return []; } }
 function saveStoredOrders(arr) { localStorage.setItem('hc_orders', JSON.stringify(arr)); }
+
+async function refreshBookingsFromAPI() {
+  const result = await apiCall('GET', '/booking');
+  if (result.ok && result.data && result.data.success && result.data.data) {
+    saveStoredBookings(result.data.data);
+    console.log('[refreshBookingsFromAPI] Bookings refreshed:', result.data.data.length);
+  }
+}
 
 // ── My Bookings UI ───────────────────────────────────────────
 function openMyBookings() {
