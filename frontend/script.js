@@ -1135,16 +1135,15 @@ async function selectPayment(method) {
     
     if (result.ok && result.data && result.data.success) {
       const booking = result.data.data;
-      const bookings = getStoredBookings();
-      bookings.unshift(booking);
-      saveStoredBookings(bookings);
       console.log('[selectPayment] Booking saved to Supabase:', booking);
+      await loadBookings(); // Refresh from API
     } else {
       console.error('[selectPayment] Booking API failed:', result.data?.message);
+      alert('Booking failed: ' + (result.data?.message || 'Unknown error'));
     }
   } else {
     // Refresh bookings from API for any payment method
-    await refreshBookingsFromAPI();
+    await loadBookings();
   }
 
   document.getElementById('pay-step-1').style.display = 'none';
@@ -1203,16 +1202,14 @@ async function submitVisa() {
     console.log('[paymentVisaConfirm] Saving booking:', JSON.stringify(bookingData, null, 2));
     const bookingResult = await apiCall('POST', '/booking', bookingData);
     if (bookingResult.ok && bookingResult.data && bookingResult.data.success) {
-      const booking = bookingResult.data.data;
-      const bookings = getStoredBookings();
-      bookings.unshift(booking);
-      saveStoredBookings(bookings);
-      console.log('[paymentVisaConfirm] Booking saved:', booking);
+      console.log('[paymentVisaConfirm] Booking saved:', bookingResult.data.data);
+      await loadBookings(); // Refresh from API
     } else {
       console.error('[paymentVisaConfirm] Booking failed:', bookingResult.data?.message);
+      alert('Booking failed: ' + (bookingResult.data?.message || 'Unknown error'));
     }
   } else {
-    await refreshBookingsFromAPI();
+    await loadBookings();
   }
 
   document.getElementById('pay-step-visa').style.display = 'none';
@@ -1397,25 +1394,44 @@ async function refreshBookingsFromAPI() {
 }
 
 // ── My Bookings UI ───────────────────────────────────────────
-function openMyBookings() {
+async function loadBookings() {
+  console.log('[loadBookings] Fetching from API...');
+  const result = await apiCall('GET', '/booking');
+  console.log('[loadBookings] Response:', result);
+  
+  if (result.ok && result.data && result.data.success && result.data.data) {
+    const bookings = result.data.data;
+    saveStoredBookings(bookings);
+    console.log('[loadBookings] Saved', bookings.length, 'bookings from API');
+    return bookings;
+  } else {
+    console.warn('[loadBookings] API failed, using local storage');
+    return getStoredBookings();
+  }
+}
+
+async function openMyBookings() {
   document.getElementById('profileMenu').classList.remove('active');
-  const bookings = getStoredBookings();
+  
+  // Fetch fresh from API first
+  const bookings = await loadBookings();
+  
   const list = document.getElementById('myBookingsList');
   list.innerHTML = '';
-  if (bookings.length === 0) {
+  if (!bookings || bookings.length === 0) {
     list.innerHTML = '<div class="records-empty"><i class="fa-solid fa-calendar-xmark"></i>No bookings yet.</div>';
   } else {
     bookings.slice().reverse().forEach(b => {
-      const d = new Date(b.savedAt);
-      const when = isNaN(d) ? '' : d.toLocaleDateString('en-EG', { day:'numeric', month:'short', year:'numeric' });
+      const d = b.created_at ? new Date(b.created_at) : (b.savedAt ? new Date(b.savedAt) : null);
+      const when = d && !isNaN(d) ? d.toLocaleDateString('en-EG', { day:'numeric', month:'short', year:'numeric' }) : '';
       const item = document.createElement('div');
       item.className = 'record-item';
       item.innerHTML = `
         <div class="record-item-icon"><i class="fa-solid fa-user-doctor"></i></div>
         <div class="record-item-body">
-          <div class="record-item-title">${b.doctor || 'Doctor'}</div>
-          <div class="record-item-meta"><i class="fa-regular fa-calendar" style="margin-right:4px;"></i>${b.date || '—'} &nbsp; <i class="fa-regular fa-clock" style="margin-right:4px;"></i>${b.time || '—'}</div>
-          ${b.price ? `<div class="record-item-meta" style="margin-top:3px;"><i class="fa-solid fa-tag" style="margin-right:4px;"></i>EGP ${b.price} · ${b.method || 'cash'}</div>` : ''}
+          <div class="record-item-title">${b.doctor_name || b.doctor || 'Doctor'}</div>
+          <div class="record-item-meta"><i class="fa-regular fa-calendar" style="margin-right:4px;"></i>${b.date || '—'} &nbsp; <i class="fa-regular fa-clock" style="margin-right:4px;"></i>${b.time_slot || b.time || '—'}</div>
+          ${b.fee ? `<div class="record-item-meta" style="margin-top:3px;"><i class="fa-solid fa-tag" style="margin-right:4px;"></i>EGP ${b.fee} · ${b.payment_method || b.method || 'cash'}</div>` : ''}
           <div class="record-item-meta" style="margin-top:3px; font-size:0.75rem; opacity:0.7;">${when}</div>
         </div>`;
       list.appendChild(item);
