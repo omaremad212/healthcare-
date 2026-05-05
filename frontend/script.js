@@ -1353,14 +1353,19 @@ async function loadLatestPlan() {
   if (!currentUser.auth) return;
   
   const result = await apiCall('GET', '/plans?type=latest');
-  if (result.ok && result.data) {
-    currentPlan = result.data;
-    showPlanInMenu(result.data);
-    showDashboardPlan(result.data);
-  } else {
-    hidePlanInMenu();
-    hideDashboardPlan();
+  console.log('[loadLatestPlan] Response:', result);
+  
+  if (result.ok && result.data && result.data.success) {
+    const plan = result.data.data;
+    if (plan) {
+      currentPlan = plan;
+      showPlanInMenu(plan);
+      showDashboardPlan(plan);
+      return;
+    }
   }
+  hidePlanInMenu();
+  hideDashboardPlan();
 }
 
 function showPlanInMenu(plan) {
@@ -1499,12 +1504,14 @@ async function generateTreatmentPlan(doctorName, patientName) {
   };
   
 const result = await apiCall('POST', '/plans', planData);
-  if (result.ok && result.data) {
-    currentPlan = result.data;
-    showPlanInMenu(result.data);
+  if (result.ok && result.data && result.data.success && result.data.data) {
+    currentPlan = result.data.data;
+    showPlanInMenu(currentPlan);
+    showDashboardPlan(currentPlan);
   } else {
-    console.error('[generateTreatmentPlan] Failed to save plan:', result.data?.message || result.data);
-    alert('Failed to save treatment plan: ' + (result.data?.message || 'Unknown error'));
+    const errMsg = result.data?.message || result.data?.details || 'Unknown error';
+    console.error('[generateTreatmentPlan] Failed to save plan:', errMsg);
+    alert('Failed to save treatment plan: ' + errMsg);
   }
 }
 
@@ -1589,9 +1596,10 @@ async function generateFitnessPlanWithDetails() {
     // Save to Supabase with error handling
     try {
       const result = await apiCall('POST', '/plans', planData);
-      if (result.ok && result.data) {
-        currentPlan = result.data;
-        showPlanInMenu(result.data);
+      if (result.ok && result.data && result.data.success && result.data.data) {
+        currentPlan = result.data.data;
+        showPlanInMenu(currentPlan);
+        showDashboardPlan(currentPlan);
       } else {
         const errMsg = result.data?.message || result.data?.details || 'Failed to save plan';
         console.error('[Fitness] Plan save error:', errMsg);
@@ -1725,11 +1733,13 @@ async function generateFitnessPlan(userName, location, fitnessGoal) {
   };
   
 const result = await apiCall('POST', '/plans', planData);
-  if (result.ok && result.data) {
-    currentPlan = result.data;
-    showPlanInMenu(result.data);
+  if (result.ok && result.data && result.data.success && result.data.data) {
+    currentPlan = result.data.data;
+    showPlanInMenu(currentPlan);
+    showDashboardPlan(currentPlan);
   } else {
-    console.error('[generateFitnessPlan] Failed to save plan:', result.data?.message || result.data);
-    alert('Failed to save fitness plan: ' + (result.data?.message || 'Unknown error'));
+    const errMsg = result.data?.message || result.data?.details || 'Unknown error';
+    console.error('[generateFitnessPlan] Failed to save plan:', errMsg);
+    alert('Failed to save fitness plan: ' + errMsg);
   }
 }
