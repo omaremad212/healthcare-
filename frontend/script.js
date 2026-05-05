@@ -1544,7 +1544,7 @@ async function openMyOrders() {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'record-item';
         itemDiv.innerHTML = `
-          <div class="record-item-icon" style="background:var(--success);"><i class="fa-solid fa-capsules"></i></div>
+          <div class="record-item-icon"><i class="fa-solid fa-capsules"></i></div>
           <div class="record-item-body">
             <div class="record-item-title">${item.product_name || item.name || 'Product'}</div>
             <div class="record-item-meta"><i class="fa-solid fa-hashtag" style="margin-right:4px;"></i>Qty: ${item.quantity || 1}</div>
@@ -1553,6 +1553,7 @@ async function openMyOrders() {
           </div>`;
         list.appendChild(itemDiv);
       });
+    }
   }
   document.getElementById('myOrdersOverlay').classList.add('active');
 }
