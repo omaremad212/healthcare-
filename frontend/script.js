@@ -152,9 +152,11 @@ async function fetchAllUserData() {
       hideDashboardPlan();
     }
     
-  } catch (err) {
-    console.error('[fetchAllUserData] Error:', err);
-  }
+} catch (err) {
+      console.error('Plan save error:', err.message);
+      console.log('[Plan] Error - but plan is still displayed above');
+      // Still show plan even if save fails - don't block UI
+    }
 }
 
 function updateDashboardStats(stats) {
@@ -671,6 +673,14 @@ function askNextQuestion() {
       } else if (currentStep === 4) {
         // Generate workout and diet plan
         console.log('[Fitness] Generating plan with location:', answers.location, 'trainGoal:', answers.trainGoal);
+        console.log('[Fitness] answers object at this point:', JSON.stringify(answers));
+        
+        // Ensure we have what we need
+        const location = answers.location || 'home';
+        const trainGoal = answers.trainGoal || answers.fitnessGoal || 'general';
+        
+        console.log('[Fitness] Using location:', location, 'trainGoal:', trainGoal);
+        
         generateFitnessPlanWithDetails();
       }
       return;
@@ -1851,9 +1861,20 @@ async function generateFitnessPlanWithDetails() {
   console.log('[generateFitnessPlanWithDetails] Called');
   console.log('[generateFitnessPlanWithDetails] answers:', JSON.stringify(answers));
   
-  const location = answers.location || 'home';
-  const trainGoal = answers.trainGoal || 'general';
-  const userName = currentUser.name || 'User';
+  // Use values from answers, with fallbacks
+  const location = answers.location || answers.trainGoal === undefined ? 'home' : 'home';
+  let trainGoal = answers.trainGoal || answers.fitnessGoal || 'general';
+  
+  // Also check for specific body part goals
+  if (answers.fitnessGoal === 'upper') trainGoal = 'upper';
+  else if (answers.fitnessGoal === 'lower') trainGoal = 'lower';
+  else if (answers.fitnessGoal === 'abs') trainGoal = 'abs';
+  else if (answers.fitnessGoal === 'muscle') trainGoal = 'muscle';
+  else if (answers.fitnessGoal === 'fat') trainGoal = 'fatloss';
+  else if (answers.fitnessGoal === 'fatloss') trainGoal = 'fatloss';
+  else if (answers.fitnessGoal === 'general') trainGoal = 'general';
+  
+  const userName = currentUser?.name || 'User';
   
   console.log('[generateFitnessPlanWithDetails] location:', location, 'trainGoal:', trainGoal, 'userName:', userName);
   
@@ -1892,6 +1913,7 @@ async function generateFitnessPlanWithDetails() {
       `).join('')}
     `;
     stream.appendChild(workoutCard);
+    console.log('[Plan] Generated workout plan:', JSON.stringify(weeklyPlan));
     
     // Display Diet Plan Card
     const dietCard = document.createElement('div');
@@ -1905,6 +1927,7 @@ async function generateFitnessPlanWithDetails() {
       <div style="margin-bottom:10px;"><strong>🍎 Snacks:</strong><div style="font-size:0.85rem; color:var(--text-muted);">${dietPlan.snacks}</div></div>
     `;
     stream.appendChild(dietCard);
+    console.log('[Plan] Generated diet plan:', JSON.stringify(dietPlan));
     
     // Save to Supabase
     const planData = {
@@ -1923,21 +1946,28 @@ async function generateFitnessPlanWithDetails() {
     };
     
     console.log('[Fitness] Saving plan data:', JSON.stringify(planData));
+    console.log('[Plan] Saving:', JSON.stringify(planData, null, 2));
     
     // Save to Supabase with error handling
     try {
+      console.log('[Plan] Sending POST to /api/plans...');
       const result = await apiCall('POST', '/plans', planData);
+      console.log('[Plan] API response:', result);
+      
       if (result.ok && result.data && result.data.success && result.data.data) {
         currentPlan = result.data.data;
         showPlanInMenu(currentPlan);
         showDashboardPlan(currentPlan);
+        // Refresh from API
+        await loadLatestPlan();
       } else {
         const errMsg = result.data?.message || result.data?.details || 'Failed to save plan';
         console.error('[Fitness] Plan save error:', errMsg);
-        throw new Error(errMsg);
+        console.log('[Plan] API error - but plan is still displayed above');
       }
     } catch (err) {
       console.error('Plan save error:', err.message);
+      console.log('[Plan] Error - but plan is still displayed in chat');
       const errorMsg = document.createElement('div');
       errorMsg.style.cssText = 'background:#fff0f0; border:1px solid #ff4444; color:#cc0000; padding:12px; border-radius:10px; margin:10px 0; font-size:0.85rem;';
       errorMsg.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Could not save plan: ' + err.message + '. Your plan is still displayed above.';
