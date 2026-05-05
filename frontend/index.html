@@ -368,7 +368,8 @@ footer { background: white; padding: 80px 8% 40px; border-top: 1px solid var(--g
 .customer-reviews h2 { font-size: 2.5rem; font-weight: 800; color: #1e293b; margin-bottom: 40px; }
 
 .reviews-wrapper { position: relative; overflow: hidden; max-width: 1400px; margin: 0 auto; }
-.reviews-track { display: flex; transition: transform 0.5s ease; }
+.reviews-track { display: flex; transition: transform 0.5s ease; width: 700%; }
+.reviews-track .review-card { flex: 0 0 calc(14.285% - 20px); } /* 100% / 7 slides = 14.285% */
 .review-card { flex: 0 0 calc(33.333% - 20px); margin: 0 10px; background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; text-align: left; }
 .review-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .review-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
@@ -385,13 +386,166 @@ footer { background: white; padding: 80px 8% 40px; border-top: 1px solid var(--g
 .reviews-dots span { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; cursor: pointer; transition: 0.2s; }
 .reviews-dots span.active { background: #3b82f6; }
 
-@media (max-width: 1024px) {
-  .review-card { flex: 0 0 calc(50% - 20px); }
-}
+/* Reviews responsive - handled by JS */
+.customer-reviews { padding: 80px 5%; }
 @media (max-width: 640px) {
-  .review-card { flex: 0 0 100%; }
-  .customer-reviews { padding: 60px 5%; }
+  .customer-reviews { padding: 50px 4%; }
+  .customer-reviews h2 { font-size: 1.8rem; margin-bottom: 25px; }
 }
+
+/* ===== COMPREHENSIVE RESPONSIVE STYLES ===== */
+
+/* Extra Large (1200px+) */
+@media (min-width: 1200px) {
+  .container { max-width: 1140px; }
+  .hero h1 { font-size: 4rem; }
+}
+
+/* Large (992px - 1199px) */
+@media (max-width: 1199px) {
+  .hero { padding: 100px 6% 60px; }
+  .hero h1 { font-size: 3rem; }
+  .hero p { font-size: 1.1rem; }
+}
+
+/* Medium/Tablet (768px - 991px) */
+@media (max-width: 991px) {
+  .hero { min-height: auto; padding: 80px 5% 50px; flex-direction: column; text-align: center; }
+  .hero h1 { font-size: 2.5rem; }
+  .hero-content { order: 2; margin-top: 30px; }
+  .hero p { max-width: 100%; }
+  .hero .btn-glow { padding: 12px 24px; font-size: 1rem; }
+  
+  .glass-card { padding: 1.5rem; }
+  .grid-layout { grid-template-columns: repeat(2, 1fr); }
+  
+  .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+  
+  nav { padding: 15px 5%; }
+  nav ul { display: none; }
+  nav .nav-right { gap: 10px; }
+}
+
+/* Small/Mobile (576px - 767px) */
+@media (max-width: 767px) {
+  .hero h1 { font-size: 2rem; }
+  .hero p { font-size: 0.95rem; }
+  .hero .btn-glow { padding: 10px 20px; font-size: 0.9rem; width: 100%; max-width: 200px; }
+  
+  .grid-layout { grid-template-columns: 1fr; }
+  .services-section { padding: 60px 5%; }
+  .services-section h2 { font-size: 1.8rem; }
+  
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .dashboard-view { padding: 100px 5% 60px; }
+  .dashboard-view h2 { font-size: 1.8rem; }
+  
+  .glass-card { padding: 1.2rem; border-radius: 16px; }
+  .glass-card h3 { font-size: 1.1rem; }
+  .glass-card p { font-size: 0.85rem; }
+  
+  .stat-card { min-height: 120px; }
+  .stat-value { font-size: 2rem; }
+  
+  .book-doctors-grid { grid-template-columns: 1fr; }
+  
+  .shop-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
+  .shop-card { padding: 15px; }
+  
+  nav { padding: 12px 4%; }
+  .nav-logo { font-size: 1.2rem; }
+  .btn-glow { padding: 8px 16px; font-size: 0.85rem; min-height: 44px; }
+  .btn-glow.btn-outline { padding: 8px 16px; }
+  
+  .modal-content { width: 95%; padding: 20px; }
+  
+  .chat-container { padding: 80px 4% 20px; }
+  .chat-input { padding: 12px; }
+  
+  .footer { padding: 40px 5%; }
+  .footer-grid { grid-template-columns: 1fr; gap: 20px; }
+}
+
+/* Extra Small (< 576px) */
+@media (max-width: 575px) {
+  .hero h1 { font-size: 1.8rem; line-height: 1.3; }
+  .hero-content { padding: 0 10px; }
+  
+  .glass-card h3 { font-size: 1rem; }
+  .glass-card p { font-size: 0.8rem; }
+  
+  .shop-grid { grid-template-columns: 1fr; }
+  
+  .cart-item { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .cart-item-img { width: 100%; height: 150px; }
+  
+  .user-profile { padding: 8px; }
+  .user-profile span { display: none; }
+  
+  .profile-menu { width: 90%; right: 5%; }
+  
+  .reviews-track { width: 100%; }
+  .reviews-nav { margin-top: 20px; }
+  .reviews-nav button { width: 36px; height: 36px; font-size: 1rem; }
+}
+
+/* Fix overlapping and overflow */
+* { box-sizing: border-box; max-width: 100%; }
+html, body { overflow-x: hidden; }
+img { max-width: 100%; height: auto; }
+button, a { min-height: 44px; }
+
+/* Grid fallback for older browsers */
+.grid-layout { display: grid; gap: 20px; }
+@media (min-width: 768px) { .grid-layout { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 767px) { .grid-layout { grid-template-columns: 1fr; } }
+
+/* Ensure cards have equal height */
+.glass-card, .review-card, .service-card { display: flex; flex-direction: column; }
+.glass-card > *, .review-card > * { flex: 1; }
+
+/* Text responsiveness */
+h1 { font-size: clamp(1.5rem, 5vw, 4rem); }
+h2 { font-size: clamp(1.25rem, 4vw, 2.5rem); }
+h3 { font-size: clamp(1rem, 3vw, 1.5rem); }
+p { font-size: clamp(0.85rem, 2vw, 1rem); }
+
+/* Button responsiveness */
+.btn-glow { width: auto; padding: 12px 24px; font-size: 0.95rem; }
+.btn-glow.btn-outline { width: auto; }
+@media (max-width: 575px) {
+  .btn-glow { width: 100%; max-width: 280px; margin: 5px 0; }
+}
+
+/* Section padding */
+section, .section { padding: 60px 8%; }
+@media (max-width: 767px) { section, .section { padding: 40px 5%; } }
+
+/* Form elements */
+input, select, textarea { font-size: 1rem; padding: 12px; width: 100%; }
+@media (max-width: 575px) { input, select, textarea { font-size: 16px; padding: 10px; } }
+
+/* Profile menu mobile */
+@media (max-width: 767px) {
+  .profile-menu { position: fixed; top: 60px; right: 10px; width: 280px; max-height: 80vh; overflow-y: auto; }
+  .menu-item { padding: 12px 15px; font-size: 0.9rem; }
+}
+
+/* Chat responsive */
+@media (max-width: 767px) {
+  .chat-stream { max-height: 50vh; }
+  .chat-input { position: fixed; bottom: 0; left: 0; right: 0; }
+  .chat-container { padding-bottom: 70px; }
+}
+
+/* Navbar mobile */
+@media (max-width: 991px) {
+  nav ul { display: none; }
+  nav .mobile-menu-btn { display: block; }
+}
+
+/* Ensure no content overflow */
+.section-content, .container, .wrapper { width: 100%; max-width: 100%; overflow: hidden; }
 </style>
 </head>
 <body>
@@ -2653,23 +2807,44 @@ document.getElementById('myOrdersOverlay').addEventListener('click',  function(e
   if (!track) return;
   
   const totalReviews = 21;
-  const slides = 7; // 21 reviews / 3 per slide = 7 slides
+  let slides = 7;
   let currentSlide = 0;
   let autoPlayInterval;
+  let cardsPerSlide = 3;
   
-  // Create dots
-  for (let i = 0; i < slides; i++) {
-    const dot = document.createElement('span');
-    if (i === 0) dot.className = 'active';
-    dot.onclick = () => goToSlide(i);
-    dotsContainer.appendChild(dot);
+  function calculateSlides() {
+    const width = window.innerWidth;
+    if (width <= 640) {
+      cardsPerSlide = 1;
+      slides = 21; // 21 slides for 1 card each
+      track.style.width = '2100%'; // 21 * 100
+    } else if (width <= 1024) {
+      cardsPerSlide = 2;
+      slides = 11; // 21 slides for 2 cards each
+      track.style.width = '1100%';
+    } else {
+      cardsPerSlide = 3;
+      slides = 7; // 21 / 3 = 7 slides
+      track.style.width = '700%';
+    }
+    // Reset to first slide if out of bounds
+    if (currentSlide >= slides) currentSlide = 0;
+    createDots();
+    updateCarousel();
+  }
+  
+  function createDots() {
+    dotsContainer.innerHTML = '';
+    for (let i = 0; i < slides; i++) {
+      const dot = document.createElement('span');
+      if (i === 0) dot.className = 'active';
+      dot.onclick = () => goToSlide(i);
+      dotsContainer.appendChild(dot);
+    }
   }
   
   function updateCarousel() {
-    const isMobile = window.innerWidth <= 640;
-    const isTablet = window.innerWidth <= 1024;
-    const cardsPerSlide = isMobile ? 1 : (isTablet ? 2 : 3);
-    const offset = currentSlide * 100;
+    const offset = currentSlide * (100 / slides);
     track.style.transform = 'translateX(-' + offset + '%)';
     
     const dots = document.querySelectorAll('.reviews-dots span');
@@ -2712,9 +2887,9 @@ document.getElementById('myOrdersOverlay').addEventListener('click',  function(e
   window.prevReview = prevSlide;
   window.nextReview = nextSlide;
   
-  updateCarousel();
+  calculateSlides();
   startAutoPlay();
-  window.addEventListener('resize', updateCarousel);
+  window.addEventListener('resize', calculateSlides);
 })();
 </script>
 
