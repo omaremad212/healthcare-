@@ -1561,9 +1561,10 @@ const cardsPerView = 3;
 const cardWidth = 380;
 
 function initTestimonialCarousel() {
-  const carousel = document.getElementById('testimonial-carousel');
+  const track = document.getElementById('testimonial-track');
   const dotsContainer = document.getElementById('testimonial-dots');
-  if (!carousel) return;
+  const viewport = document.querySelector('.testimonials-viewport');
+  if (!track) return;
   
   // Create dots
   dotsContainer.innerHTML = '';
@@ -1580,8 +1581,10 @@ function initTestimonialCarousel() {
   startAutoSlide();
   
   // Pause on hover
-  carousel.onmouseenter = () => stopAutoSlide();
-  carousel.onmouseleave = () => startAutoSlide();
+  if (viewport) {
+    viewport.onmouseenter = () => stopAutoSlide();
+    viewport.onmouseleave = () => startAutoSlide();
+  }
 }
 
 function updateDots() {
@@ -1598,14 +1601,14 @@ function goToTestimonial(index) {
 }
 
 function updateCarousel() {
-  const carousel = document.getElementById('testimonial-carousel');
-  if (!carousel) return;
+  const track = document.getElementById('testimonial-track');
+  if (!track) return;
   
-  // Responsive: on mobile show 1 card, desktop show 3
   const isMobile = window.innerWidth <= 768;
-  const viewWidth = isMobile ? window.innerWidth - 60 : cardWidth;
+  const cardPct = isMobile ? 100 : 33.333;
+  const offset = currentTestimonial * cardPct;
   
-  carousel.style.transform = `translateX(-${currentTestimonial * (isMobile ? (window.innerWidth - 80) / 1 : cardWidth)}px)`;
+  track.style.transform = `translateX(-${offset}%)`;
   updateDots();
 }
 
@@ -1624,6 +1627,12 @@ function prevTestimonial() {
   updateCarousel();
   restartAutoSlide();
 }
+
+// Fix card wrappers
+document.querySelectorAll('.testimonial-card').forEach(card => {
+  const content = card.innerHTML;
+  card.innerHTML = '<div>' + content + '</div>';
+});
 
 function startAutoSlide() {
   stopAutoSlide();
