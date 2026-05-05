@@ -1160,9 +1160,10 @@ async function selectPayment(method) {
         deliveryPhone,
         deliveryAddress,
       };
-      console.log('[Order] Saving order:', JSON.stringify(orderPayload, null, 2));
+      console.log('[Order] Button clicked');
+      console.log('[Order] Payload:', JSON.stringify(orderPayload, null, 2));
       const orderResult = await apiCall('POST', '/orders', orderPayload);
-      console.log('[Order] API response:', orderResult);
+      console.log('[Order] Response:', orderResult);
       if (orderResult.ok && orderResult.data && orderResult.data.success) {
         console.log('[Order] Saved to Supabase:', orderResult.data.data);
         await loadOrdersFromAPI();
@@ -1212,10 +1213,11 @@ async function submitVisa() {
       deliveryPhone,
       deliveryAddress,
     };
-    console.log('[Order] Saving order:', JSON.stringify(orderPayload, null, 2));
+    console.log('[Order] Button clicked');
+    console.log('[Order] Payload:', JSON.stringify(orderPayload, null, 2));
     
     const orderResult = await apiCall('POST', '/orders', orderPayload);
-    console.log('[Order] API response:', orderResult);
+    console.log('[Order] Response:', orderResult);
     
     if (orderResult.ok && orderResult.data && orderResult.data.success) {
       console.log('[Order] Saved to Supabase:', orderResult.data.data);

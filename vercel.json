@@ -32,6 +32,10 @@
       "dest": "/api/booking.js"
     },
     {
+      "src": "/api/orders",
+      "dest": "/api/orders.js"
+    },
+    {
       "src": "/api/dashboard",
       "dest": "/api/dashboard.js"
     },
