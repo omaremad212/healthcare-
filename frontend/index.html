@@ -368,8 +368,17 @@ footer { background: white; padding: 80px 8% 40px; border-top: 1px solid var(--g
 .customer-reviews h2 { font-size: 2.5rem; font-weight: 800; color: #1e293b; margin-bottom: 40px; }
 
 .reviews-wrapper { position: relative; overflow: hidden; max-width: 1400px; margin: 0 auto; }
-.reviews-track { display: flex; transition: transform 0.5s ease; width: 700%; }
-.reviews-track .review-card { flex: 0 0 calc(14.285% - 20px); } /* 100% / 7 slides = 14.285% */
+.reviews-track { display: flex; transition: transform 0.5s ease; }
+.review-card { flex: 0 0 calc(33.333% - 20px); margin: 0 10px; }
+
+@media (max-width: 1024px) {
+  .review-card { flex: 0 0 calc(50% - 20px); }
+}
+@media (max-width: 640px) {
+  .review-card { flex: 0 0 calc(100% - 20px); }
+  .customer-reviews { padding: 50px 4%; }
+  .customer-reviews h2 { font-size: 1.8rem; margin-bottom: 25px; }
+}
 .review-card { flex: 0 0 calc(33.333% - 20px); margin: 0 10px; background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; text-align: left; }
 .review-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .review-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
@@ -920,10 +929,45 @@ input, select, textarea { font-size: 1rem; padding: 12px; width: 100%; }
       <div class="glass-card"><i class="fa-solid fa-dumbbell"></i><h3>Fitness & Nutrition Plans</h3><p>Custom workout and nutrition plans.</p></div>
       <div class="glass-card"><i class="fa-solid fa-calendar-check"></i><h3>Easy Booking</h3><p>Book doctors & coaches easily.</p></div>
       <div class="glass-card"><i class="fa-solid fa-shield-halved"></i><h3>Secure Data</h3><p>Secure user data with Supabase.</p></div>
-      <div class="glass-card"><i class="fa-solid fa-chart-line"></i><h3>Progress Tracking</h3><p>Track your progress from dashboard.</p></div>
+<div class="glass-card"><i class="fa-solid fa-chart-line"></i><h3>Progress Tracking</h3><p>Track your progress from dashboard.</p></div>
     </div>
   </section>
 
+  <!-- Customer Reviews Section -->
+  <section class="customer-reviews" id="customer-reviews">
+    <h2>Customer Reviews</h2>
+    <div class="reviews-wrapper">
+      <div class="reviews-track" id="reviews-track">
+        <!-- 21 Reviews -->
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=1" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Ahmed Hassan</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"Great platform! The AI assessment was accurate and the doctor consultation was excellent."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=5" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Sarah Mohamed</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"Very easy to book appointments. The fitness plan is exactly what I needed!"</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=8" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Dr. Omar Khalil</div><div class="review-role">Doctor</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"Excellent patient management system. Makes follow-up much easier."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=12" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Lina Ahmed</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★☆</div><p class="review-text">"The treatment plan feature is very helpful. Love the personalized approach."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=15" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Karim Sameh</div><div class="review-role">Fitness Coach</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"Best platform for managing fitness clients. The workout plans are comprehensive."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=20" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Nour Youssef</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"Saved my health journey! The dashboard is clean and easy to navigate."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=25" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Mariam Tarek</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★☆</div><p class="review-text">"Good experience overall. The supplements recommendations were spot on."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=30" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Hany Samir</div><div class="review-role">Coach</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"The coach dashboard is intuitive. Clients love the personalized plans."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=35" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Youssef Ali</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"Quick and efficient. Booked my appointment in under 2 minutes!"</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=40" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Zainab Magdy</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★☆</div><p class="review-text">"The diet plan helped me lose 5kg in a month. Highly recommend!"</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=45" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Tarek Hussein</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"Secure and private. Feel confident using this platform for my health data."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=50" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Dr. Mona Fateh</div><div class="review-role">Doctor</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"Streamlined my practice. Patient records are always accessible."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=52" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Adel Mansour</div><div class="review-role">Gym Member</div></div></div><div class="review-stars">★★★★☆</div><p class="review-text">"The gym training plans are detailed. My strength has improved a lot."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=55" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Rania Wagdy</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"Love the chat support. They respond quickly to all my questions."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=60" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Sherif Ahmed</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"The interface is clean and modern. Everything works smoothly."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=65" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Dina Khaled</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★☆</div><p class="review-text">"Very convenient for busy people."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=68" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Waleed Mostafa</div><div class="review-role">Fitness Enthusiast</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"The home workout plans are great. No gym needed!"</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=70" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Aya Mahmoud</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"Finally a health app that actually understands patient needs!"</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=72" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Basil Adel</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★☆</div><p class="review-text">"The progress tracking keeps me motivated to stay healthy."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=75" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Huda Ibrahim</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"Recommend to everyone looking for a complete health solution."</p></div>
+        <div class="review-card"><div class="review-header"><img src="https://i.pravatar.cc/150?img=78" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Omar Reda</div><div class="review-role">Patient</div></div></div><div class="review-stars">★★★★★</div><p class="review-text">"Best healthcare experience I've had. Simple and effective."</p></div>
+      </div>
+    </div>
+    <div class="reviews-nav">
+      <button onclick="prevReview()">&#8249;</button>
+      <div class="reviews-dots" id="reviews-dots"></div>
+      <button onclick="nextReview()">&#8250;</button>
+    </div>
+  </section>
 
 
   <!-- CTA Section (logged-out only) -->
@@ -2807,33 +2851,35 @@ document.getElementById('myOrdersOverlay').addEventListener('click',  function(e
   if (!track) return;
   
   const totalReviews = 21;
-  let slides = 7;
   let currentSlide = 0;
   let autoPlayInterval;
-  let cardsPerSlide = 3;
   
-  function calculateSlides() {
+  function initCarousel() {
     const width = window.innerWidth;
+    let slides, cardsPerSlide;
+    
     if (width <= 640) {
       cardsPerSlide = 1;
-      slides = 21; // 21 slides for 1 card each
-      track.style.width = '2100%'; // 21 * 100
+      slides = 21;
     } else if (width <= 1024) {
       cardsPerSlide = 2;
-      slides = 11; // 21 slides for 2 cards each
-      track.style.width = '1100%';
+      slides = 11;
     } else {
       cardsPerSlide = 3;
-      slides = 7; // 21 / 3 = 7 slides
-      track.style.width = '700%';
+      slides = 7;
     }
-    // Reset to first slide if out of bounds
+    
+    // Set track width based on number of slides
+    track.style.width = (slides * 100) + '%';
+    
+    // Reset if out of bounds
     if (currentSlide >= slides) currentSlide = 0;
-    createDots();
-    updateCarousel();
+    
+    createDots(slides);
+    updateCarousel(slides);
   }
   
-  function createDots() {
+  function createDots(slides) {
     dotsContainer.innerHTML = '';
     for (let i = 0; i < slides; i++) {
       const dot = document.createElement('span');
@@ -2843,7 +2889,7 @@ document.getElementById('myOrdersOverlay').addEventListener('click',  function(e
     }
   }
   
-  function updateCarousel() {
+  function updateCarousel(slides) {
     const offset = currentSlide * (100 / slides);
     track.style.transform = 'translateX(-' + offset + '%)';
     
@@ -2852,18 +2898,24 @@ document.getElementById('myOrdersOverlay').addEventListener('click',  function(e
   }
   
   function nextSlide() {
+    const width = window.innerWidth;
+    let slides = width <= 640 ? 21 : (width <= 1024 ? 11 : 7);
     currentSlide = currentSlide >= slides - 1 ? 0 : currentSlide + 1;
-    updateCarousel();
+    updateCarousel(slides);
   }
   
   function prevSlide() {
+    const width = window.innerWidth;
+    let slides = width <= 640 ? 21 : (width <= 1024 ? 11 : 7);
     currentSlide = currentSlide <= 0 ? slides - 1 : currentSlide - 1;
-    updateCarousel();
+    updateCarousel(slides);
   }
   
   function goToSlide(index) {
+    const width = window.innerWidth;
+    let slides = width <= 640 ? 21 : (width <= 1024 ? 11 : 7);
     currentSlide = index;
-    updateCarousel();
+    updateCarousel(slides);
     restartAutoPlay();
   }
   
@@ -2887,9 +2939,9 @@ document.getElementById('myOrdersOverlay').addEventListener('click',  function(e
   window.prevReview = prevSlide;
   window.nextReview = nextSlide;
   
-  calculateSlides();
+  initCarousel();
   startAutoPlay();
-  window.addEventListener('resize', calculateSlides);
+  window.addEventListener('resize', initCarousel);
 })();
 </script>
 
@@ -3005,11 +3057,6 @@ document.getElementById('myOrdersOverlay').addEventListener('click',  function(e
         <p class="review-text">"Best healthcare experience I've had. Simple and effective."</p>
       </div>
     </div>
-  </div>
-  <div class="reviews-nav">
-    <button onclick="prevReview()">&#8249;</button>
-    <div class="reviews-dots" id="reviews-dots"></div>
-    <button onclick="nextReview()">&#8250;</button>
   </div>
 </section>
 </body>
