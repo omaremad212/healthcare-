@@ -1150,15 +1150,21 @@ async function selectPayment(method) {
   if (method === 'cash') {
     // For shop orders, save to API on cash confirm
     if (isShop && cart.length > 0) {
+      const deliveryName = document.getElementById('delivery-name').value.trim();
+      const deliveryPhone = document.getElementById('delivery-phone').value.trim();
+      const deliveryAddress = document.getElementById('delivery-address').value.trim();
       const orderPayload = {
-        items: cart.map(i => ({ productName: i.name, price: i.price, quantity: i.qty })),
-        payment_method: 'cash'
+        items: cart.map(i => ({ productId: i.productId, productName: i.name, price: i.price, quantity: i.qty })),
+        paymentMethod: 'cash',
+        deliveryName,
+        deliveryPhone,
+        deliveryAddress,
       };
-      console.log('[selectPayment] Saving cash order:', JSON.stringify(orderPayload, null, 2));
-      const orderResult = await apiCall('POST', '/products', orderPayload);
-      console.log('[selectPayment] Order response:', orderResult);
+      console.log('[Order] Saving order:', JSON.stringify(orderPayload, null, 2));
+      const orderResult = await apiCall('POST', '/orders', orderPayload);
+      console.log('[Order] API response:', orderResult);
       if (orderResult.ok && orderResult.data && orderResult.data.success) {
-        console.log('[selectPayment] Order saved:', orderResult.data.data);
+        console.log('[Order] Saved to Supabase:', orderResult.data.data);
         await loadOrdersFromAPI();
       } else {
         console.error('[selectPayment] Order failed:', orderResult.data?.message);
@@ -1196,15 +1202,20 @@ async function submitVisa() {
   }
 
   if (currentPayDoc === 'Shop Order') {
+    const deliveryName = document.getElementById('delivery-name').value.trim();
+    const deliveryPhone = document.getElementById('delivery-phone').value.trim();
+    const deliveryAddress = document.getElementById('delivery-address').value.trim();
     const orderPayload = {
-      items: cart.map(i => ({ productName: i.name, price: i.price, quantity: i.qty })),
-      payment_method: 'visa',
-      card_name: name, card_number: number, card_expiry: expiry, card_cvv: cvv,
+      items: cart.map(i => ({ productId: i.productId, productName: i.name, price: i.price, quantity: i.qty })),
+      paymentMethod: 'visa',
+      deliveryName,
+      deliveryPhone,
+      deliveryAddress,
     };
     console.log('[Order] Saving order:', JSON.stringify(orderPayload, null, 2));
     
-    const orderResult = await apiCall('POST', '/products', orderPayload);
-    console.log('[Order] Response:', orderResult);
+    const orderResult = await apiCall('POST', '/orders', orderPayload);
+    console.log('[Order] API response:', orderResult);
     
     if (orderResult.ok && orderResult.data && orderResult.data.success) {
       console.log('[Order] Saved to Supabase:', orderResult.data.data);
@@ -1475,7 +1486,7 @@ function clearMyBookings() {
 // ── My Orders UI ─────────────────────────────────────────────
 async function loadOrdersFromAPI() {
   console.log('[loadOrdersFromAPI] Fetching orders from API...');
-  const result = await apiCall('GET', '/products?type=orders');
+  const result = await apiCall('GET', '/orders');
   console.log('[loadOrdersFromAPI] Response:', result);
   
   if (result.ok && result.data && result.data.success && result.data.data) {
