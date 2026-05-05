@@ -1,6 +1,6 @@
 // api/plans.js - Vercel Serverless API for Plans
 
-const { supabase } = require('../../lib/supabase');
+const { supabase } = require('../lib/supabase');
 
 // Helper to get user ID from token
 function getUserIdFromToken(authHeader) {

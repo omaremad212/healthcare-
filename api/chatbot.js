@@ -1,6 +1,6 @@
 // api/chatbot.js - Vercel Serverless API with Supabase
 
-const { supabase } = require('../../lib/supabase');
+const { supabase } = require('../lib/supabase');
 
 function calculateHealthScore(ans) {
   let score = 0;

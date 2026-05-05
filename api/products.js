@@ -1,6 +1,6 @@
 // api/products.js - Vercel Serverless API with Supabase
 
-const { supabase } = require('../../lib/supabase');
+const { supabase } = require('../lib/supabase');
 
 // Helper to get user ID from token
 function getUserIdFromToken(authHeader) {
