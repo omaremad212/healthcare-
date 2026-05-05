@@ -58,8 +58,28 @@ if (currentUser.auth) {
   document.addEventListener('DOMContentLoaded', restoreSession);
 }
 
-function restoreSession() {
-  if (!currentUser.auth) return;
+async function restoreSession() {
+  const token = localStorage.getItem('hc_token');
+  const storedUser = localStorage.getItem('hc_user');
+  
+  if (!token || !storedUser) {
+    logout();
+    return;
+  }
+  
+  try {
+    const user = JSON.parse(storedUser);
+    if (!user.auth) {
+      logout();
+      return;
+    }
+    
+    currentUser = user;
+  } catch (e) {
+    logout();
+    return;
+  }
+  
   document.getElementById('navSignup').style.display = 'none';
   document.getElementById('navLogin').style.display  = 'none';
   document.getElementById('userProfile').style.display = 'flex';
@@ -72,8 +92,88 @@ function restoreSession() {
     document.getElementById('nav-shop-link').style.display = 'block';
     document.getElementById('menuShopItem').style.display  = 'flex';
   }
-  // Hide logged-out CTA section
   updateLandingSectionsVisibility();
+  
+  await fetchAllUserData();
+}
+
+async function fetchAllUserData() {
+  const token = localStorage.getItem('hc_token');
+  if (!token) return;
+  
+  const authHeader = `Bearer ${token}`;
+  
+  try {
+    const [dashboardRes, planRes] = await Promise.all([
+      fetch('/api/dashboard', { headers: { Authorization: authHeader } }),
+      fetch('/api/plans?type=latest', { headers: { Authorization: authHeader } })
+    ]);
+    
+    const dashboardData = await dashboardRes.json();
+    const planData = await planRes.json();
+    
+    console.log('[fetchAllUserData] Dashboard:', dashboardData);
+    console.log('[fetchAllUserData] Plan:', planData);
+    
+    if (dashboardData.success && dashboardData.data) {
+      const data = dashboardData.data;
+      
+      if (data.profile) {
+        currentUser = { ...currentUser, ...data.profile, auth: true };
+        localStorage.setItem('hc_user', JSON.stringify(currentUser));
+      }
+      
+      if (data.latestResult) {
+        const storedResults = JSON.parse(localStorage.getItem('hc_chatbot_results') || '[]');
+        const newResult = { ...data.latestResult, saved: true };
+        storedResults.unshift(newResult);
+        localStorage.setItem('hc_chatbot_results', JSON.stringify(storedResults.slice(0, 50)));
+      }
+      
+      if (data.bookings && data.bookings.length > 0) {
+        saveStoredBookings(data.bookings);
+      }
+      
+      if (data.orders && data.orders.length > 0) {
+        saveStoredOrders(data.orders);
+      }
+      
+      if (data.stats) {
+        updateDashboardStats(data.stats);
+      }
+    }
+    
+    if (planData.success && planData.data) {
+      currentPlan = planData.data;
+      showPlanInMenu(currentPlan);
+      showDashboardPlan(currentPlan);
+    } else {
+      hidePlanInMenu();
+      hideDashboardPlan();
+    }
+    
+  } catch (err) {
+    console.error('[fetchAllUserData] Error:', err);
+  }
+}
+
+function updateDashboardStats(stats) {
+  const scoreEl = document.getElementById('val-score');
+  const statusEl = document.getElementById('val-status');
+  const riskEl = document.getElementById('val-risk');
+  
+  if (stats.totalBookings !== undefined) {
+    const bookingsEl = document.getElementById('val-bookings');
+    if (bookingsEl) bookingsEl.innerText = stats.totalBookings;
+  }
+  if (stats.totalOrders !== undefined) {
+    const ordersEl = document.getElementById('val-orders');
+    if (ordersEl) ordersEl.innerText = stats.totalOrders;
+  }
+  if (stats.assessments !== undefined) {
+    const assessmentsEl = document.getElementById('val-assessments');
+    if (assessmentsEl) assessmentsEl.innerText = stats.assessments;
+  }
 }
 
 // ── Health Score Helpers (mirrors backend logic) ───────────
@@ -230,8 +330,9 @@ async function handleAuth(event) {
   document.getElementById('menuDisplayEmail').innerText = emailInp;
   document.getElementById('chat-stream').innerHTML      = '';
 
-  // Load latest plan for the user
+  // Load latest plan and all user data
   loadLatestPlan();
+  fetchAllUserData();
   
   // Hide landing sections after login
   updateLandingSectionsVisibility();
