@@ -1365,9 +1365,14 @@ async function finalize() {
       if (answers.location === 'gym')  injectGymDashSection();
       else if (answers.location === 'home') injectHomeDashSection();
 
-      // Generate fitness plan after full flow
+      // Generate fitness plan after full flow - with detailed display in chatbot
+      // Use existing function that displays workout and diet plans in chat
+      await generateFitnessPlanWithDetails();
+
+      // Also save to Supabase for dashboard
       await generateFitnessPlan(currentUser?.name || 'User', answers.location, answers.fitnessGoal);
 
+      // Save answers
       await apiCall('POST', '/chatbot', answers);
     }
 
