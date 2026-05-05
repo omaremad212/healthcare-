@@ -28,35 +28,47 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'POST') {
+      console.log('[booking] POST body:', JSON.stringify(req.body, null, 2));
+      
       const { doctor_id, doctor_name, date, time_slot, payment_method, fee, notes } = req.body;
 
       if (!date) {
         return res.status(400).json({ success: false, message: 'Date is required' });
       }
 
+      const insertPayload = {
+        user_id: userId,
+        doctor_id: doctor_id || null,
+        doctor_name: doctor_name || 'Doctor',
+        date: date,
+        time_slot: time_slot || null,
+        payment_method: payment_method || 'cash',
+        payment_status: payment_method === 'visa' ? 'paid' : 'pending',
+        fee: fee || 0,
+        notes: notes || null,
+        status: 'confirmed',
+        created_at: new Date().toISOString()
+      };
+      
+      console.log('[booking] Insert payload:', JSON.stringify(insertPayload, null, 2));
+
       const { data: booking, error } = await supabase
         .from('bookings')
-        .insert({
-          user_id: userId,
-          doctor_id: doctor_id || null,
-          doctor_name: doctor_name || 'Doctor',
-          date: date,
-          time_slot: time_slot || null,
-          payment_method: payment_method || 'cash',
-          payment_status: payment_method === 'visa' ? 'paid' : 'pending',
-          fee: fee || 0,
-          notes: notes || null,
-          status: 'confirmed',
-          created_at: new Date().toISOString()
-        })
+        .insert(insertPayload)
         .select()
         .single();
 
       if (error) {
-        console.error('Supabase insert error:', error);
-        return res.status(500).json({ success: false, message: 'Failed to create booking: ' + error.message });
+        console.error('[booking] Supabase insert error:', error.message, error.details, error.hint);
+        return res.status(500).json({ 
+          success: false, 
+          message: error.message || 'Database insert failed',
+          details: error.details || null,
+          hint: error.hint || null
+        });
       }
 
+      console.log('[booking] Created:', JSON.stringify(booking, null, 2));
       res.status(201).json({ success: true, data: booking });
     } 
     else if (req.method === 'GET') {

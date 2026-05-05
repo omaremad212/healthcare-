@@ -1197,15 +1197,42 @@ function openBookingModal() {
   document.getElementById('authContent').style.display = 'none';
   document.getElementById('bookingContent').style.display = 'block';
 }
-function confirmBooking() {
+async function confirmBooking() {
   const date = document.getElementById('bookDate').value;
   const time = document.getElementById('bookTime').value;
   if (!date || !time) { alert("Please select a date and time."); return; }
-  const bookings = getStoredBookings();
-  bookings.push({ doctor: 'Dr. Essam Mark', date, time, savedAt: new Date().toISOString() });
-  saveStoredBookings(bookings);
-  alert(`Appointment Confirmed with Dr. Essam Mark for ${date} at ${time}. We will send a reminder to your email.`);
-  closeModal();
+  
+  const bookingData = {
+    doctor_name: 'Dr. Essam Mark',
+    date: date,
+    time_slot: time,
+    payment_method: 'cash',
+    fee: 0,
+    notes: null
+  };
+  
+  console.log('[confirmBooking] Sending:', JSON.stringify(bookingData, null, 2));
+  
+  const token = localStorage.getItem('hc_token');
+  if (!token) { alert('Please login first.'); return; }
+  
+  const res = await fetch('/api/booking', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify(bookingData)
+  });
+  const result = await res.json();
+  console.log('[confirmBooking] Response:', result);
+  
+  if (result.success && result.data) {
+    const bookings = JSON.parse(localStorage.getItem('hc_bookings') || '[]');
+    bookings.unshift(result.data);
+    localStorage.setItem('hc_bookings', JSON.stringify(bookings));
+    alert(`Appointment Confirmed with Dr. Essam Mark for ${date} at ${time}.`);
+    closeModal();
+  } else {
+    alert('Booking failed: ' + (result.message || 'Unknown error'));
+  }
 }
 function closeModal() { document.getElementById('authModal').style.display = 'none'; }
 function toggleProfileMenu() { document.getElementById('profileMenu').classList.toggle('active'); }
