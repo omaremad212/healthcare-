@@ -2,6 +2,29 @@
 
 const { supabase } = require('../lib/supabase');
 
+// Helper to normalize Supabase snake_case to camelCase
+function normalizePlan(plan) {
+  if (!plan) return null;
+  return {
+    id: plan.id,
+    userId: plan.user_id,
+    type: plan.type,
+    title: plan.title || 'Your Personalized Plan',
+    patientName: plan.patient_name,
+    summary: plan.summary,
+    exercises: plan.exercises,
+    dietPlan: plan.diet_plan,
+    supplements: plan.supplements,
+    medicines: plan.medicines,
+    instructions: plan.instructions,
+    followUp: plan.follow_up,
+    lifestyleTips: plan.lifestyle_tips,
+    workoutLocation: plan.workout_location,
+    goal: plan.goal,
+    createdAt: plan.created_at
+  };
+}
+
 // Helper to get user ID from token
 function getUserIdFromToken(authHeader) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
@@ -54,10 +77,10 @@ export default async function handler(req, res) {
         }
         
         if (!plans || plans.length === 0) {
-          return res.status(200).json({ success: true, data: null });
+          return res.status(200).json({ success: true, data: null, message: 'No plan generated yet.' });
         }
         
-        return res.status(200).json({ success: true, data: plans[0] });
+        return res.status(200).json({ success: true, data: normalizePlan(plans[0]) });
       } 
       else if (type === 'history') {
         const { data: plans, error } = await supabase
@@ -72,7 +95,7 @@ export default async function handler(req, res) {
           return res.status(500).json({ success: false, message: error.message || 'Failed to fetch history' });
         }
         
-        return res.status(200).json({ success: true, count: plans.length, data: plans });
+        return res.status(200).json({ success: true, count: plans.length, data: plans.map(normalizePlan) });
       }
     }
     

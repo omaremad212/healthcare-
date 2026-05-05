@@ -900,6 +900,40 @@ footer { background: white; padding: 80px 8% 40px; border-top: 1px solid var(--g
       </div>
       <div id="doctors-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(270px,1fr)); gap:20px;"></div>
     </div>
+
+    <div id="dashboardPlanSection" class="glass-card" style="display:none; grid-column: 1 / -1; text-align: left; background: linear-gradient(135deg, #f8fbff, #fff);">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+        <i class="fa-solid fa-clipboard-list" style="color:var(--primary); font-size:1.8rem;"></i>
+        <h3 style="font-size:1.4rem; font-weight:800;" id="dashboardPlanTitle">My Plan</h3>
+        <span id="dashboardPlanType" style="background:var(--primary); color:white; padding:4px 12px; border-radius:20px; font-size:0.8rem; margin-left:auto;"></span>
+      </div>
+      <p id="dashboardPlanSummary" style="font-size:1rem; color:var(--text-muted); margin-bottom:15px;"></p>
+      
+      <div id="planContent" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:20px;">
+        <div style="background:white; padding:15px; border-radius:10px;">
+          <h5 style="color:var(--primary); margin-bottom:10px;"><i class="fa-solid fa-dumbbell"></i> Weekly Workout</h5>
+          <div id="dashboardPlanWorkout" style="font-size:0.9rem; color:var(--text-muted);"></div>
+        </div>
+        <div style="background:white; padding:15px; border-radius:10px;">
+          <h5 style="color:var(--secondary); margin-bottom:10px;"><i class="fa-solid fa-utensils"></i> Diet Plan</h5>
+          <div id="dashboardPlanDiet" style="font-size:0.9rem; color:var(--text-muted); white-space:pre-line;"></div>
+        </div>
+        <div style="background:white; padding:15px; border-radius:10px;">
+          <h5 style="color:var(--success); margin-bottom:10px;"><i class="fa-solid fa-pills"></i> Supplements</h5>
+          <div id="dashboardPlanSupplements" style="font-size:0.9rem; color:var(--text-muted); white-space:pre-line;"></div>
+        </div>
+        <div style="background:white; padding:15px; border-radius:10px;">
+          <h5 style="color:var(--warning); margin-bottom:10px;"><i class="fa-solid fa-list-check"></i> Instructions</h5>
+          <div id="dashboardPlanInstructions" style="font-size:0.9rem; color:var(--text-muted); white-space:pre-line;"></div>
+        </div>
+        <div style="background:white; padding:15px; border-radius:10px; grid-column: 1 / -1;">
+          <h5 style="color:var(--primary); margin-bottom:10px;"><i class="fa-solid fa-calendar-check"></i> Follow-up</h5>
+          <div id="dashboardPlanFollowUp" style="font-size:0.9rem; color:var(--text-muted); white-space:pre-line;"></div>
+        </div>
+      </div>
+      
+      <button class="btn-glow" style="margin-top:20px;" onclick="openPlanModal()">View Full Plan</button>
+    </div>
   </div>
 
   <div style="text-align:center; margin-top: 40px;">

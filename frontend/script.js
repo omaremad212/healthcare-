@@ -1356,8 +1356,10 @@ async function loadLatestPlan() {
   if (result.ok && result.data) {
     currentPlan = result.data;
     showPlanInMenu(result.data);
+    showDashboardPlan(result.data);
   } else {
     hidePlanInMenu();
+    hideDashboardPlan();
   }
 }
 
@@ -1367,7 +1369,7 @@ function showPlanInMenu(plan) {
   
   if (planSection && planCard) {
     planSection.style.display = 'block';
-    document.getElementById('menuPlanTitle').innerText = plan.title;
+    document.getElementById('menuPlanTitle').innerText = plan.title || 'Your Personalized Plan';
     document.getElementById('menuPlanSummary').innerText = plan.summary || 'Your personalized plan is ready';
   }
 }
@@ -1375,6 +1377,65 @@ function showPlanInMenu(plan) {
 function hidePlanInMenu() {
   const planSection = document.getElementById('menuPlanSection');
   if (planSection) planSection.style.display = 'none';
+}
+
+function showDashboardPlan(plan) {
+  const dashboardPlanSection = document.getElementById('dashboardPlanSection');
+  if (!dashboardPlanSection) return;
+  
+  dashboardPlanSection.style.display = 'block';
+  
+  const titleEl = document.getElementById('dashboardPlanTitle');
+  const typeEl = document.getElementById('dashboardPlanType');
+  const summaryEl = document.getElementById('dashboardPlanSummary');
+  const workoutEl = document.getElementById('dashboardPlanWorkout');
+  const dietEl = document.getElementById('dashboardPlanDiet');
+  const supplementsEl = document.getElementById('dashboardPlanSupplements');
+  const instructionsEl = document.getElementById('dashboardPlanInstructions');
+  const followUpEl = document.getElementById('dashboardPlanFollowUp');
+  
+  if (titleEl) titleEl.innerText = plan.title || 'Your Personalized Plan';
+  if (typeEl) typeEl.innerText = plan.type === 'treatment' ? '🏥 Treatment Plan' : '💪 Fitness Plan';
+  if (summaryEl) summaryEl.innerText = plan.summary || '';
+  
+  // Display weekly workout from exercises
+  let workoutHtml = '';
+  if (plan.exercises) {
+    try {
+      const exercises = typeof plan.exercises === 'string' ? JSON.parse(plan.exercises) : plan.exercises;
+      if (Array.isArray(exercises)) {
+        exercises.forEach((ex, i) => {
+          if (typeof ex === 'object') {
+            workoutHtml += `<div class="workout-day"><strong>${ex.day || 'Day ' + (i+1)}</strong>: ${Array.isArray(ex.exercises) ? ex.exercises.join(', ') : ex.exercises}</div>`;
+          } else {
+            workoutHtml += `<div>${ex}</div>`;
+          }
+        });
+      } else {
+        workoutHtml = '<div>' + exercises + '</div>';
+      }
+    } catch(e) {
+      workoutHtml = '<div>' + plan.exercises + '</div>';
+    }
+  }
+  if (workoutEl) workoutEl.innerHTML = workoutHtml || '<div>No workout plan</div>';
+  
+  // Diet plan
+  if (dietEl) dietEl.innerText = plan.dietPlan || 'No diet plan';
+  
+  // Supplements
+  if (supplementsEl) supplementsEl.innerText = plan.supplements || 'No supplements specified';
+  
+  // Instructions
+  if (instructionsEl) instructionsEl.innerText = plan.instructions || 'No instructions';
+  
+  // Follow up
+  if (followUpEl) followUpEl.innerText = plan.followUp || '';
+}
+
+function hideDashboardPlan() {
+  const dashboardPlanSection = document.getElementById('dashboardPlanSection');
+  if (dashboardPlanSection) dashboardPlanSection.style.display = 'none';
 }
 
 function openPlanModal() {
@@ -1386,8 +1447,8 @@ function openPlanModal() {
   
   // Fill plan details
   document.getElementById('planModalTitle').innerText = currentPlan.type === 'treatment' ? '🏥 Treatment Plan' : '💪 Fitness Plan';
-  document.getElementById('planTitle').innerText = currentPlan.title;
-  document.getElementById('planPatientName').innerText = currentPlan.patient_name || currentUser.name;
+  document.getElementById('planTitle').innerText = currentPlan.title || 'Your Personalized Plan';
+  document.getElementById('planPatientName').innerText = currentPlan.patientName || currentUser.name;
   document.getElementById('planSummary').innerText = currentPlan.summary || 'No summary available';
   
   // Exercises
@@ -1395,21 +1456,29 @@ function openPlanModal() {
   if (currentPlan.exercises) {
     try {
       const exercises = typeof currentPlan.exercises === 'string' ? JSON.parse(currentPlan.exercises) : currentPlan.exercises;
-      exercises.forEach(ex => {
-        exercisesHtml += `<li><strong>${ex.name}</strong>: ${ex.sets}x${ex.reps} - ${ex.rest}</li>`;
-      });
+      if (Array.isArray(exercises)) {
+        exercises.forEach(ex => {
+          if (typeof ex === 'object') {
+            exercisesHtml += `<li><strong>${ex.name || ex.day}</strong>: ${ex.sets ? ex.sets + 'x' + ex.reps : ''} ${ex.rest ? '- ' + ex.rest : ''}</li>`;
+          } else {
+            exercisesHtml += `<li>${ex}</li>`;
+          }
+        });
+      } else {
+        exercisesHtml = '<li>' + exercises + '</li>';
+      }
     } catch(e) {
-      exercisesHtml = currentPlan.exercises;
+      exercisesHtml = '<li>' + currentPlan.exercises + '</li>';
     }
   }
   document.getElementById('planExercises').innerHTML = exercisesHtml || '<li>No exercises specified</li>';
   
-  document.getElementById('planDiet').innerText = currentPlan.diet_plan || 'No diet plan specified';
+  document.getElementById('planDiet').innerText = currentPlan.dietPlan || 'No diet plan specified';
   document.getElementById('planSupplements').innerText = currentPlan.supplements || 'No supplements specified';
   document.getElementById('planMedicines').innerText = currentPlan.medicines || 'No medicines specified';
   document.getElementById('planInstructions').innerText = currentPlan.instructions || 'No special instructions';
-  document.getElementById('planFollowUp').innerText = currentPlan.follow_up || 'No follow-up specified';
-  document.getElementById('planLifestyle').innerText = currentPlan.lifestyle_tips || 'No lifestyle tips specified';
+  document.getElementById('planFollowUp').innerText = currentPlan.followUp || 'No follow-up specified';
+  document.getElementById('planLifestyle').innerText = currentPlan.lifestyleTips || 'No lifestyle tips specified';
 }
 
 function closePlanModal() {
