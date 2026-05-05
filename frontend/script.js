@@ -1553,12 +1553,12 @@ async function openMyOrders() {
           <div class="record-item-body">
             <div class="record-item-title">${item.product_name || item.name || 'Product'}</div>
             <div class="record-item-meta"><i class="fa-solid fa-hashtag" style="margin-right:4px;"></i>Qty: ${item.quantity || 1}</div>
-            <div class="record-item-price" style="margin-top:4px;">$${(item.price || 0).toFixed(2)}</div>
+            <div class="record-item-price" style="margin-top:4px;">$ ${(item.price || 0).toFixed(2)}</div>
             <div class="record-item-meta" style="margin-top:2px; font-size:0.75rem; opacity:0.7;">${when} · ${o.payment_method || 'cash'} · ${o.status || 'processing'}</div>
           </div>`;
         list.appendChild(itemDiv);
       });
-    }
+    });
   }
   document.getElementById('myOrdersOverlay').classList.add('active');
 }
