@@ -28,12 +28,19 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'POST') {
+      console.log('[booking] ===== POST /api/booking CALLED =====');
       console.log('[booking] POST body:', JSON.stringify(req.body, null, 2));
+      console.log('[booking] User ID from token:', userId);
       
       const { doctor_id, doctor_name, date, time_slot, payment_method, fee, notes } = req.body;
 
       if (!date) {
         return res.status(400).json({ success: false, message: 'Date is required' });
+      }
+
+      if (!userId) {
+        console.error('[booking] No userId from token');
+        return res.status(401).json({ success: false, message: 'Not authorized - invalid token' });
       }
 
       const insertPayload = {
