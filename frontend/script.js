@@ -1148,6 +1148,23 @@ async function selectPayment(method) {
 
   document.getElementById('pay-step-1').style.display = 'none';
   if (method === 'cash') {
+    // For shop orders, save to API on cash confirm
+    if (isShop && cart.length > 0) {
+      const orderPayload = {
+        items: cart.map(i => ({ productName: i.name, price: i.price, quantity: i.qty })),
+        payment_method: 'cash'
+      };
+      console.log('[selectPayment] Saving cash order:', JSON.stringify(orderPayload, null, 2));
+      const orderResult = await apiCall('POST', '/products', orderPayload);
+      console.log('[selectPayment] Order response:', orderResult);
+      if (orderResult.ok && orderResult.data && orderResult.data.success) {
+        console.log('[selectPayment] Order saved:', orderResult.data.data);
+        await loadOrdersFromAPI();
+      } else {
+        console.error('[selectPayment] Order failed:', orderResult.data?.message);
+      }
+    }
+    
     document.getElementById('cash-confirm-text').innerText = isShop
       ? `Your order is confirmed. Total: $${currentPayPrice}.`
       : `Appointment with ${currentPayDoc} confirmed for today at ${currentPaySlot}. Total: EGP ${currentPayPrice}.`;
@@ -1179,15 +1196,23 @@ async function submitVisa() {
   }
 
   if (currentPayDoc === 'Shop Order') {
-    // Save order via API
-    await apiCall('POST', '/orders', {
+    const orderPayload = {
       items: cart.map(i => ({ productName: i.name, price: i.price, quantity: i.qty })),
-      paymentMethod: 'visa',
-      cardName: name, cardNumber: number, cardExpiry: expiry, cardCVV: cvv,
-    });
-    const orders = getStoredOrders();
-    cart.forEach(item => orders.push({ name: item.name, price: item.price, qty: item.qty, savedAt: new Date().toISOString() }));
-    saveStoredOrders(orders);
+      payment_method: 'visa',
+      card_name: name, card_number: number, card_expiry: expiry, card_cvv: cvv,
+    };
+    console.log('[Order] Saving order:', JSON.stringify(orderPayload, null, 2));
+    
+    const orderResult = await apiCall('POST', '/products', orderPayload);
+    console.log('[Order] Response:', orderResult);
+    
+    if (orderResult.ok && orderResult.data && orderResult.data.success) {
+      console.log('[Order] Saved to Supabase:', orderResult.data.data);
+      await loadOrdersFromAPI();
+    } else {
+      console.error('[Order] Failed:', orderResult.data?.message);
+      alert('Order failed: ' + (orderResult.data?.message || 'Unknown error'));
+    }
     cart = []; updateCartBar();
   } else if (currentPayDoc !== '') {
     // Save doctor booking via API
@@ -1448,34 +1473,52 @@ function clearMyBookings() {
 }
 
 // ── My Orders UI ─────────────────────────────────────────────
-function openMyOrders() {
+async function loadOrdersFromAPI() {
+  console.log('[loadOrdersFromAPI] Fetching orders from API...');
+  const result = await apiCall('GET', '/products?type=orders');
+  console.log('[loadOrdersFromAPI] Response:', result);
+  
+  if (result.ok && result.data && result.data.success && result.data.data) {
+    const orders = result.data.data;
+    saveStoredOrders(orders);
+    console.log('[loadOrdersFromAPI] Saved', orders.length, 'orders from API');
+    return orders;
+  } else {
+    console.warn('[loadOrdersFromAPI] API failed, using local storage');
+    return getStoredOrders();
+  }
+}
+
+async function openMyOrders() {
   document.getElementById('profileMenu').classList.remove('active');
-  const orders = getStoredOrders();
+  
+  // Fetch fresh from API first
+  const orders = await loadOrdersFromAPI();
+  
   const list = document.getElementById('myOrdersList');
   list.innerHTML = '';
-  if (orders.length === 0) {
+  if (!orders || orders.length === 0) {
     list.innerHTML = '<div class="records-empty"><i class="fa-solid fa-box-open"></i>No orders yet.</div>';
   } else {
-    const grouped = {};
     orders.forEach(o => {
-      if (!grouped[o.name]) grouped[o.name] = { ...o, qty: 0 };
-      grouped[o.name].qty += (o.qty || 1);
-    });
-    Object.values(grouped).forEach(o => {
-      const d = new Date(o.savedAt);
-      const when = isNaN(d) ? '' : d.toLocaleDateString('en-EG', { day:'numeric', month:'short', year:'numeric' });
-      const item = document.createElement('div');
-      item.className = 'record-item';
-      item.innerHTML = `
-        <div class="record-item-icon" style="background:var(--success);"><i class="fa-solid fa-capsules"></i></div>
-        <div class="record-item-body">
-          <div class="record-item-title">${o.name}</div>
-          <div class="record-item-meta"><i class="fa-solid fa-hashtag" style="margin-right:4px;"></i>Qty: ${o.qty}</div>
-          <div class="record-item-price" style="margin-top:4px;">$${(o.price * o.qty).toFixed(2)}</div>
-          <div class="record-item-meta" style="margin-top:2px; font-size:0.75rem; opacity:0.7;">${when}</div>
-        </div>`;
-      list.appendChild(item);
-    });
+      const d = o.created_at ? new Date(o.created_at) : (o.savedAt ? new Date(o.savedAt) : null);
+      const when = d && !isNaN(d) ? d.toLocaleDateString('en-EG', { day:'numeric', month:'short', year:'numeric' }) : '';
+      const items = Array.isArray(o.items) ? o.items : (typeof o.items === 'string' ? JSON.parse(o.items) : []);
+      const total = o.total_amount || (items.reduce((s, i) => s + (i.price * (i.quantity || 1)), 0));
+      
+      items.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'record-item';
+        itemDiv.innerHTML = `
+          <div class="record-item-icon" style="background:var(--success);"><i class="fa-solid fa-capsules"></i></div>
+          <div class="record-item-body">
+            <div class="record-item-title">${item.product_name || item.name || 'Product'}</div>
+            <div class="record-item-meta"><i class="fa-solid fa-hashtag" style="margin-right:4px;"></i>Qty: ${item.quantity || 1}</div>
+            <div class="record-item-price" style="margin-top:4px;">$${(item.price || 0).toFixed(2)}</div>
+            <div class="record-item-meta" style="margin-top:2px; font-size:0.75rem; opacity:0.7;">${when} · ${o.payment_method || 'cash'} · ${o.status || 'processing'}</div>
+          </div>`;
+        list.appendChild(itemDiv);
+      });
   }
   document.getElementById('myOrdersOverlay').classList.add('active');
 }

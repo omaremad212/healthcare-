@@ -30,6 +30,31 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
+      // Check if fetching orders
+      const authHeader = req.headers.authorization;
+      const userId = getUserIdFromToken(authHeader);
+      
+      // If user is authenticated and no type param, default to products
+      const type = req.query.type || 'products';
+      
+      if (type === 'orders' && userId) {
+        console.log('[products] GET /products?type=orders for user:', userId);
+        const { data: orders, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        
+        if (error) {
+          console.error('[products] Orders query error:', error.message);
+          return res.status(500).json({ success: false, message: 'Failed to fetch orders: ' + error.message });
+        }
+        
+        console.log('[products] Found', orders?.length || 0, 'orders');
+        return res.status(200).json({ success: true, count: orders?.length || 0, data: orders || [] });
+      }
+      
       // Fetch products from Supabase
       let { data: products, error } = await supabase
         .from('products')
@@ -49,12 +74,15 @@ export default async function handler(req, res) {
       res.status(200).json({ success: true, count: products.length, data: products });
     } 
     else if (req.method === 'POST') {
-      // Require auth for orders
+      console.log('[products] ===== POST order CALLED =====');
+      console.log('[products] POST body:', JSON.stringify(req.body, null, 2));
+      
       const authHeader = req.headers.authorization;
       const userId = getUserIdFromToken(authHeader);
+      console.log('[products] User ID from token:', userId);
       
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'Not authorized' });
+        return res.status(401).json({ success: false, message: 'Not authorized - invalid token' });
       }
 
       const { items, payment_method, delivery_name, delivery_phone, delivery_address, card_name, card_number, card_expiry, card_cvv } = req.body;
@@ -63,10 +91,8 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'Order must have at least one item' });
       }
 
-      // Calculate total
       const totalAmount = items.reduce((sum, i) => sum + (i.price * (i.quantity || 1)), 0);
 
-      // Process payment (mock)
       let paymentStatus = 'pending';
       if (payment_method === 'visa') {
         if (!card_name || !card_number || !card_expiry || !card_cvv) {
@@ -75,33 +101,42 @@ export default async function handler(req, res) {
         paymentStatus = 'paid';
       }
 
-      // Insert order into Supabase
+      const insertPayload = {
+        user_id: userId,
+        items: items.map(item => ({
+          product_name: item.productName,
+          price: item.price,
+          quantity: item.quantity || 1
+        })),
+        total_amount: totalAmount,
+        payment_method: payment_method || 'cash',
+        payment_status: paymentStatus,
+        delivery_name: delivery_name || null,
+        delivery_phone: delivery_phone || null,
+        delivery_address: delivery_address || null,
+        status: 'processing',
+        created_at: new Date().toISOString()
+      };
+      
+      console.log('[products] Insert payload:', JSON.stringify(insertPayload, null, 2));
+
       const { data: order, error } = await supabase
         .from('orders')
-        .insert({
-          user_id: userId,
-          items: items.map(item => ({
-            product_name: item.productName,
-            price: item.price,
-            quantity: item.quantity || 1
-          })),
-          total_amount: totalAmount,
-          payment_method: payment_method || 'cash',
-          payment_status: paymentStatus,
-          delivery_name: delivery_name || null,
-          delivery_phone: delivery_phone || null,
-          delivery_address: delivery_address || null,
-          status: 'processing',
-          created_at: new Date().toISOString()
-        })
+        .insert(insertPayload)
         .select()
         .single();
 
       if (error) {
-        console.error('Supabase insert error:', error);
-        return res.status(500).json({ success: false, message: 'Failed to create order: ' + error.message });
+        console.error('[products] Supabase insert error:', error.message, error.details, error.hint);
+        return res.status(500).json({ 
+          success: false, 
+          message: error.message || 'Database insert failed',
+          details: error.details || null,
+          hint: error.hint || null
+        });
       }
 
+      console.log('[products] Order created:', JSON.stringify(order, null, 2));
       res.status(201).json({ success: true, data: order });
     }
   } catch (err) {
