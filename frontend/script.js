@@ -1554,85 +1554,82 @@ function updateLandingSectionsVisibility() {
 }
 
 // ── Testimonial Carousel ───────────────────────────────────
-let currentTestimonial = 0;
-const testimonialCards = 10;
-let testimonialInterval;
-const cardsPerView = 3;
-const cardWidth = 380;
+let currentSlide = 0;
+const totalSlides = 4; // 10 cards, 3 per slide = 4 slides (last one has 1)
+let slideInterval;
 
-function initTestimonialCarousel() {
-  const track = document.getElementById('testimonial-track');
+function initCarousel() {
+  const container = document.getElementById('testimonials-container');
   const dotsContainer = document.getElementById('testimonial-dots');
-  const viewport = document.querySelector('.testimonials-viewport');
-  if (!track) return;
+  if (!container) return;
   
   // Create dots
-  dotsContainer.innerHTML = '';
-  const totalDots = Math.ceil(testimonialCards / cardsPerView);
-  for (let i = 0; i < totalDots; i++) {
+  for (let i = 0; i < totalSlides; i++) {
     const dot = document.createElement('span');
-    dot.style.cssText = 'display:inline-block; width:12px; height:12px; border-radius:50%; background:#ccc; margin:0 5px; cursor:pointer;';
-    dot.onclick = () => goToTestimonial(i);
+    if (i === 0) dot.className = 'active';
+    dot.onclick = () => goToSlide(i);
     dotsContainer.appendChild(dot);
   }
-  updateDots();
   
-  // Start auto-slide
+  updateCarousel();
   startAutoSlide();
   
   // Pause on hover
-  if (viewport) {
-    viewport.onmouseenter = () => stopAutoSlide();
-    viewport.onmouseleave = () => startAutoSlide();
-  }
-}
-
-function updateDots() {
-  const dots = document.querySelectorAll('#testimonial-dots span');
-  const activeDot = Math.floor(currentTestimonial / cardsPerView);
-  dots.forEach((dot, i) => {
-    dot.style.background = i === activeDot ? 'var(--primary)' : '#ccc';
-  });
-}
-
-function goToTestimonial(index) {
-  currentTestimonial = index * cardsPerView;
-  updateCarousel();
+  container.onmouseenter = () => stopAutoSlide();
+  container.onmouseleave = () => startAutoSlide();
 }
 
 function updateCarousel() {
-  const track = document.getElementById('testimonial-track');
-  if (!track) return;
-  
+  const container = document.getElementById('testimonials-container');
+  const dots = document.querySelectorAll('.testimonials-dots span');
   const isMobile = window.innerWidth <= 768;
-  const cardPct = isMobile ? 100 : 33.333;
-  const offset = currentTestimonial * cardPct;
+  const cardsPerSlide = isMobile ? 1 : 3;
   
-  track.style.transform = `translateX(-${offset}%)`;
-  updateDots();
+  const offset = currentSlide * 100;
+  container.style.transform = `translateX(-${offset}%)`;
+  
+  dots.forEach((dot, i) => {
+    dot.className = i === currentSlide ? 'active' : '';
+  });
 }
 
-function nextTestimonial() {
-  const isMobile = window.innerWidth <= 768;
-  const maxIndex = isMobile ? testimonialCards - 1 : testimonialCards - cardsPerView;
-  currentTestimonial = currentTestimonial >= maxIndex ? 0 : currentTestimonial + (isMobile ? 1 : cardsPerView);
+function nextSlide() {
+  currentSlide = currentSlide >= totalSlides - 1 ? 0 : currentSlide + 1;
   updateCarousel();
   restartAutoSlide();
 }
 
-function prevTestimonial() {
-  const isMobile = window.innerWidth <= 768;
-  const maxIndex = isMobile ? testimonialCards - 1 : testimonialCards - cardsPerView;
-  currentTestimonial = currentTestimonial <= 0 ? maxIndex : currentTestimonial - (isMobile ? 1 : cardsPerView);
+function prevSlide() {
+  currentSlide = currentSlide <= 0 ? totalSlides - 1 : currentSlide - 1;
   updateCarousel();
   restartAutoSlide();
 }
 
-// Fix card wrappers
-document.querySelectorAll('.testimonial-card').forEach(card => {
-  const content = card.innerHTML;
-  card.innerHTML = '<div>' + content + '</div>';
-});
+function goToSlide(index) {
+  currentSlide = index;
+  updateCarousel();
+  restartAutoSlide();
+}
+
+function startAutoSlide() {
+  stopAutoSlide();
+  slideInterval = setInterval(nextSlide, 4000);
+}
+
+function stopAutoSlide() {
+  if (slideInterval) {
+    clearInterval(slideInterval);
+    slideInterval = null;
+  }
+}
+
+function restartAutoSlide() {
+  stopAutoSlide();
+  startAutoSlide();
+}
+
+document.addEventListener('DOMContentLoaded', initCarousel);
+window.addEventListener('resize', updateCarousel);
 
 function startAutoSlide() {
   stopAutoSlide();

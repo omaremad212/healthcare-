@@ -72,13 +72,32 @@ input:focus, select:focus { border-color: var(--primary); background: #f0f7ff; }
 
 .hero { min-height: 100vh; display: flex; align-items: center; padding: 120px 8% 80px; justify-content: space-between; transition: 0.4s; background: url('https://github.com/omaremad212/healthcare-/raw/main/ChatGPT%20Image%20May%205%2C%202026%2C%2003_45_04%20PM.png') no-repeat center center; background-size: cover; background-position: center; background-repeat: no-repeat; width: 100%; }
 
-.testimonials-carousel { position:relative; margin-top:40px; }
-.testimonials-viewport { overflow:hidden; position:relative; }
-.testimonials-track { display:flex; transition:transform 0.5s ease; }
-.testimonial-card { flex:0 0 33.333%; padding:0 10px; box-sizing:border-box; }
-.testimonial-card > div { background:white; border-radius:20px; padding:30px; border:1px solid var(--glass-border); height:100%; }
+/* Testimonials Carousel */
+.testimonials-wrapper { max-width:1200px; margin:40px auto 0; position:relative; overflow:hidden; }
+.testimonials-container { display:flex; transition:transform 0.5s ease; width:400%; }
+.testimonial-item { flex:0 0 calc(33.333% - 14px); }
+
 @media (max-width: 768px) {
-  .testimonial-card { flex:0 0 100%; }
+  .testimonials-container { width:1000%; }
+  .testimonial-item { flex:0 0 10%; padding:0 5px; box-sizing:border-box; }
+  .testimonial-item-inner { min-height:200px; }
+}
+.testimonial-item { flex:0 0 calc(33.333% - 14px); min-height:220px; }
+.testimonial-item-inner { background:#fff; border-radius:16px; padding:28px; border:1px solid #e8eef4; height:100%; display:flex; flex-direction:column; }
+.testimonial-stars { color:#f4b400; font-size:1.1rem; margin-bottom:12px; }
+.testimonial-quote { font-size:0.95rem; color:#64748b; line-height:1.6; flex:1; margin-bottom:16px; }
+.testimonial-author { font-weight:700; color:#1e293b; font-size:1rem; }
+.testimonial-role { font-size:0.85rem; color:#94a3b8; margin-top:4px; }
+
+.testimonials-nav { display:flex; justify-content:center; align-items:center; gap:20px; margin-top:30px; }
+.testimonials-nav button { width:44px; height:44px; border-radius:50%; border:none; background:#3b82f6; color:#fff; cursor:pointer; font-size:1rem; transition:0.2s; }
+.testimonials-nav button:hover { background:#2563eb; transform:scale(1.05); }
+.testimonials-dots { display:flex; gap:8px; }
+.testimonials-dots span { width:10px; height:10px; border-radius:50%; background:#cbd5e1; cursor:pointer; transition:0.2s; }
+.testimonials-dots span.active { background:#3b82f6; }
+
+@media (max-width: 768px) {
+  .testimonial-item { flex:0 0 100%; }
 }
 
 
@@ -736,78 +755,96 @@ footer { background: white; padding: 80px 8% 40px; border-top: 1px solid var(--g
     </div>
   </section>
 
-  <!-- Testimonials Carousel -->
+<!-- Testimonials Carousel -->
   <section id="testimonials-section" class="why-us-section" style="display:block;">
     <h2 style="font-size: 2.5rem; font-weight: 800;">What Our Users Say</h2>
-    <div class="testimonials-carousel">
-      <div class="testimonials-viewport">
-        <div class="testimonials-track" id="testimonial-track">
-        <div class="testimonial-card">
-          <div><div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
-          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"HealthAI Pro helped me understand my health condition and follow a clear plan after consultation."</p>
-          <div style="font-weight:700; color:var(--text-main);">Ahmed Mohamed</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">Patient</div>
+    <div class="testimonials-wrapper">
+      <div class="testimonials-container" id="testimonials-container">
+        <div class="testimonial-item">
+          <div class="testimonial-item-inner">
+            <div class="testimonial-stars">★★★★★</div>
+            <p class="testimonial-quote">"HealthAI Pro helped me understand my health condition and follow a clear plan after consultation."</p>
+            <div class="testimonial-author">Ahmed Mohamed</div>
+            <div class="testimonial-role">Patient</div>
+          </div>
         </div>
-        <div class="testimonial-card">
-          <div><div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
-          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"The AI assessment was quick, simple, and gave me useful next steps."</p>
-          <div style="font-weight:700; color:var(--text-main);">Sarah Johnson</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">Patient</div>
+        <div class="testimonial-item">
+          <div class="testimonial-item-inner">
+            <div class="testimonial-stars">★★★★★</div>
+            <p class="testimonial-quote">"The AI assessment was quick, simple, and gave me useful next steps."</p>
+            <div class="testimonial-author">Sarah Johnson</div>
+            <div class="testimonial-role">Patient</div>
+          </div>
         </div>
-        <div class="testimonial-card">
-          <div><div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
-          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"The platform makes patient follow-up and treatment planning much more organized."</p>
-          <div style="font-weight:700; color:var(--text-main);">Dr. Sara Ahmed</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">Doctor</div>
+        <div class="testimonial-item">
+          <div class="testimonial-item-inner">
+            <div class="testimonial-stars">★★★★★</div>
+            <p class="testimonial-quote">"The platform makes patient follow-up and treatment planning much more organized."</p>
+            <div class="testimonial-author">Dr. Sara Ahmed</div>
+            <div class="testimonial-role">Doctor</div>
+          </div>
         </div>
-        <div class="testimonial-card">
-          <div><div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
-          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"Personalized workout and nutrition plans help users stay committed to their goals."</div>
-          <div style="font-weight:700; color:var(--text-main);">Mohamed Ali</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">Fitness Coach</div>
+        <div class="testimonial-item">
+          <div class="testimonial-item-inner">
+            <div class="testimonial-stars">★★★★★</div>
+            <p class="testimonial-quote">"Personalized workout and nutrition plans help users stay committed to their goals."</p>
+            <div class="testimonial-author">Mohamed Ali</div>
+            <div class="testimonial-role">Fitness Coach</div>
+          </div>
         </div>
-        <div class="testimonial-card">
-          <div><div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
-          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"I liked having my bookings, orders, and plan all in one dashboard."</p>
-          <div style="font-weight:700; color:var(--text-main);">Omar Hassan</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">Patient</div>
+        <div class="testimonial-item">
+          <div class="testimonial-item-inner">
+            <div class="testimonial-stars">★★★★★</div>
+            <p class="testimonial-quote">"I liked having my bookings, orders, and plan all in one dashboard."</p>
+            <div class="testimonial-author">Omar Hassan</div>
+            <div class="testimonial-role">Patient</div>
+          </div>
         </div>
-        <div class="testimonial-card">
-          <div><div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
-          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"The treatment plan feature feels like having a digital prescription I can follow."</p>
-          <div style="font-weight:700; color:var(--text-main);">Lina Mostafa</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">Patient</div>
+        <div class="testimonial-item">
+          <div class="testimonial-item-inner">
+            <div class="testimonial-stars">★★★★★</div>
+            <p class="testimonial-quote">"The treatment plan feature feels like having a digital prescription I can follow."</p>
+            <div class="testimonial-author">Lina Mostafa</div>
+            <div class="testimonial-role">Patient</div>
+          </div>
         </div>
-        <div class="testimonial-card">
-          <div><div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
-          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"The fitness plan gave me clear exercises, meals, and supplements to follow."</p>
-          <div style="font-weight:700; color:var(--text-main);">Karim Youssef</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">Gym Trainee</div>
+        <div class="testimonial-item">
+          <div class="testimonial-item-inner">
+            <div class="testimonial-stars">★★★★★</div>
+            <p class="testimonial-quote">"The fitness plan gave me clear exercises, meals, and supplements to follow."</p>
+            <div class="testimonial-author">Karim Youssef</div>
+            <div class="testimonial-role">Gym Trainee</div>
+          </div>
         </div>
-        <div class="testimonial-card">
-          <div><div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
-          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"Booking a doctor was easy, and the follow-up plan was very helpful."</p>
-          <div style="font-weight:700; color:var(--text-main);">Nour Adel</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">Patient</div>
+        <div class="testimonial-item">
+          <div class="testimonial-item-inner">
+            <div class="testimonial-stars">★★★★★</div>
+            <p class="testimonial-quote">"Booking a doctor was easy, and the follow-up plan was very helpful."</p>
+            <div class="testimonial-author">Nour Adel</div>
+            <div class="testimonial-role">Patient</div>
+          </div>
         </div>
-        <div class="testimonial-card">
-          <div><div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
-          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"The coach flow makes it easier to guide users whether they train at home or in the gym."</p>
-          <div style="font-weight:700; color:var(--text-main);">Hany Samir</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">Coach</div></div>
+        <div class="testimonial-item">
+          <div class="testimonial-item-inner">
+            <div class="testimonial-stars">★★★★★</div>
+            <p class="testimonial-quote">"The coach flow makes it easier to guide users whether they train at home or in the gym."</p>
+            <div class="testimonial-author">Hany Samir</div>
+            <div class="testimonial-role">Coach</div>
+          </div>
         </div>
-        <div class="testimonial-card">
-          <div><div style="color:var(--warning); font-size:1.2rem; margin-bottom:15px;">★★★★★</div>
-          <p style="font-size:0.95rem; color:var(--text-muted); line-height:1.6; margin-bottom:20px;">"The interface is clean, and the health journey feels simple from signup to plan."</p>
-          <div style="font-weight:700; color:var(--text-main);">Mariam Khaled</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">Patient</div></div>
+        <div class="testimonial-item">
+          <div class="testimonial-item-inner">
+            <div class="testimonial-stars">★★★★★</div>
+            <p class="testimonial-quote">"The interface is clean, and the health journey feels simple from signup to plan."</p>
+            <div class="testimonial-author">Mariam Khaled</div>
+            <div class="testimonial-role">Patient</div>
+          </div>
         </div>
       </div>
-      </div>
-      <div style="text-align:center; margin-top:20px;">
-        <button onclick="prevTestimonial()" style="background:var(--primary); color:white; border:none; width:40px; height:40px; border-radius:50%; cursor:pointer; margin:0 10px;"><i class="fa-solid fa-chevron-left"></i></button>
-        <div id="testimonial-dots" style="display:inline-block; margin:0 15px;"></div>
-        <button onclick="nextTestimonial()" style="background:var(--primary); color:white; border:none; width:40px; height:40px; border-radius:50%; cursor:pointer; margin:0 10px;"><i class="fa-solid fa-chevron-right"></i></button>
+      <div class="testimonials-nav">
+        <button onclick="prevSlide()">&#8249;</button>
+        <div class="testimonials-dots" id="testimonial-dots"></div>
+        <button onclick="nextSlide()">&#8250;</button>
       </div>
     </div>
   </section>
