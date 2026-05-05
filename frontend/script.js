@@ -1556,20 +1556,95 @@ function updateLandingSectionsVisibility() {
 // ── Testimonial Carousel ───────────────────────────────────
 let currentTestimonial = 0;
 const testimonialCards = 10;
+let testimonialInterval;
+const cardsPerView = 3;
+const cardWidth = 380;
 
-function nextTestimonial() {
+function initTestimonialCarousel() {
+  const carousel = document.getElementById('testimonial-carousel');
+  const dotsContainer = document.getElementById('testimonial-dots');
+  if (!carousel) return;
+  
+  // Create dots
+  dotsContainer.innerHTML = '';
+  const totalDots = Math.ceil(testimonialCards / cardsPerView);
+  for (let i = 0; i < totalDots; i++) {
+    const dot = document.createElement('span');
+    dot.style.cssText = 'display:inline-block; width:12px; height:12px; border-radius:50%; background:#ccc; margin:0 5px; cursor:pointer;';
+    dot.onclick = () => goToTestimonial(i);
+    dotsContainer.appendChild(dot);
+  }
+  updateDots();
+  
+  // Start auto-slide
+  startAutoSlide();
+  
+  // Pause on hover
+  carousel.onmouseenter = () => stopAutoSlide();
+  carousel.onmouseleave = () => startAutoSlide();
+}
+
+function updateDots() {
+  const dots = document.querySelectorAll('#testimonial-dots span');
+  const activeDot = Math.floor(currentTestimonial / cardsPerView);
+  dots.forEach((dot, i) => {
+    dot.style.background = i === activeDot ? 'var(--primary)' : '#ccc';
+  });
+}
+
+function goToTestimonial(index) {
+  currentTestimonial = index * cardsPerView;
+  updateCarousel();
+}
+
+function updateCarousel() {
   const carousel = document.getElementById('testimonial-carousel');
   if (!carousel) return;
-  currentTestimonial = (currentTestimonial + 1) % testimonialCards;
-  carousel.style.transform = `translateX(-${currentTestimonial * 380}px)`;
+  
+  // Responsive: on mobile show 1 card, desktop show 3
+  const isMobile = window.innerWidth <= 768;
+  const viewWidth = isMobile ? window.innerWidth - 60 : cardWidth;
+  
+  carousel.style.transform = `translateX(-${currentTestimonial * (isMobile ? (window.innerWidth - 80) / 1 : cardWidth)}px)`;
+  updateDots();
+}
+
+function nextTestimonial() {
+  const isMobile = window.innerWidth <= 768;
+  const maxIndex = isMobile ? testimonialCards - 1 : testimonialCards - cardsPerView;
+  currentTestimonial = currentTestimonial >= maxIndex ? 0 : currentTestimonial + (isMobile ? 1 : cardsPerView);
+  updateCarousel();
+  restartAutoSlide();
 }
 
 function prevTestimonial() {
-  const carousel = document.getElementById('testimonial-carousel');
-  if (!carousel) return;
-  currentTestimonial = (currentTestimonial - 1 + testimonialCards) % testimonialCards;
-  carousel.style.transform = `translateX(-${currentTestimonial * 380}px)`;
+  const isMobile = window.innerWidth <= 768;
+  const maxIndex = isMobile ? testimonialCards - 1 : testimonialCards - cardsPerView;
+  currentTestimonial = currentTestimonial <= 0 ? maxIndex : currentTestimonial - (isMobile ? 1 : cardsPerView);
+  updateCarousel();
+  restartAutoSlide();
 }
+
+function startAutoSlide() {
+  stopAutoSlide();
+  testimonialInterval = setInterval(nextTestimonial, 4000);
+}
+
+function stopAutoSlide() {
+  if (testimonialInterval) {
+    clearInterval(testimonialInterval);
+    testimonialInterval = null;
+  }
+}
+
+function restartAutoSlide() {
+  stopAutoSlide();
+  startAutoSlide();
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', initTestimonialCarousel);
+window.addEventListener('resize', updateCarousel);
 
 // ── Plans Functions ─────────────────────────────────────────
 let currentPlan = null;
