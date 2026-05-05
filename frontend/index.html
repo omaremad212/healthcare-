@@ -362,6 +362,36 @@ footer { background: white; padding: 80px 8% 40px; border-top: 1px solid var(--g
 .book-doctors-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 30px;
 }
+
+/* Customer Reviews Section */
+.customer-reviews { background: linear-gradient(180deg, #f8fafc 0%, #fff 100%); padding: 80px 8%; text-align: center; }
+.customer-reviews h2 { font-size: 2.5rem; font-weight: 800; color: #1e293b; margin-bottom: 40px; }
+
+.reviews-wrapper { position: relative; overflow: hidden; max-width: 1400px; margin: 0 auto; }
+.reviews-track { display: flex; transition: transform 0.5s ease; }
+.review-card { flex: 0 0 calc(33.333% - 20px); margin: 0 10px; background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; text-align: left; }
+.review-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.review-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+.review-info { flex: 1; }
+.review-name { font-weight: 700; color: #1e293b; font-size: 1rem; }
+.review-role { font-size: 0.85rem; color: #64748b; }
+.review-stars { color: #f4b400; font-size: 0.9rem; margin-bottom: 12px; }
+.review-text { font-size: 0.95rem; color: #475569; line-height: 1.6; }
+
+.reviews-nav { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 30px; }
+.reviews-nav button { width: 44px; height: 44px; border-radius: 50%; border: none; background: #3b82f6; color: #fff; cursor: pointer; font-size: 1.2rem; transition: all 0.2s; }
+.reviews-nav button:hover { background: #2563eb; transform: scale(1.05); }
+.reviews-dots { display: flex; gap: 8px; }
+.reviews-dots span { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; cursor: pointer; transition: 0.2s; }
+.reviews-dots span.active { background: #3b82f6; }
+
+@media (max-width: 1024px) {
+  .review-card { flex: 0 0 calc(50% - 20px); }
+}
+@media (max-width: 640px) {
+  .review-card { flex: 0 0 100%; }
+  .customer-reviews { padding: 60px 5%; }
+}
 </style>
 </head>
 <body>
@@ -2615,6 +2645,197 @@ function clearMyOrders() {
 // Close overlays on outside click
 document.getElementById('myBookingsOverlay').addEventListener('click', function(e) { if (e.target === this) closeMyBookings(); });
 document.getElementById('myOrdersOverlay').addEventListener('click',  function(e) { if (e.target === this) closeMyOrders(); });
+
+// Customer Reviews Carousel
+(function() {
+  const track = document.getElementById('reviews-track');
+  const dotsContainer = document.getElementById('reviews-dots');
+  if (!track) return;
+  
+  const totalReviews = 21;
+  const slides = 7; // 21 reviews / 3 per slide = 7 slides
+  let currentSlide = 0;
+  let autoPlayInterval;
+  
+  // Create dots
+  for (let i = 0; i < slides; i++) {
+    const dot = document.createElement('span');
+    if (i === 0) dot.className = 'active';
+    dot.onclick = () => goToSlide(i);
+    dotsContainer.appendChild(dot);
+  }
+  
+  function updateCarousel() {
+    const isMobile = window.innerWidth <= 640;
+    const isTablet = window.innerWidth <= 1024;
+    const cardsPerSlide = isMobile ? 1 : (isTablet ? 2 : 3);
+    const offset = currentSlide * 100;
+    track.style.transform = 'translateX(-' + offset + '%)';
+    
+    const dots = document.querySelectorAll('.reviews-dots span');
+    dots.forEach((d, i) => d.className = i === currentSlide ? 'active' : '');
+  }
+  
+  function nextSlide() {
+    currentSlide = currentSlide >= slides - 1 ? 0 : currentSlide + 1;
+    updateCarousel();
+  }
+  
+  function prevSlide() {
+    currentSlide = currentSlide <= 0 ? slides - 1 : currentSlide - 1;
+    updateCarousel();
+  }
+  
+  function goToSlide(index) {
+    currentSlide = index;
+    updateCarousel();
+    restartAutoPlay();
+  }
+  
+  function startAutoPlay() {
+    stopAutoPlay();
+    autoPlayInterval = setInterval(nextSlide, 4000);
+  }
+  
+  function stopAutoPlay() {
+    if (autoPlayInterval) clearInterval(autoPlayInterval);
+  }
+  
+  function restartAutoPlay() {
+    stopAutoPlay();
+    startAutoPlay();
+  }
+  
+  track.onmouseenter = stopAutoPlay;
+  track.onmouseleave = startAutoPlay;
+  
+  window.prevReview = prevSlide;
+  window.nextReview = nextSlide;
+  
+  updateCarousel();
+  startAutoPlay();
+  window.addEventListener('resize', updateCarousel);
+})();
 </script>
+
+<!-- Customer Reviews Section -->
+<section class="customer-reviews" id="customer-reviews">
+  <h2>Customer Reviews</h2>
+  <div class="reviews-wrapper">
+    <div class="reviews-track" id="reviews-track">
+      <!-- 20+ Reviews -->
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=1" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Ahmed Hassan</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Great platform! The AI assessment was accurate and the doctor consultation was excellent."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=5" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Sarah Mohamed</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Very easy to book appointments. The fitness plan is exactly what I needed!"</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=8" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Dr. Omar Khalil</div><div class="review-role">Doctor</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Excellent patient management system. Makes follow-up much easier."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=12" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Lina Ahmed</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★☆</div>
+        <p class="review-text">"The treatment plan feature is very helpful. Love the personalized approach."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=15" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Karim Sameh</div><div class="review-role">Fitness Coach</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Best platform for managing fitness clients. The workout plans are comprehensive."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=20" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Nour Youssef</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Saved my health journey! The dashboard is clean and easy to navigate."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=25" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Mariam Tarek</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★☆</div>
+        <p class="review-text">"Good experience overall. The supplements recommendations were spot on."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=30" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Hany Samir</div><div class="review-role">Coach</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"The coach dashboard is intuitive. Clients love the personalized plans."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=35" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Youssef Ali</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Quick and efficient. Booked my appointment in under 2 minutes!"</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=40" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Zainab Magdy</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★☆</div>
+        <p class="review-text">"The diet plan helped me lose 5kg in a month. Highly recommend!"</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=45" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Tarek Hussein</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Secure and private. Feel confident using this platform for my health data."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=50" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Dr. Mona Fateh</div><div class="review-role">Doctor</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Streamlined my practice. Patient records are always accessible."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=52" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Adel Mansour</div><div class="review-role">Gym Member</div></div></div>
+        <div class="review-stars">★★★★☆</div>
+        <p class="review-text">"The gym training plans are detailed. My strength has improved a lot."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=55" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Rania Wagdy</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Love the chat support. They respond quickly to all my questions."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=60" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Sherif Ahmed</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"The interface is clean and modern. Everything works smoothly."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=65" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Dina Khaled</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★☆</div>
+        <p class="review-text">"Got my prescription数字化. Very convenient for busy people."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=68" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Waleed Mostafa</div><div class="review-role">Fitness Enthusiast</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"The home workout plans are great. No gym needed!"</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=70" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Aya Mahmoud</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Finally a health app that actually understands patient needs!"</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=72" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Basil Adel</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★☆</div>
+        <p class="review-text">"The progress tracking keeps me motivated to stay healthy."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=75" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Huda Ibrahim</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Recommend to everyone looking for a complete health solution."</p>
+      </div>
+      <div class="review-card">
+        <div class="review-header"><img src="https://i.pravatar.cc/150?img=78" alt="Customer" class="review-avatar"><div class="review-info"><div class="review-name">Omar Reda</div><div class="review-role">Patient</div></div></div>
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Best healthcare experience I've had. Simple and effective."</p>
+      </div>
+    </div>
+  </div>
+  <div class="reviews-nav">
+    <button onclick="prevReview()">&#8249;</button>
+    <div class="reviews-dots" id="reviews-dots"></div>
+    <button onclick="nextReview()">&#8250;</button>
+  </div>
+</section>
 </body>
 </html>
