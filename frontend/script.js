@@ -535,51 +535,40 @@ function askNextQuestion() {
           { label: 'Gym',  val: 'gym',  icon: 'fa-solid fa-building' }
         ]);
       } else if (currentStep === 3) {
-        if (answers.location === 'gym') {
-          appendMsg('bot', '🏋️ Great choice! Here are the best gym matches for you:');
-          setTimeout(() => {
-            showGymCardsInChat();
-            const stream = document.getElementById('chat-stream');
-            const goBtn = document.createElement('button');
-            goBtn.className = 'view-analysis-btn';
-            goBtn.style.background = 'linear-gradient(45deg,#0077ff,#00d4ff)';
-            goBtn.innerHTML = '<i class="fa-solid fa-dumbbell"></i> Go to Full Dashboard';
-            goBtn.onclick = () => {
-              setSkipDashboard('gym');
-              toggleChat(); showDashboard();
-            };
-            stream.appendChild(goBtn);
-            stream.scrollTop = stream.scrollHeight;
-          }, 600);
-        } else {
-          appendMsg('bot', '🏠 Great! Here are home coaches available for you:');
-          setTimeout(() => {
-            showHomeCoachesInChat();
-            const stream = document.getElementById('chat-stream');
-            const goBtn = document.createElement('button');
-            goBtn.className = 'view-analysis-btn';
-            goBtn.style.background = 'linear-gradient(45deg,#2ec4b6,#00d4ff)';
-            goBtn.innerHTML = '<i class="fa-solid fa-house"></i> Go to Full Dashboard';
-            goBtn.onclick = () => {
-              setSkipDashboard('home');
-              toggleChat(); showDashboard();
-            };
-            stream.appendChild(goBtn);
-            stream.scrollTop = stream.scrollHeight;
-          }, 600);
-        }
+        // NEW: Ask what to train after location
+        appendMsg('bot', 'What do you want to train?', [
+          { label: 'Full Body',    val: 'fullbody',    icon: 'fa-solid fa-person' },
+          { label: 'Upper Body',  val: 'upper',       icon: 'fa-solid fa-dumbbell' },
+          { label: 'Lower Body',  val: 'lower',       icon: 'fa-solid fa-leg' },
+          { label: 'Abs',         val: 'abs',          icon: 'fa-solid fa-burst' },
+          { label: 'Weight Loss',val: 'fatloss',      icon: 'fa-solid fa-fire' },
+          { label: 'Muscle Gain', val: 'muscle',       icon: 'fa-solid fa-arm-flex' }
+        ]);
+      } else if (currentStep === 4) {
+        // Generate workout and diet plan
+        generateFitnessPlanWithDetails();
       }
       return;
     }
+    // Regular questions flow (simplified)
     switch (currentStep) {
       case 2: appendMsg('bot', 'What is your primary fitness goal?', [{label:'Muscle Gain',val:'muscle',icon:'fa-solid fa-weight-hanging'},{label:'Fat Loss',val:'fat',icon:'fa-solid fa-fire'},{label:'General Fitness',val:'general',icon:'fa-solid fa-heart'}]); break;
-      case 3: appendMsg('bot', 'How many times do you train per week?', [{label:'1-2 times',val:'1-2',icon:'fa-solid fa-battery-quarter'},{label:'3-5 times',val:'3-5',icon:'fa-solid fa-battery-half'},{label:'Daily',val:'daily',icon:'fa-solid fa-battery-full'}]); break;
-      case 4: appendMsg('bot', 'Where do you prefer to train?', [{label:'Home',val:'home',icon:'fa-solid fa-house'},{label:'Gym',val:'gym',icon:'fa-solid fa-building'}]); break;
-      case 5: appendMsg('bot', 'What is your current fitness level?', [{label:'Beginner',val:'beg',icon:'fa-solid fa-seedling'},{label:'Intermediate',val:'int',icon:'fa-solid fa-bolt'},{label:'Advanced',val:'adv',icon:'fa-solid fa-trophy'}]); break;
-      case 6: appendMsg('bot', 'Please enter your current weight (kg):'); showFreeInput('weight', 'Weight in kg…'); break;
-      case 7: appendMsg('bot', 'Please enter your height (cm):'); showFreeInput('height', 'Height in cm…'); break;
-      case 8: appendMsg('bot', 'Do you have any existing injuries?', [{label:'Yes',val:'yes',icon:'fa-solid fa-person-falling'},{label:'No',val:'no',icon:'fa-solid fa-person-running'}]); break;
-      case 9: appendMsg('bot', 'How would you describe your current diet?', [{label:'Healthy',val:'healthy',icon:'fa-solid fa-apple-whole'},{label:'Average',val:'average',icon:'fa-solid fa-utensils'},{label:'Poor',val:'poor',icon:'fa-solid fa-burger'}]); break;
+      case 3: appendMsg('bot', 'Where do you prefer to train?', [{label:'Home',val:'home',icon:'fa-solid fa-house'},{label:'Gym',val:'gym',icon:'fa-solid fa-building'}]); break;
+      case 4: 
+        // NEW: Ask what to train after location
+        appendMsg('bot', 'What do you want to train?', [
+          { label: 'Full Body',    val: 'fullbody',    icon: 'fa-solid fa-person' },
+          { label: 'Upper Body',  val: 'upper',       icon: 'fa-solid fa-dumbbell' },
+          { label: 'Lower Body',  val: 'lower',       icon: 'fa-solid fa-leg' },
+          { label: 'Abs',         val: 'abs',          icon: 'fa-solid fa-burst' },
+          { label: 'Weight Loss',val: 'fatloss',      icon: 'fa-solid fa-fire' },
+          { label: 'Muscle Gain', val: 'muscle',       icon: 'fa-solid fa-arm-flex' }
+        ]); 
+        break;
+      case 5: appendMsg('bot', 'Please enter your current weight (kg):'); showFreeInput('weight', 'Weight in kg…'); break;
+      case 6: appendMsg('bot', 'Please enter your height (cm):'); showFreeInput('height', 'Height in cm…'); break;
+      case 7: appendMsg('bot', 'Do you have any existing injuries?', [{label:'Yes',val:'yes',icon:'fa-solid fa-person-falling'},{label:'No',val:'no',icon:'fa-solid fa-person-running'}]); break;
+      case 8: appendMsg('bot', 'How would you describe your current diet?', [{label:'Healthy',val:'healthy',icon:'fa-solid fa-apple-whole'},{label:'Average',val:'average',icon:'fa-solid fa-utensils'},{label:'Poor',val:'poor',icon:'fa-solid fa-burger'}]); break;
       default: finalize(); break;
     }
   }
@@ -1438,10 +1427,156 @@ async function generateTreatmentPlan(doctorName, patientName) {
     lifestyleTips: '• Get 7-8 hours of sleep\n• Eat healthy, balanced meals\n• Avoid stress\n• Exercise lightly after recovery'
   };
   
-  const result = await apiCall('POST', '/plans', planData);
+const result = await apiCall('POST', '/plans', planData);
   if (result.ok && result.data) {
     currentPlan = result.data;
     showPlanInMenu(result.data);
+  }
+}
+
+// Generate Detailed Weekly Workout Plan with Diet (NEW)
+async function generateFitnessPlanWithDetails() {
+  const location = answers.location || 'home';
+  const trainGoal = answers.trainGoal || 'general';
+  const userName = currentUser.name || 'User';
+  
+  // Show typing animation
+  const stream = document.getElementById('chat-stream');
+  const typingMsg = document.createElement('div');
+  typingMsg.id = 'typing-indicator';
+  typingMsg.style.cssText = 'background:#f0f4f8; padding:12px; border-radius:0 15px 15px 15px; margin-bottom:10px; font-size:0.9rem; color:var(--text-muted);';
+  typingMsg.innerHTML = '<i class="fa-solid fa-robot fa-fade"></i> Generating your personalized weekly plan...';
+  stream.appendChild(typingMsg);
+  stream.scrollTop = stream.scrollHeight;
+  
+  setTimeout(async () => {
+    // Remove typing indicator
+    const typingEl = document.getElementById('typing-indicator');
+    if (typingEl) typingEl.remove();
+    
+    // Generate Weekly Workout Plan
+    const weeklyPlan = generateWeeklyWorkoutPlan(location, trainGoal);
+    const dietPlan = generateDietPlan(trainGoal);
+    
+    // Display Workout Plan Card
+    const workoutCard = document.createElement('div');
+    workoutCard.style.cssText = 'background:white; border:2px solid var(--primary); border-radius:16px; padding:20px; margin:10px 0; text-align:left;';
+    workoutCard.innerHTML = `
+      <h4 style="font-size:1.1rem; font-weight:800; color:var(--primary); margin-bottom:15px;">🏋️ Your Weekly Workout Plan</h4>
+      <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">Training Location: ${location === 'gym' ? '🏋️ Gym' : '🏠 Home'} | Focus: ${trainGoal}</div>
+      ${weeklyPlan.map((day, i) => `
+        <div style="margin-bottom:12px; padding:10px; background:var(--bg-light); border-radius:10px;">
+          <div style="font-weight:700; color:var(--text-main); font-size:0.9rem;">Day ${i+1}: ${day.day}</div>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">${day.exercises.join(', ')}</div>
+        </div>
+      `).join('')}
+    `;
+    stream.appendChild(workoutCard);
+    
+    // Display Diet Plan Card
+    const dietCard = document.createElement('div');
+    dietCard.style.cssText = 'background:white; border:2px solid var(--success); border-radius:16px; padding:20px; margin:10px 0; text-align:left;';
+    dietCard.innerHTML = `
+      <h4 style="font-size:1.1rem; font-weight:800; color:var(--success); margin-bottom:15px;">🥗 Your Daily Diet Plan</h4>
+      <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">Goal: ${trainGoal === 'muscle' ? '💪 Muscle Gain' : trainGoal === 'fatloss' ? '🔥 Weight Loss' : '⚖️ General Fitness'}</div>
+      <div style="margin-bottom:10px;"><strong>🌅 Breakfast:</strong><div style="font-size:0.85rem; color:var(--text-muted);">${dietPlan.breakfast}</div></div>
+      <div style="margin-bottom:10px;"><strong>☀️ Lunch:</strong><div style="font-size:0.85rem; color:var(--text-muted);">${dietPlan.lunch}</div></div>
+      <div style="margin-bottom:10px;"><strong>🌙 Dinner:</strong><div style="font-size:0.85rem; color:var(--text-muted);">${dietPlan.dinner}</div></div>
+      <div style="margin-bottom:10px;"><strong>🍎 Snacks:</strong><div style="font-size:0.85rem; color:var(--text-muted);">${dietPlan.snacks}</div></div>
+    `;
+    stream.appendChild(dietCard);
+    
+    // Save to Supabase
+    const planData = {
+      type: 'fitness',
+      title: `Weekly ${trainGoal === 'muscle' ? 'Muscle' : trainGoal === 'fatloss' ? 'Weight Loss' : 'Fitness'} Plan - ${location === 'gym' ? 'Gym' : 'Home'}`,
+      patientName: userName,
+      summary: `Your personalized weekly workout and diet plan for ${trainGoal} goal`,
+      exercises: weeklyPlan,
+      dietPlan: `Breakfast: ${dietPlan.breakfast}\nLunch: ${dietPlan.lunch}\nDinner: ${dietPlan.dinner}\nSnacks: ${dietPlan.snacks}`,
+      supplements: trainGoal === 'muscle' ? '• Whey Protein\n• Creatine 5g\n• Multivitamin' : trainGoal === 'fatloss' ? '• L-Carnitine\n• Fat Burner\n• Electrolytes' : '• Multivitamin\n• Fish Oil',
+      instructions: '• Follow the weekly schedule\n• Rest on rest days\n• Stay hydrated\n• Track your progress',
+      followUp: 'Weekly progress check-in',
+      lifestyleTips: '• Sleep 7-8 hours\n• Consistency is key\n• Progressive overload'
+    };
+    
+    const result = await apiCall('POST', '/plans', planData);
+    if (result.ok && result.data) {
+      currentPlan = result.data;
+      showPlanInMenu(result.data);
+    }
+    
+    // Add Go to Dashboard button
+    const goBtn = document.createElement('button');
+    goBtn.className = 'view-analysis-btn';
+    goBtn.style.background = 'linear-gradient(45deg,#2ec4b6,#00d4ff)';
+    goBtn.style.marginTop = '15px';
+    goBtn.innerHTML = '<i class="fa-solid fa-chart-line"></i> View Full Dashboard';
+    goBtn.onclick = () => {
+      setSkipDashboard(location);
+      toggleChat(); showDashboard();
+    };
+    stream.appendChild(goBtn);
+    stream.scrollTop = stream.scrollHeight;
+  }, 1500);
+}
+
+function generateWeeklyWorkoutPlan(location, goal) {
+  const isGym = location === 'gym';
+  
+  const gymExercises = {
+    fullbody: ['Bench Press', 'Lat Pulldown', 'Squats', 'Shoulder Press', 'Rows'],
+    upper: ['Bench Press', 'Pull-ups', 'Shoulder Press', 'Dumbbell Curls', 'Tricep Dips'],
+    lower: ['Leg Press', 'Deadlifts', 'Lunges', 'Calf Raises', 'Leg Curls'],
+    abs: ['Cable Crunches', 'Hanging Leg Raises', 'Plank', 'Russian Twists', 'Ab Roller'],
+    fatloss: ['Treadmill', 'Rowing Machine', 'Jump Rope', 'Battle Ropes', 'Burpees'],
+    muscle: ['Bench Press', 'Deadlifts', 'Squats', 'Pull-ups', 'Overhead Press']
+  };
+  
+  const homeExercises = {
+    fullbody: ['Push-ups', 'Squats', 'Lunges', 'Plank', 'Mountain Climbers'],
+    upper: ['Push-ups', 'Diamond Push-ups', 'Pike Push-ups', 'Tricep Dips', 'Superman'],
+    lower: ['Squats', 'Lunges', 'Jump Squats', 'Calf Raises', 'Glute Bridges'],
+    abs: ['Plank', 'Crunches', 'Leg Raises', 'Bicycle Crunches', 'V-Ups'],
+    fatloss: ['Jumping Jacks', 'Burpees', 'Mountain Climbers', 'High Knees', 'Jump Rope'],
+    muscle: ['Push-ups', 'Squats', 'Lunges', 'Plank', 'Burpees']
+  };
+  
+  const exercises = isGym ? gymExercises[goal] : homeExercises[goal];
+  
+  return [
+    { day: exercises[0] || 'Upper Body', exercises: isGym ? ['Bench Press 4x12', 'Lat Pulldown 3x12', 'Shoulder Press 3x10'] : ['Push-ups 4x15', 'Diamond Push-ups 3x12', 'Pike Push-ups 3x10'] },
+    { day: 'Cardio / HIIT', exercises: isGym ? ['Treadmill 20min', 'Rowing 15min', 'Cycling 15min'] : ['Jump Rope 15min', 'Burpees 3x10', 'High Knees 3x30s'] },
+    { day: 'Rest', exercises: ['Light stretching', 'Yoga', 'Walk'] },
+    { day: exercises[2] || 'Lower Body', exercises: isGym ? ['Squats 4x10', 'Deadlifts 3x10', 'Leg Press 3x12'] : ['Squats 4x20', 'Lunges 3x12', 'Jump Squats 3x10'] },
+    { day: exercises[3] || 'Abs / Core', exercises: isGym ? ['Cable Crunches 4x15', 'Hanging Leg Raises 3x12', 'Plank 3x60s'] : ['Plank 4x60s', 'Crunches 4x20', 'Leg Raises 3x15'] },
+    { day: 'Light Cardio', exercises: isGym ? ['Elliptical 20min', 'Stair Climber 15min'] : ['Jogging 20min', 'Jump Rope 10min'] },
+    { day: 'Rest', exercises: ['Active recovery', 'Stretching', 'Foam rolling'] }
+  ];
+}
+
+function generateDietPlan(goal) {
+  if (goal === 'muscle') {
+    return {
+      breakfast: '3 eggs + 2 slices whole grain bread + avocado',
+      lunch: '200g grilled chicken + 1 cup rice + vegetables + olive oil',
+      dinner: '200g salmon + sweet potato + salad',
+      snacks: 'Protein shake / Greek yogurt / Nuts / Banana'
+    };
+  } else if (goal === 'fatloss') {
+    return {
+      breakfast: '2 egg whites + oatmeal + berries',
+      lunch: '150g grilled chicken + large salad + minimal dressing',
+      dinner: 'White fish + steamed vegetables + quinoa',
+      snacks: 'Apple / Celery sticks / Protein bar / Green tea'
+    };
+  } else {
+    return {
+      breakfast: '2 eggs + whole grain toast + fruit',
+      lunch: 'Grilled chicken/rice + mixed vegetables',
+      dinner: 'Lean protein + salad + small portion carbs',
+      snacks: 'Fruits / Nuts / Yogurt'
+    };
   }
 }
 
