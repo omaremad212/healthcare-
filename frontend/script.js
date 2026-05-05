@@ -49,7 +49,7 @@ let answers = {
   sleep: 0, headache: '', water: '', symptoms: '',
   healthGoal: '', duration: '', painSeverity: '',
   temperature: '', breathShort: '',
-  fitnessGoal: '', trainFreq: '', location: '', level: '',
+  fitnessGoal: '', trainFreq: '', location: '', trainGoal: '', level: '',
   weight: 0, height: 0, injury: '', diet: '', flowType: ''
 };
 
@@ -546,6 +546,7 @@ function askNextQuestion() {
         ]);
       } else if (currentStep === 4) {
         // Generate workout and diet plan
+        console.log('[Fitness] Generating plan with location:', answers.location, 'trainGoal:', answers.trainGoal);
         generateFitnessPlanWithDetails();
       }
       return;
@@ -655,6 +656,7 @@ function handleUserAnswer(val, label) {
   }
   if (flowType === 'fitness' && chatSubFlow === 'skip') {
     if (currentStep === 2) answers.location = val;
+    if (currentStep === 3) answers.trainGoal = val;
   }
 
   currentStep++;
@@ -1436,12 +1438,20 @@ const result = await apiCall('POST', '/plans', planData);
 
 // Generate Detailed Weekly Workout Plan with Diet (NEW)
 async function generateFitnessPlanWithDetails() {
+  console.log('[generateFitnessPlanWithDetails] Called');
+  console.log('[generateFitnessPlanWithDetails] answers:', JSON.stringify(answers));
+  
   const location = answers.location || 'home';
   const trainGoal = answers.trainGoal || 'general';
   const userName = currentUser.name || 'User';
   
-  // Show typing animation
+  console.log('[generateFitnessPlanWithDetails] location:', location, 'trainGoal:', trainGoal, 'userName:', userName);
+  
   const stream = document.getElementById('chat-stream');
+  if (!stream) {
+    console.error('[generateFitnessPlanWithDetails] chat-stream element not found!');
+    return;
+  }
   const typingMsg = document.createElement('div');
   typingMsg.id = 'typing-indicator';
   typingMsg.style.cssText = 'background:#f0f4f8; padding:12px; border-radius:0 15px 15px 15px; margin-bottom:10px; font-size:0.9rem; color:var(--text-muted);';
@@ -1500,10 +1510,21 @@ async function generateFitnessPlanWithDetails() {
       lifestyleTips: '• Sleep 7-8 hours\n• Consistency is key\n• Progressive overload'
     };
     
-    const result = await apiCall('POST', '/plans', planData);
-    if (result.ok && result.data) {
-      currentPlan = result.data;
-      showPlanInMenu(result.data);
+    // Save to Supabase with error handling
+    try {
+      const result = await apiCall('POST', '/plans', planData);
+      if (result.ok && result.data) {
+        currentPlan = result.data;
+        showPlanInMenu(result.data);
+      } else {
+        throw new Error(result.message || 'Failed to save plan');
+      }
+    } catch (err) {
+      console.error('Plan save error:', err);
+      const errorMsg = document.createElement('div');
+      errorMsg.style.cssText = 'background:#fff0f0; border:1px solid #ff4444; color:#cc0000; padding:12px; border-radius:10px; margin:10px 0; font-size:0.85rem;';
+      errorMsg.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Could not save plan to database. Your plan is still displayed above.';
+      stream.appendChild(errorMsg);
     }
     
     // Add Go to Dashboard button
