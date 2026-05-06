@@ -14,7 +14,6 @@
     { "src": "/api/auth/register", "dest": "/api/auth/register.js" },
     { "src": "/api/auth/login",    "dest": "/api/auth/login.js"    },
     { "src": "/api/chat",          "dest": "/api/chat.js"          },
-    { "src": "/api/chatbot",       "dest": "/api/chatbot.js"       },
     { "src": "/api/products",      "dest": "/api/products.js"      },
     { "src": "/api/booking",       "dest": "/api/booking.js"       },
     { "src": "/api/orders",        "dest": "/api/orders.js"        },
@@ -23,7 +22,6 @@
     { "src": "/api/profile",       "dest": "/api/profile.js"       },
     { "src": "/api/feedback",      "dest": "/api/feedback.js"      },
     { "src": "/api/emergency",     "dest": "/api/emergency.js"     },
-    { "src": "/api/health",        "dest": "/api/health.js"        },
     { "src": "/(.*)",              "dest": "/frontend/$1"          }
   ]
 }
