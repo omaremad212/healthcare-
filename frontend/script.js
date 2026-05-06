@@ -1,7 +1,7 @@
 'use strict';
 
 // ══════════════════════════════════════════════════════════════
-//  MediAI — Frontend Application
+//  HealthCare — Frontend Application
 // ══════════════════════════════════════════════════════════════
 
 // ── State ──────────────────────────────────────────────────────
@@ -114,8 +114,8 @@ function openModal(mode) {
   document.getElementById('authModal').style.display = 'flex';
   document.getElementById('modalTitle').textContent = isLogin ? 'Welcome Back' : 'Create Account';
   document.getElementById('modalSubtitle').textContent = isLogin
-    ? 'Sign in to your MediAI account'
-    : 'Join thousands who trust MediAI';
+    ? 'Sign in to your HealthCare account'
+    : 'Join thousands who trust HealthCare';
   document.getElementById('nameField').style.display = isLogin ? 'none' : 'block';
   document.getElementById('roleField').style.display = isLogin ? 'none' : 'block';
   document.getElementById('authSubmitBtn').querySelector('#authBtnText').textContent = isLogin ? 'Sign In' : 'Create Account';
@@ -444,7 +444,7 @@ function showAssessmentReadyBanner() {
   banner.innerHTML = `
     <div>
       <strong>Your health assessment is ready</strong>
-      <p>MediAI has gathered enough information to provide a personalized assessment.</p>
+      <p>HealthCare has gathered enough information to provide a personalized assessment.</p>
     </div>
     <button class="btn btn-primary" onclick="viewAssessment()">
       <i class="fa-solid fa-file-medical"></i> View Assessment
