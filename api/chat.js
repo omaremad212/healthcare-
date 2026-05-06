@@ -1,6 +1,6 @@
-// api/chat.js — Conversational AI health assessment via Anthropic Claude
+// api/chat.js — Conversational AI health assessment via Google Gemini
 
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const jwt = require('jsonwebtoken');
 
 const SYSTEM_PROMPT = `You are MediAI, a compassionate and knowledgeable medical assistant built into a healthcare platform. Your role is to help users understand their health concerns through natural, empathetic conversation.
@@ -106,7 +106,8 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ success: false, message: 'Messages array is required' });
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const apiKey = process.env.GeminiAPIKey || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
     return res.status(503).json({
       success: false,
       message: 'AI service is not configured. Please contact support.',
@@ -114,19 +115,34 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1500,
-      system: SYSTEM_PROMPT,
-      messages: messages.map(m => ({
-        role: m.role === 'user' ? 'user' : 'assistant',
-        content: String(m.content),
-      })),
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      systemInstruction: SYSTEM_PROMPT,
+      generationConfig: {
+        maxOutputTokens: 1500,
+        temperature: 0.7,
+      },
     });
 
-    const rawContent = response.content[0]?.text || '';
+    // Gemini expects a "history" of all turns except the last user message,
+    // then the last user message is sent via sendMessage.
+    const allTurns = messages.map(m => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: String(m.content) }],
+    }));
+
+    const last = allTurns[allTurns.length - 1];
+    const history = allTurns.slice(0, -1);
+
+    // First turn must be from user — drop any leading model turns.
+    while (history.length > 0 && history[0].role !== 'user') {
+      history.shift();
+    }
+
+    const chat = model.startChat({ history });
+    const result = await chat.sendMessage(last.parts[0].text);
+    const rawContent = result.response.text() || '';
 
     // Extract assessment JSON if present
     let assessment = null;
@@ -153,10 +169,11 @@ module.exports = async function handler(req, res) {
   } catch (err) {
     console.error('Chat API error:', err);
 
-    if (err.status === 401) {
+    const status = err.status || err.statusCode;
+    if (status === 401 || status === 403) {
       return res.status(503).json({ success: false, message: 'AI service authentication failed' });
     }
-    if (err.status === 429) {
+    if (status === 429) {
       return res.status(429).json({ success: false, message: 'AI service is busy. Please try again in a moment.' });
     }
 
