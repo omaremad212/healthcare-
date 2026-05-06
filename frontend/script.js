@@ -30,6 +30,42 @@ function onDOMReady() {
   if (currentUser) {
     applyLoggedInUI();
   }
+  // Restore the view from the URL hash so refresh keeps you where you were.
+  routeFromHash();
+  window.addEventListener('hashchange', routeFromHash);
+}
+
+// ── Hash Routing ───────────────────────────────────────────────
+const PROTECTED_ROUTES = ['chat', 'dashboard'];
+
+function routeFromHash() {
+  const raw = (location.hash || '').replace(/^#\/?/, '').trim();
+  if (!raw) return; // landing is the default rendered state
+
+  // If a protected route was requested before login, stash it and prompt login.
+  if (PROTECTED_ROUTES.includes(raw) && !currentUser) {
+    sessionStorage.setItem('hc_intended_route', raw);
+    openModal('login');
+    return;
+  }
+
+  switch (raw) {
+    case 'chat':       startChatFromRoute(); break;
+    case 'dashboard':  handleDashboardNav(); break;
+    case 'shop':       showShop(); break;
+    case 'book-doctor':
+    case 'book':       showBookDoctor(); break;
+    case 'home':
+    default:           goHome();
+  }
+}
+
+function startChatFromRoute() {
+  if (!currentUser) { openModal('login'); return; }
+  showView('chat');
+  // Don't reset conversation — leave whatever state existed
+  const welcome = document.getElementById('chatWelcome');
+  if (welcome && conversationMessages.length === 0) welcome.style.display = 'flex';
 }
 
 // ── API Helper ─────────────────────────────────────────────────
@@ -68,6 +104,24 @@ function showView(id) {
     window.scrollTo(0, 0);
   }
   closeMobileNav();
+  syncHashFor(id);
+}
+
+// Mirror the active view into location.hash so refresh keeps the user here.
+function syncHashFor(viewId) {
+  const map = {
+    'landing': '',
+    'chat': '#chat',
+    'dashboard': '#dashboard',
+    'professional-dashboard': '#dashboard',
+    'shop': '#shop',
+    'book-doctor': '#book-doctor',
+  };
+  const desired = map[viewId];
+  if (desired === undefined) return;
+  if (location.hash === desired || (desired === '' && !location.hash)) return;
+  // Use replaceState to avoid spamming history while switching tabs
+  history.replaceState(null, '', desired || location.pathname + location.search);
 }
 
 function goHome() {
@@ -233,6 +287,13 @@ async function handleAuth(event) {
     buildProfessionalDashboard();
     showView('professional-dashboard');
   } else {
+    // Honor any route the user was trying to reach before being asked to log in.
+    const intended = sessionStorage.getItem('hc_intended_route');
+    sessionStorage.removeItem('hc_intended_route');
+    if (intended === 'dashboard') { handleDashboardNav(); return; }
+    if (intended === 'shop')      { showShop(); return; }
+    if (intended === 'book-doctor' || intended === 'book') { showBookDoctor(); return; }
+
     showView('chat');
     if (conversationMessages.length === 0) {
       document.getElementById('chatWelcome').style.display = 'flex';

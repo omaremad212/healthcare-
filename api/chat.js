@@ -1,16 +1,7 @@
-// api/chat.js — Conversational AI health assessment via Google Gemini
+// api/chat.js — Conversational AI health assessment via Groq (Llama 3.3 70B)
 
-const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 const jwt = require('jsonwebtoken');
-
-// Medical content (drug names, dosages, symptoms) often trips Gemini's default
-// safety filters. Lower thresholds so the doctor persona can actually prescribe.
-const SAFETY_SETTINGS = [
-  { category: HarmCategory.HARM_CATEGORY_HARASSMENT,        threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,       threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-];
 
 const SYSTEM_PROMPT = `You are Dr. HealthCare, a licensed general practitioner running a virtual clinic on this healthcare platform. You consult patients directly, diagnose, and prescribe — just like an in-person doctor visit. Patients are here BECAUSE they want a real medical decision, not a referral.
 
@@ -135,7 +126,7 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ success: false, message: 'Messages array is required' });
   }
 
-  const apiKey = process.env.GeminiAPIKey || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY || process.env.GroqAPIKey;
   if (!apiKey) {
     return res.status(503).json({
       success: false,
@@ -144,70 +135,45 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      systemInstruction: SYSTEM_PROMPT,
-      safetySettings: SAFETY_SETTINGS,
-      generationConfig: {
-        maxOutputTokens: 1500,
-        temperature: 0.7,
-      },
-    });
+    const groq = new Groq({ apiKey });
 
-    // Gemini expects a "history" of all turns except the last user message,
-    // then the last user message is sent via sendMessage.
-    const allTurns = messages.map(m => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: String(m.content) }],
-    }));
+    // Groq uses OpenAI-compatible chat completion: system + role-tagged messages.
+    const chatMessages = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...messages.map(m => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: String(m.content),
+      })),
+    ];
 
-    const last = allTurns[allTurns.length - 1];
-    const history = allTurns.slice(0, -1);
-
-    // First turn must be from user — drop any leading model turns.
-    while (history.length > 0 && history[0].role !== 'user') {
-      history.shift();
-    }
-
-    const chat = model.startChat({ history, safetySettings: SAFETY_SETTINGS });
-
-    // Free-tier gemini-2.5-flash is ~10 RPM. Auto-retry on 429 with backoff so
-    // the user does not see "busy" on the first hiccup.
-    let result;
+    // Auto-retry on transient rate-limit / overload (3 attempts, exponential backoff).
+    let response;
     let lastErr;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        result = await chat.sendMessage(last.parts[0].text);
+        response = await groq.chat.completions.create({
+          model: 'llama-3.3-70b-versatile',
+          messages: chatMessages,
+          max_tokens: 1500,
+          temperature: 0.7,
+        });
         lastErr = null;
         break;
       } catch (e) {
         lastErr = e;
         const status = e?.status || e?.statusCode;
         const msg = String(e?.message || '');
-        const isRetryable = status === 429 || status === 503 || /quota|rate|overloaded|unavailable/i.test(msg);
+        const isRetryable = status === 429 || status === 503 || /rate|overloaded|unavailable/i.test(msg);
         if (!isRetryable || attempt === 2) throw e;
-        await new Promise(r => setTimeout(r, 600 * Math.pow(2, attempt))); // 600ms, 1.2s
+        await new Promise(r => setTimeout(r, 600 * Math.pow(2, attempt)));
       }
     }
     if (lastErr) throw lastErr;
 
-    // Defensive: response.text() throws if the response was blocked or empty.
-    // Pull text manually so we can give a useful error.
-    const candidate = result?.response?.candidates?.[0];
-    if (!candidate || candidate.finishReason === 'SAFETY' || candidate.finishReason === 'BLOCKLIST') {
-      console.error('[chat] Response blocked. finishReason=', candidate?.finishReason, 'safetyRatings=', JSON.stringify(candidate?.safetyRatings));
-      return res.status(200).json({
-        success: true,
-        message: "I want to help, but my safety filter blocked that response. Could you rephrase, or describe your symptoms a different way?",
-        assessment: null,
-        isComplete: false,
-      });
-    }
+    const rawContent = response?.choices?.[0]?.message?.content || '';
 
-    const rawContent = (candidate.content?.parts || []).map(p => p.text || '').join('') || '';
     if (!rawContent.trim()) {
-      console.error('[chat] Empty response. finishReason=', candidate.finishReason);
+      console.error('[chat] Empty response from Groq');
       return res.status(200).json({
         success: true,
         message: "Sorry, I didn't catch that. Could you tell me a bit more about how you're feeling?",
@@ -247,22 +213,13 @@ module.exports = async function handler(req, res) {
     if (status === 401 || status === 403 || /API key|invalid/i.test(msg)) {
       return res.status(503).json({ success: false, message: 'AI service authentication failed' });
     }
-    if (status === 429 || /quota|rate/i.test(msg)) {
+    if (status === 429 || /rate|quota/i.test(msg)) {
       return res.status(429).json({ success: false, message: 'AI service is busy. Please try again in a moment.' });
-    }
-    if (/safety|blocked/i.test(msg)) {
-      return res.status(200).json({
-        success: true,
-        message: "I want to help, but my safety filter blocked that. Could you rephrase or describe your symptoms differently?",
-        assessment: null,
-        isComplete: false,
-      });
     }
 
     return res.status(500).json({
       success: false,
       message: 'Something went wrong. Please try again.',
-      detail: process.env.NODE_ENV === 'production' ? undefined : msg,
     });
   }
 };
