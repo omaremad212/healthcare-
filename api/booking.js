@@ -27,11 +27,30 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === 'POST') {
-      const { doctor_id, doctor_name, date, time_slot, payment_method, fee, notes } = req.body;
+      const {
+        doctor_id, doctor_name, date, time_slot,
+        payment_method, fee, notes,
+        is_emergency, professional_role,
+      } = req.body;
 
       if (!date) {
         return res.status(400).json({ success: false, message: 'Date is required' });
       }
+
+      // Determine fee: if not provided, look up doctor's rates
+      let resolvedFee = fee;
+      if (resolvedFee === undefined || resolvedFee === null) {
+        if (doctor_id) {
+          const { data: doc } = await supabase
+            .from('users').select('regular_rate, emergency_rate').eq('id', doctor_id).single();
+          if (doc) {
+            resolvedFee = is_emergency ? (doc.emergency_rate || 400) : (doc.regular_rate || 200);
+          }
+        }
+        resolvedFee = resolvedFee || (is_emergency ? 400 : 200);
+      }
+
+      const bookingType = is_emergency ? 'emergency' : 'regular';
 
       const { data: booking, error } = await supabase
         .from('bookings')
@@ -39,11 +58,14 @@ module.exports = async function handler(req, res) {
           user_id: userId,
           doctor_id: doctor_id || null,
           doctor_name: doctor_name || 'Doctor',
+          professional_role: professional_role || 'doctor',
           date: date,
           time_slot: time_slot || null,
           payment_method: payment_method || 'cash',
           payment_status: payment_method === 'visa' ? 'paid' : 'pending',
-          fee: fee || 0,
+          fee: resolvedFee,
+          is_emergency: !!is_emergency,
+          booking_type: bookingType,
           notes: notes || null,
           status: 'confirmed',
           created_at: new Date().toISOString(),

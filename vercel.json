@@ -20,6 +20,9 @@
     { "src": "/api/orders",        "dest": "/api/orders.js"        },
     { "src": "/api/dashboard",     "dest": "/api/dashboard.js"     },
     { "src": "/api/plans",         "dest": "/api/plans.js"         },
+    { "src": "/api/profile",       "dest": "/api/profile.js"       },
+    { "src": "/api/feedback",      "dest": "/api/feedback.js"      },
+    { "src": "/api/emergency",     "dest": "/api/emergency.js"     },
     { "src": "/api/health",        "dest": "/api/health.js"        },
     { "src": "/(.*)",              "dest": "/frontend/$1"          }
   ]

@@ -1,9 +1,10 @@
 // api/chat.js — Conversational AI health assessment via Groq (Llama 3.3 70B)
+// Supports two modes: 'medical' (Dr. HealthCare) and 'fitness' (Coach AI)
 
 const Groq = require('groq-sdk');
 const jwt = require('jsonwebtoken');
 
-const SYSTEM_PROMPT = `You are Dr. HealthCare, a licensed general practitioner running a virtual clinic on this healthcare platform. You consult patients directly, diagnose, and prescribe — just like an in-person doctor visit. Patients are here BECAUSE they want a real medical decision, not a referral.
+const MEDICAL_SYSTEM_PROMPT = `You are Dr. HealthCare, a licensed general practitioner running a virtual clinic on this healthcare platform. You consult patients directly, diagnose, and prescribe — just like an in-person doctor visit. Patients are here BECAUSE they want a real medical decision, not a referral.
 
 ## How You Practice
 - You ARE the doctor. Diagnose with confidence and prescribe real, named medications with real dosages.
@@ -111,6 +112,64 @@ When you're ready to provide your full assessment, end your message with EXACTLY
 4. Always check for the obvious contraindication before prescribing (allergy to penicillin before amoxicillin, kidney issues before NSAIDs, pregnancy before most meds, etc.) by asking if you don't already know.
 5. The condition field in the assessment is your working diagnosis. State it plainly.`;
 
+const FITNESS_SYSTEM_PROMPT = `You are Coach HealthCare, a knowledgeable and motivating fitness coach AI on the HealthCare platform. Your role is to create personalized fitness plans through natural conversation.
+
+## Your Coaching Style
+- Be warm, energetic, and motivating without being cheesy
+- Ask ONE or TWO focused questions at a time — don't interrogate
+- Adapt to the user's level — never condescend, never overwhelm
+- Reference what they've told you (location, equipment, injuries) when prescribing exercises
+
+## Information to Gather (naturally, through 4–7 exchanges)
+- Primary fitness goal (weight loss / muscle gain / endurance / flexibility / general fitness)
+- Current fitness level (beginner / intermediate / advanced)
+- Training location (home / gym / outdoor) and available equipment
+- Days per week they can train
+- Any injuries, joint issues, or health conditions
+- Diet preferences / restrictions
+- Age and rough weight if it changes the prescription
+
+## Pacing
+After 4–7 focused exchanges, deliver the full plan. Open with: "Alright, here's your plan — let's get you moving."
+
+## Fitness Assessment JSON Format
+When ready, end your message with EXACTLY this block (no text after it):
+
+<FITNESS_ASSESSMENT>
+{
+  "goal": "Weight loss / Muscle gain / Endurance / Flexibility / General fitness",
+  "level": "beginner|intermediate|advanced",
+  "location": "home|gym|outdoor",
+  "overview": "2-3 sentence personalized summary of the plan",
+  "weeklyPlan": [
+    {
+      "day": "Monday",
+      "focus": "Upper Body Strength",
+      "exercises": [
+        { "name": "Push-ups", "sets": 3, "reps": "12-15", "rest": "60s", "notes": "Keep core tight" }
+      ],
+      "duration": "45 min",
+      "intensity": "moderate"
+    }
+  ],
+  "nutritionTips": [
+    "Eat 1.6-2g protein per kg bodyweight daily",
+    "Stay hydrated — aim for 2-3 liters of water"
+  ],
+  "supplements": ["Whey protein (optional)", "Creatine monohydrate (optional)"],
+  "lifestyle": ["Sleep 7-9 hours for optimal recovery", "Take rest days seriously"],
+  "warnings": ["Stop if you feel sharp joint pain", "Consult a doctor before starting if you have medical conditions"],
+  "coachNote": "Encouraging closing message to motivate the user"
+}
+</FITNESS_ASSESSMENT>
+
+## Rules
+- Tailor exercises to the user's level, location, and any injuries
+- Always include at least 4 different workout days
+- For injuries, modify exercises to avoid the problem area
+- Include warm-up and cool-down reminders in notes
+- Be specific: real exercises, real sets/reps, real rest periods`;
+
 function getUserIdFromToken(authHeader) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   try {
@@ -124,23 +183,17 @@ function getUserIdFromToken(authHeader) {
 module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   }
 
-  const authHeader = req.headers.authorization;
-  const userId = getUserIdFromToken(authHeader);
-
+  const userId = getUserIdFromToken(req.headers.authorization);
   if (!userId) {
     return res.status(401).json({ success: false, message: 'Please sign in to use the health chat' });
   }
 
-  const { messages } = req.body;
-
+  const { messages, mode } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ success: false, message: 'Messages array is required' });
   }
@@ -153,12 +206,13 @@ module.exports = async function handler(req, res) {
     });
   }
 
+  const systemPrompt = mode === 'fitness' ? FITNESS_SYSTEM_PROMPT : MEDICAL_SYSTEM_PROMPT;
+
   try {
     const groq = new Groq({ apiKey });
 
-    // Groq uses OpenAI-compatible chat completion: system + role-tagged messages.
     const chatMessages = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       ...messages.map(m => ({
         role: m.role === 'user' ? 'user' : 'assistant',
         content: String(m.content),
@@ -195,32 +249,41 @@ module.exports = async function handler(req, res) {
       console.error('[chat] Empty response from Groq');
       return res.status(200).json({
         success: true,
-        message: "Sorry, I didn't catch that. Could you tell me a bit more about how you're feeling?",
+        message: mode === 'fitness'
+          ? "Sorry, I didn't catch that. Could you tell me a bit more about your fitness goals?"
+          : "Sorry, I didn't catch that. Could you tell me a bit more about how you're feeling?",
         assessment: null,
+        assessmentType: null,
         isComplete: false,
       });
     }
 
-    // Extract assessment JSON if present
+    // Extract assessment JSON if present (medical or fitness)
     let assessment = null;
-    const assessmentMatch = rawContent.match(/<ASSESSMENT>([\s\S]*?)<\/ASSESSMENT>/);
-    if (assessmentMatch) {
-      try {
-        assessment = JSON.parse(assessmentMatch[1].trim());
-      } catch (parseErr) {
-        console.error('Failed to parse assessment JSON:', parseErr.message);
-      }
+    let assessmentType = null;
+
+    const medMatch = rawContent.match(/<ASSESSMENT>([\s\S]*?)<\/ASSESSMENT>/);
+    const fitMatch = rawContent.match(/<FITNESS_ASSESSMENT>([\s\S]*?)<\/FITNESS_ASSESSMENT>/);
+
+    if (medMatch) {
+      try { assessment = JSON.parse(medMatch[1].trim()); assessmentType = 'medical'; }
+      catch (e) { console.error('Medical assessment parse error:', e.message); }
+    } else if (fitMatch) {
+      try { assessment = JSON.parse(fitMatch[1].trim()); assessmentType = 'fitness'; }
+      catch (e) { console.error('Fitness assessment parse error:', e.message); }
     }
 
-    // Strip the raw <ASSESSMENT> block from the visible message
+    // Strip the raw assessment blocks from the visible message
     const visibleMessage = rawContent
       .replace(/<ASSESSMENT>[\s\S]*?<\/ASSESSMENT>/, '')
+      .replace(/<FITNESS_ASSESSMENT>[\s\S]*?<\/FITNESS_ASSESSMENT>/, '')
       .trim();
 
     return res.status(200).json({
       success: true,
       message: visibleMessage,
       assessment,
+      assessmentType,
       isComplete: !!assessment,
     });
   } catch (err) {
