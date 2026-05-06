@@ -405,9 +405,103 @@ async function sendChatMessage() {
     results.unshift({ assessment, savedAt: new Date().toISOString() });
     localStorage.setItem('hc_chatbot_results', JSON.stringify(results.slice(0, 20)));
 
-    // Show "View Assessment" banner in chat
-    setTimeout(() => showAssessmentReadyBanner(), 400);
+    // Auto-pop the assessment modal, plus leave a banner so it can be reopened
+    setTimeout(() => {
+      openAssessmentModal(assessment);
+      showAssessmentReadyBanner();
+    }, 500);
   }
+}
+
+function openAssessmentModal(assessment) {
+  if (!assessment) return;
+  const modal = document.getElementById('assessmentModal');
+  if (!modal) return;
+
+  document.getElementById('assessmentTitle').textContent = assessment.condition || 'Health Assessment';
+  document.getElementById('assessmentOverview').textContent = assessment.overview || '';
+
+  const severityEl = document.getElementById('assessmentSeverity');
+  const sev = (assessment.severity || 'mild').toLowerCase();
+  severityEl.textContent = `Severity: ${sev.charAt(0).toUpperCase() + sev.slice(1)}`;
+  severityEl.className = `assessment-badge severity-${sev}`;
+
+  const urgencyEl = document.getElementById('assessmentUrgency');
+  const urg = (assessment.urgency || 'routine').toLowerCase();
+  urgencyEl.textContent = assessment.urgencyText || `Urgency: ${urg.charAt(0).toUpperCase() + urg.slice(1)}`;
+  urgencyEl.className = `assessment-badge urgency-${urg}`;
+
+  // Medications
+  const medsWrap = document.getElementById('assessmentMeds');
+  const medsSection = document.getElementById('assessmentMedsSection');
+  medsWrap.innerHTML = '';
+  if (assessment.medications && assessment.medications.length) {
+    medsSection.style.display = '';
+    assessment.medications.forEach(m => {
+      const card = document.createElement('div');
+      card.className = 'med-card ' + (m.type === 'prescription' ? 'med-rx' : 'med-otc');
+      card.innerHTML = `
+        <div class="med-card-head">
+          <strong>${escapeHTML(m.name || '')}</strong>
+          <span class="med-tag">${m.type === 'prescription' ? 'Prescription' : 'Over-the-counter'}</span>
+        </div>
+        <div class="med-grid">
+          ${m.dosage ? `<div><span>Dosage</span><strong>${escapeHTML(m.dosage)}</strong></div>` : ''}
+          ${m.frequency ? `<div><span>Frequency</span><strong>${escapeHTML(m.frequency)}</strong></div>` : ''}
+          ${m.duration ? `<div><span>Duration</span><strong>${escapeHTML(m.duration)}</strong></div>` : ''}
+        </div>
+        ${m.instructions ? `<p class="med-notes">${escapeHTML(m.instructions)}</p>` : ''}
+      `;
+      medsWrap.appendChild(card);
+    });
+  } else {
+    medsSection.style.display = 'none';
+  }
+
+  fillList('assessmentRemedies', assessment.homeRemedies, 'assessmentRemediesSection');
+  fillList('assessmentLifestyle', assessment.lifestyle, 'assessmentLifestyleSection');
+  fillList('assessmentWarnings', assessment.warnings, 'assessmentWarningsSection');
+
+  const followUp = document.getElementById('assessmentFollowUp');
+  const followUpSection = document.getElementById('assessmentFollowUpSection');
+  if (assessment.followUp) {
+    followUp.textContent = assessment.followUp;
+    followUpSection.style.display = '';
+  } else {
+    followUpSection.style.display = 'none';
+  }
+
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAssessmentModal() {
+  const modal = document.getElementById('assessmentModal');
+  if (modal) modal.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function fillList(listId, items, sectionId) {
+  const ul = document.getElementById(listId);
+  const section = document.getElementById(sectionId);
+  if (!ul) return;
+  ul.innerHTML = '';
+  if (items && items.length) {
+    items.forEach(item => {
+      const li = document.createElement('li');
+      li.textContent = item;
+      ul.appendChild(li);
+    });
+    if (section) section.style.display = '';
+  } else if (section) {
+    section.style.display = 'none';
+  }
+}
+
+function escapeHTML(str) {
+  return String(str).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
 }
 
 function appendChatMessage(role, text) {
@@ -455,8 +549,7 @@ function showAssessmentReadyBanner() {
 
 function viewAssessment() {
   if (!currentAssessment) return;
-  showView('dashboard');
-  renderAssessmentDashboard(currentAssessment);
+  openAssessmentModal(currentAssessment);
 }
 
 function showTypingIndicator(show) {
