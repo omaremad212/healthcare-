@@ -1,7 +1,7 @@
 'use strict';
 
 // ══════════════════════════════════════════════════════════════
-//  Healthcare — Frontend Application
+//  HealthCare — Frontend Application
 // ══════════════════════════════════════════════════════════════
 
 // ── State ──────────────────────────────────────────────────────
@@ -20,6 +20,8 @@ let authMode         = 'login';
 let currentFeedbackRating = 0;
 let usernameCheckTimer = null;
 let emergencyDataLoaded = false;
+let pendingDelivery = null;             // multi-step shop checkout
+let pendingReferralSpecialty = null;    // assessment-modal → book-doctor handoff
 
 (function init() {
   const stored = localStorage.getItem('hc_user');
@@ -33,6 +35,50 @@ let emergencyDataLoaded = false;
 function onDOMReady() {
   if (currentUser) applyLoggedInUI();
   initStatsCounter();
+  // Restore the view from the URL hash so refresh keeps you where you were.
+  routeFromHash();
+  window.addEventListener('hashchange', routeFromHash);
+}
+
+// ── Hash Routing ───────────────────────────────────────────────
+const PROTECTED_ROUTES = ['chat','dashboard','bookings','profile'];
+
+function routeFromHash() {
+  const raw = (location.hash || '').replace(/^#\/?/, '').trim();
+  if (!raw) return;
+  if (PROTECTED_ROUTES.includes(raw) && !currentUser) {
+    sessionStorage.setItem('hc_intended_route', raw);
+    openModal('login');
+    return;
+  }
+  switch (raw) {
+    case 'chat':         showView('chat'); break;
+    case 'dashboard':    handleDashboardNav(); break;
+    case 'shop':         showShop(); break;
+    case 'book-doctor':
+    case 'book':         showBookDoctor(); break;
+    case 'bookings':     showMyBookings(); break;
+    case 'profile':      showProfilePage(); break;
+    case 'home':
+    default:             goHome();
+  }
+}
+
+function syncHashFor(viewId) {
+  const map = {
+    'landing': '',
+    'chat': '#chat',
+    'dashboard': '#dashboard',
+    'professional-dashboard': '#dashboard',
+    'shop': '#shop',
+    'book-doctor': '#book-doctor',
+    'bookings': '#bookings',
+    'profile': '#profile',
+  };
+  const desired = map[viewId];
+  if (desired === undefined) return;
+  if (location.hash === desired || (desired === '' && !location.hash)) return;
+  history.replaceState(null, '', desired || location.pathname + location.search);
 }
 
 // ── API Helper ─────────────────────────────────────────────────
@@ -67,6 +113,7 @@ function showView(id) {
   const target = document.getElementById(id + '-view') || document.getElementById(id);
   if (target) { target.style.display = 'block'; window.scrollTo(0, 0); }
   closeMobileNav();
+  syncHashFor(id);
 }
 
 function goHome() { showView('landing'); }
@@ -134,8 +181,8 @@ function openModal(mode) {
   document.getElementById('authModal').style.display = 'flex';
   document.getElementById('modalTitle').textContent     = isLogin ? 'Welcome Back' : 'Create Account';
   document.getElementById('modalSubtitle').textContent  = isLogin
-    ? 'Sign in to your Healthcare account'
-    : 'Join thousands who trust Healthcare';
+    ? 'Sign in to your HealthCare account'
+    : 'Join thousands who trust HealthCare';
   document.getElementById('nameField').style.display    = isLogin ? 'none' : 'block';
   document.getElementById('roleField').style.display    = isLogin ? 'none' : 'block';
   document.getElementById('authBtnText').textContent    = isLogin ? 'Sign In' : 'Create Account';
@@ -362,10 +409,11 @@ function toggleChatSidebar() {
 // ── Modal Helpers ──────────────────────────────────────────────
 function handleOverlayClick(e, modalId) {
   if (e.target.id !== modalId) return;
-  if (modalId === 'authModal')      closeAuthModal();
-  if (modalId === 'paymentModal')   closePaymentModal();
-  if (modalId === 'emergencyModal') closeEmergencyModal();
-  if (modalId === 'feedbackModal')  closeFeedbackModal();
+  if (modalId === 'authModal')       closeAuthModal();
+  if (modalId === 'paymentModal')    closePaymentModal();
+  if (modalId === 'emergencyModal')  closeEmergencyModal();
+  if (modalId === 'feedbackModal')   closeFeedbackModal();
+  if (modalId === 'assessmentModal') closeAssessmentModal();
 }
 
 // ── FAQ ────────────────────────────────────────────────────────
@@ -532,8 +580,8 @@ function selectChatMode(mode) {
 
   // Send initial greeting
   const greeting = mode === 'medical'
-    ? "Hi! I'm your Healthcare AI doctor assistant. What health concerns have you been experiencing? Tell me as much as you feel comfortable sharing."
-    : "Hi! I'm your Healthcare fitness coach AI. Let's build you a personalized plan! First — what's your main fitness goal? (e.g. weight loss, muscle gain, endurance, flexibility, general fitness)";
+    ? "Hi! I'm your HealthCare AI doctor assistant. What health concerns have you been experiencing? Tell me as much as you feel comfortable sharing."
+    : "Hi! I'm your HealthCare fitness coach AI. Let's build you a personalized plan! First — what's your main fitness goal? (e.g. weight loss, muscle gain, endurance, flexibility, general fitness)";
 
   appendChatMessage('bot', greeting);
   conversationMessages.push({ role: 'assistant', content: greeting });
@@ -591,7 +639,11 @@ async function sendChatMessage() {
     const results = JSON.parse(localStorage.getItem('hc_chatbot_results') || '[]');
     results.unshift({ assessment: currentAssessment, savedAt: new Date().toISOString() });
     localStorage.setItem('hc_chatbot_results', JSON.stringify(results.slice(0, 20)));
-    setTimeout(() => showAssessmentReadyBanner(assessmentType), 400);
+    setTimeout(() => {
+      // Auto-popup the assessment modal for medical results, plus banner so user can reopen
+      if (assessmentType === 'medical') openAssessmentModal(currentAssessment);
+      showAssessmentReadyBanner(assessmentType);
+    }, 500);
   }
 }
 
@@ -630,7 +682,7 @@ function showAssessmentReadyBanner(type) {
   banner.innerHTML = `
     <div>
       <strong>${isFitness ? 'Your fitness plan is ready!' : 'Your health assessment is ready!'}</strong>
-      <p>Healthcare AI has prepared your personalized ${isFitness ? 'fitness plan' : 'health assessment'}.</p>
+      <p>HealthCare AI has prepared your personalized ${isFitness ? 'fitness plan' : 'health assessment'}.</p>
     </div>
     <button class="btn btn-primary" onclick="viewAssessment()">
       <i class="fa-solid fa-${isFitness ? 'dumbbell' : 'file-medical'}"></i>
@@ -740,7 +792,7 @@ function renderAssessmentDashboard(a) {
   if (!content || !a) return;
 
   setEl('dashTitle',    'Your Health Assessment');
-  setEl('dashSubtitle', 'Based on your conversation with Healthcare AI');
+  setEl('dashSubtitle', 'Based on your conversation with HealthCare AI');
 
   const severityBadge = { mild: '<span class="badge badge-green"><i class="fa-solid fa-circle-check"></i> Mild</span>', moderate: '<span class="badge badge-yellow"><i class="fa-solid fa-circle-exclamation"></i> Moderate</span>', severe: '<span class="badge badge-red"><i class="fa-solid fa-triangle-exclamation"></i> Severe</span>' }[a.severity] || '<span class="badge badge-gray">Unknown</span>';
   const urgencyClass = { routine: 'urgency-routine', soon: 'urgency-soon', immediate: 'urgency-immediate' }[a.urgency] || 'urgency-routine';
@@ -837,7 +889,7 @@ function renderFitnessAssessment(a) {
   if (!content || !a) return;
 
   setEl('dashTitle',    'Your Fitness Plan');
-  setEl('dashSubtitle', 'Personalized by Healthcare Coach AI');
+  setEl('dashSubtitle', 'Personalized by HealthCare Coach AI');
 
   const levelBadge = { beginner: 'badge-green', intermediate: 'badge-yellow', advanced: 'badge-red' }[a.level] || 'badge-gray';
   const locIcon    = { home: 'fa-house', gym: 'fa-dumbbell', outdoor: 'fa-tree' }[a.location] || 'fa-location-dot';
@@ -1347,37 +1399,20 @@ function updateCartDisplay() {
 
 function openCheckout() {
   if (!cart.length) return;
-  const total    = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  currentPayDoc  = 'Shop Order';
-  currentPayPrice = total.toFixed(2);
-  currentPaySlot  = '';
+  const total      = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  currentPayDoc    = 'Shop Order';
+  currentPayPrice  = total.toFixed(2);
+  currentPaySlot   = '';
+  pendingDelivery  = null;
+
   resetPaymentModal();
-  setDisplay('pay-step-delivery', 'block');
+  renderOrderSummaryStep();
+  goToCheckoutStep('pay-step-summary');
   document.getElementById('paymentModal').style.display = 'flex';
 }
 
-async function confirmDelivery() {
-  const name    = getVal('deliveryName').trim();
-  const phone   = getVal('deliveryPhone').trim();
-  const address = getVal('deliveryAddress').trim();
-  if (!name || !phone || !address) { showToast('Please fill in all delivery fields.', 'warning'); return; }
-
-  const payload = {
-    items: cart.map(i => ({ productId: i.productId, productName: i.name, price: i.price, quantity: i.qty })),
-    paymentMethod: 'cash',
-    deliveryName: name, deliveryPhone: phone, deliveryAddress: address,
-  };
-  const result = await apiCall('POST', '/orders', payload);
-  if (result.ok) {
-    cart = [];
-    updateCartDisplay();
-    setDisplay('pay-step-delivery', 'none');
-    document.getElementById('cashConfirmText').textContent = `Your order has been placed! We'll deliver to ${address}.`;
-    setDisplay('pay-step-cash', 'block');
-  } else {
-    showToast(result.data?.message || 'Order failed. Please try again.', 'error');
-  }
-}
+// Backwards-compat for any old links — routes through new flow.
+function confirmDelivery() { deliveryContinue(); }
 
 // ── Doctor Booking ─────────────────────────────────────────────
 const SPECIALIZATIONS = [
@@ -1530,7 +1565,8 @@ function closePaymentModal() {
 }
 
 function resetPaymentModal() {
-  ['pay-step-1','pay-step-delivery','pay-step-visa','pay-step-cash','pay-step-success']
+  ['pay-step-summary','pay-step-1','pay-step-delivery','pay-step-shop-pay',
+   'pay-step-visa','pay-step-cash','pay-step-success']
     .forEach(id => setDisplay(id, 'none'));
 }
 
@@ -1570,7 +1606,7 @@ async function selectPayment(method) {
   }
 }
 
-function processVisaPayment() {
+async function processVisaPayment() {
   const card   = getVal('visaCard').replace(/\s/g,'');
   const expiry = getVal('visaExpiry');
   const cvv    = getVal('visaCvv');
@@ -1581,12 +1617,19 @@ function processVisaPayment() {
     return;
   }
 
+  // For shop orders, place the order now (after card details).
+  if (currentPayDoc === 'Shop Order') {
+    const result = await placeShopOrder('visa');
+    if (!result.ok) { showToast(result.message, 'error'); return; }
+    cart = [];
+    updateCartDisplay();
+  }
+
   setDisplay('pay-step-visa', 'none');
-  document.getElementById('successText').textContent = currentPayDoc === 'Shop Order'
+  setEl('successText', currentPayDoc === 'Shop Order'
     ? `Payment of $${currentPayPrice} confirmed. Your order is on its way!`
-    : `Payment of EGP ${currentPayPrice} confirmed. Appointment with ${currentPayDoc} at ${currentPaySlot}.`;
+    : `Payment of EGP ${currentPayPrice} confirmed. Appointment with ${currentPayDoc} at ${currentPaySlot}.`);
   setDisplay('pay-step-success', 'block');
-  if (currentPayDoc === 'Shop Order') { cart = []; updateCartDisplay(); }
 }
 
 function formatCardNumber(el) {
@@ -1687,3 +1730,187 @@ function setDisplay(id, v) { const el = document.getElementById(id); if (el) el.
 function getVal(id)      { return document.getElementById(id)?.value || ''; }
 function setVal(id, v)   { const el = document.getElementById(id); if (el) el.value = v; }
 function ucFirst(s)      { if (!s) return ''; return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// ── Assessment Result Modal (auto-popup on consult complete) ──
+function openAssessmentModal(assessment) {
+  if (!assessment) return;
+  const modal = document.getElementById('assessmentModal');
+  if (!modal) return;
+
+  document.getElementById('assessmentTitle').textContent = assessment.condition || 'Health Assessment';
+  document.getElementById('assessmentOverview').textContent = assessment.overview || '';
+
+  const referralBanner = document.getElementById('assessmentReferral');
+  const referralText   = document.getElementById('assessmentReferralText');
+  const medsHeading    = document.querySelector('#assessmentMedsSection h3');
+  const needsSpecialist = !!assessment.specialistNeeded
+    || (assessment.severity || '').toLowerCase() === 'severe'
+    || (assessment.urgency || '').toLowerCase() === 'immediate';
+
+  if (needsSpecialist) {
+    const specialty = assessment.specialistNeeded || 'General Medicine';
+    pendingReferralSpecialty = specialty;
+    referralBanner.style.display = 'flex';
+    referralText.textContent = `Based on what you've described, you should see a ${specialty} specialist in person. We'll route you straight to available doctors.`;
+    if (medsHeading) medsHeading.innerHTML = '<i class="fa-solid fa-pills"></i> Symptomatic Relief Until You See a Doctor';
+  } else {
+    pendingReferralSpecialty = null;
+    referralBanner.style.display = 'none';
+    if (medsHeading) medsHeading.innerHTML = '<i class="fa-solid fa-pills"></i> Prescribed Medications';
+  }
+
+  const severityEl = document.getElementById('assessmentSeverity');
+  const sev = (assessment.severity || 'mild').toLowerCase();
+  severityEl.textContent = `Severity: ${sev.charAt(0).toUpperCase() + sev.slice(1)}`;
+  severityEl.className = `assessment-badge severity-${sev}`;
+
+  const urgencyEl = document.getElementById('assessmentUrgency');
+  const urg = (assessment.urgency || 'routine').toLowerCase();
+  urgencyEl.textContent = assessment.urgencyText || `Urgency: ${urg.charAt(0).toUpperCase() + urg.slice(1)}`;
+  urgencyEl.className = `assessment-badge urgency-${urg}`;
+
+  const medsWrap = document.getElementById('assessmentMeds');
+  const medsSection = document.getElementById('assessmentMedsSection');
+  medsWrap.innerHTML = '';
+  if (assessment.medications && assessment.medications.length) {
+    medsSection.style.display = '';
+    assessment.medications.forEach(m => {
+      const card = document.createElement('div');
+      card.className = 'med-card ' + (m.type === 'prescription' ? 'med-rx' : 'med-otc');
+      card.innerHTML = `
+        <div class="med-card-head">
+          <strong>${escHtml(m.name || '')}</strong>
+          <span class="med-tag">${m.type === 'prescription' ? 'Prescription' : 'Over-the-counter'}</span>
+        </div>
+        <div class="med-grid">
+          ${m.dosage    ? `<div><span>Dosage</span><strong>${escHtml(m.dosage)}</strong></div>` : ''}
+          ${m.frequency ? `<div><span>Frequency</span><strong>${escHtml(m.frequency)}</strong></div>` : ''}
+          ${m.duration  ? `<div><span>Duration</span><strong>${escHtml(m.duration)}</strong></div>` : ''}
+        </div>
+        ${m.instructions ? `<p class="med-notes">${escHtml(m.instructions)}</p>` : ''}`;
+      medsWrap.appendChild(card);
+    });
+  } else {
+    medsSection.style.display = 'none';
+  }
+
+  fillList('assessmentRemedies',  assessment.homeRemedies, 'assessmentRemediesSection');
+  fillList('assessmentLifestyle', assessment.lifestyle,    'assessmentLifestyleSection');
+  fillList('assessmentWarnings',  assessment.warnings,     'assessmentWarningsSection');
+
+  const followUp        = document.getElementById('assessmentFollowUp');
+  const followUpSection = document.getElementById('assessmentFollowUpSection');
+  if (assessment.followUp) {
+    followUp.textContent = assessment.followUp;
+    followUpSection.style.display = '';
+  } else {
+    followUpSection.style.display = 'none';
+  }
+
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAssessmentModal() {
+  const modal = document.getElementById('assessmentModal');
+  if (modal) modal.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function fillList(listId, items, sectionId) {
+  const ul      = document.getElementById(listId);
+  const section = document.getElementById(sectionId);
+  if (!ul) return;
+  ul.innerHTML = '';
+  if (items && items.length) {
+    items.forEach(item => {
+      const li = document.createElement('li');
+      li.textContent = item;
+      ul.appendChild(li);
+    });
+    if (section) section.style.display = '';
+  } else if (section) {
+    section.style.display = 'none';
+  }
+}
+
+function bookFromAssessment() {
+  closeAssessmentModal();
+  showBookDoctor();
+  if (pendingReferralSpecialty) {
+    setTimeout(() => {
+      const match = SPECIALIZATIONS.find(s => s.name === pendingReferralSpecialty);
+      if (match) selectSpec(match.name);
+    }, 50);
+  }
+}
+
+// ── Multi-step shop checkout ──────────────────────────────────
+function goToCheckoutStep(stepId) {
+  resetPaymentModal();
+  setDisplay(stepId, 'block');
+}
+
+function renderOrderSummaryStep() {
+  const list = document.getElementById('orderSummaryList');
+  if (!list) return;
+  list.innerHTML = '';
+  cart.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'order-summary-row';
+    row.innerHTML = `
+      <div class="osr-main">
+        <strong>${escHtml(item.name)}</strong>
+        <span>$${item.price.toFixed(2)} × ${item.qty}</span>
+      </div>
+      <div class="osr-price">$${(item.price * item.qty).toFixed(2)}</div>`;
+    list.appendChild(row);
+  });
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  setEl('orderSubtotal',   '$' + subtotal.toFixed(2));
+  setEl('orderGrandTotal', '$' + subtotal.toFixed(2));
+}
+
+function summaryContinue() {
+  if (!cart.length) { showToast('Your cart is empty', 'warning'); return; }
+  goToCheckoutStep('pay-step-delivery');
+}
+
+function deliveryContinue() {
+  const name    = getVal('deliveryName').trim();
+  const phone   = getVal('deliveryPhone').trim();
+  const address = getVal('deliveryAddress').trim();
+  const notes   = getVal('deliveryNotes').trim();
+  if (!name || !phone || !address) { showToast('Please fill in all delivery fields.', 'warning'); return; }
+  pendingDelivery = { name, phone, address, notes };
+  setEl('shopPayTotal', `Total: $${(parseFloat(currentPayPrice) || 0).toFixed(2)}`);
+  goToCheckoutStep('pay-step-shop-pay');
+}
+
+async function selectShopPayment(method) {
+  if (method === 'cash') {
+    const result = await placeShopOrder('cash');
+    if (!result.ok) { showToast(result.message, 'error'); return; }
+    cart = [];
+    updateCartDisplay();
+    setEl('cashConfirmText', `Your order has been placed! We'll deliver to ${pendingDelivery?.address || 'your address'}. Total: $${currentPayPrice}.`);
+    goToCheckoutStep('pay-step-cash');
+  } else {
+    setEl('visaAmountText', `Total: $${currentPayPrice}`);
+    goToCheckoutStep('pay-step-visa');
+  }
+}
+
+async function placeShopOrder(paymentMethod) {
+  if (!pendingDelivery) return { ok: false, message: 'Missing delivery info' };
+  const payload = {
+    items: cart.map(i => ({ productId: i.productId, productName: i.name, price: i.price, quantity: i.qty })),
+    paymentMethod,
+    deliveryName:    pendingDelivery.name,
+    deliveryPhone:   pendingDelivery.phone,
+    deliveryAddress: pendingDelivery.address + (pendingDelivery.notes ? ` — ${pendingDelivery.notes}` : ''),
+  };
+  const result = await apiCall('POST', '/orders', payload);
+  if (!result.ok) return { ok: false, message: result.data?.message || 'Order failed. Please try again.' };
+  return { ok: true, data: result.data };
+}
