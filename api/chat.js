@@ -1,5 +1,8 @@
-// api/chat.js — Conversational AI health assessment via Groq (Llama 3.3 70B)
+// api/chat.js — Conversational AI health assessment via Groq (Llama 3.1 8B Instant)
 // Supports two modes: 'medical' (Dr. HealthCare) and 'fitness' (Coach AI)
+// Note: 8B instant chosen over 70B versatile — much higher free-tier rate limits
+// (~14K RPM / ~150K TPM vs ~30 RPM / ~6K TPM) which the 70B model exhausts
+// after just one or two messages with our system prompts.
 
 const Groq = require('groq-sdk');
 const jwt = require('jsonwebtoken');
@@ -225,7 +228,7 @@ module.exports = async function handler(req, res) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         response = await groq.chat.completions.create({
-          model: 'llama-3.3-70b-versatile',
+          model: 'llama-3.1-8b-instant',
           messages: chatMessages,
           max_tokens: 1500,
           temperature: 0.7,
@@ -236,7 +239,7 @@ module.exports = async function handler(req, res) {
         lastErr = e;
         const status = e?.status || e?.statusCode;
         const msg = String(e?.message || '');
-        const isRetryable = status === 429 || status === 503 || /rate|overloaded|unavailable/i.test(msg);
+        const isRetryable = status === 429 || status === 503 || /\brate[ -]?limit|\boverloaded\b|\bunavailable\b/i.test(msg);
         if (!isRetryable || attempt === 2) throw e;
         await new Promise(r => setTimeout(r, 600 * Math.pow(2, attempt)));
       }
@@ -295,7 +298,7 @@ module.exports = async function handler(req, res) {
     if (status === 401 || status === 403 || /API key|invalid/i.test(msg)) {
       return res.status(503).json({ success: false, message: 'AI service authentication failed' });
     }
-    if (status === 429 || /rate|quota/i.test(msg)) {
+    if (status === 429 || /\brate[ -]?limit|\bquota\b/i.test(msg)) {
       return res.status(429).json({ success: false, message: 'AI service is busy. Please try again in a moment.' });
     }
 
