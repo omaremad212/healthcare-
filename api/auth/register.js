@@ -10,7 +10,7 @@ const generateToken = (userId) => {
   });
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   }
@@ -22,7 +22,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, message: 'Name, email, and password are required' });
     }
 
-    // Check for existing user in Supabase
     const { data: existingUsers } = await supabase
       .from('users')
       .select('id')
@@ -33,11 +32,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Insert user into Supabase
     const { data: newUser, error } = await supabase
       .from('users')
       .insert({
@@ -51,7 +48,7 @@ export default async function handler(req, res) {
         years_experience: role === 'doctor' || role === 'coach' ? yearsExperience : null,
         clinic_address: role === 'doctor' ? clinicAddress : null,
         training_type: role === 'coach' ? trainingType : null,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -77,4 +74,4 @@ export default async function handler(req, res) {
     console.error('Register error:', err);
     res.status(500).json({ success: false, message: err.message });
   }
-}
+};

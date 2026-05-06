@@ -1,15 +1,38 @@
-/* ============================================================
-   script.js — HealthCare Platform
-   Refactored from inline JS.
-   Now connects to the Node.js/Express backend API.
-   ============================================================ */
-
 'use strict';
 
-// ── API Configuration ──────────────────────────────────────
-const API_BASE = ''; // Empty for same-origin (Vercel) - uses /api/* paths
+// ══════════════════════════════════════════════════════════════
+//  MediAI — Frontend Application
+// ══════════════════════════════════════════════════════════════
 
-/** Generic API helper — automatically attaches JWT if present */
+// ── State ──────────────────────────────────────────────────────
+let currentUser = null;
+let conversationMessages = []; // { role: 'user'|'assistant', content: string }
+let currentAssessment = null;
+let cart = [];
+let currentPayDoc = '';
+let currentPayPrice = 0;
+let currentPaySlot = '';
+let selectedSlots = {};
+let authMode = 'login'; // 'login' | 'register'
+
+// Restore session from localStorage
+(function init() {
+  const stored = localStorage.getItem('hc_user');
+  const token = localStorage.getItem('hc_token');
+  if (stored && token) {
+    try { currentUser = JSON.parse(stored); } catch (e) { /* ignore */ }
+  }
+  document.addEventListener('DOMContentLoaded', onDOMReady);
+})();
+
+// ── DOM Ready ──────────────────────────────────────────────────
+function onDOMReady() {
+  if (currentUser) {
+    applyLoggedInUI();
+  }
+}
+
+// ── API Helper ─────────────────────────────────────────────────
 async function apiCall(method, path, body = null) {
   const headers = { 'Content-Type': 'application/json' };
   const token = localStorage.getItem('hc_token');
@@ -18,19 +41,12 @@ async function apiCall(method, path, body = null) {
   const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
 
-  // Build URL - path should be like "/auth/login" -> becomes "/api/auth/login"
   const apiPath = path.startsWith('/') ? path : '/' + path;
-  const fullUrl = `${window.location.origin}/api${apiPath}`;
-  
-  console.log(`API Call: ${method} ${fullUrl}`, body ? 'with body' : '');
+  const url = `${window.location.origin}/api${apiPath}`;
 
   try {
-    const res = await fetch(fullUrl, opts);
-    console.log(`Response status: ${res.status}`);
-    
+    const res = await fetch(url, opts);
     const data = await res.json();
-    console.log(`Response data:`, data);
-    
     return { ok: res.ok, status: res.status, data };
   } catch (err) {
     console.error('API error:', err);
@@ -38,2075 +54,1066 @@ async function apiCall(method, path, body = null) {
   }
 }
 
-// ── State ──────────────────────────────────────────────────
-let currentUser   = JSON.parse(localStorage.getItem('hc_user') || 'null') || { name: '', auth: false, role: '' };
-let currentStep   = 0;
-let flowType      = '';
-let chatSubFlow   = '';
-let freeInputTarget = '';
-let pendingAction   = '';
-let answers = {
-  sleep: 0, headache: '', water: '', symptoms: '',
-  healthGoal: '', duration: '', painSeverity: '',
-  temperature: '', breathShort: '',
-  fitnessGoal: '', trainFreq: '', location: '', trainGoal: '', level: '',
-  weight: 0, height: 0, injury: '', diet: '', flowType: ''
-};
-
-// Restore session if token exists
-if (currentUser.auth) {
-  document.addEventListener('DOMContentLoaded', restoreSession);
-}
-
-async function restoreSession() {
-  const token = localStorage.getItem('hc_token');
-  const storedUser = localStorage.getItem('hc_user');
-  
-  if (!token || !storedUser) {
-    logout();
-    return;
+// ── View Routing ───────────────────────────────────────────────
+function showView(id) {
+  const views = ['landing-view', 'chat-view', 'dashboard-view',
+                 'shop-view', 'book-doctor-view', 'professional-dashboard'];
+  views.forEach(v => {
+    const el = document.getElementById(v);
+    if (el) el.style.display = 'none';
+  });
+  const target = document.getElementById(id + '-view') || document.getElementById(id);
+  if (target) {
+    target.style.display = 'block';
+    window.scrollTo(0, 0);
   }
-  
-  try {
-    const user = JSON.parse(storedUser);
-    if (!user.auth) {
-      logout();
-      return;
-    }
-    
-    currentUser = user;
-  } catch (e) {
-    logout();
-    return;
-  }
-  
-  document.getElementById('navSignup').style.display = 'none';
-  document.getElementById('navLogin').style.display  = 'none';
-  document.getElementById('userProfile').style.display = 'flex';
-  document.getElementById('userName').innerText         = currentUser.name;
-  document.getElementById('avatarLetter').innerText     = currentUser.name[0];
-  document.getElementById('menuDisplayName').innerText  = currentUser.name;
-  document.getElementById('menuDisplayEmail').innerText = currentUser.email || '';
-  document.getElementById('chat-stream').innerHTML      = '';
-  if (currentUser.role === 'patient') {
-    document.getElementById('nav-shop-link').style.display = 'block';
-    document.getElementById('menuShopItem').style.display  = 'flex';
-  }
-  updateLandingSectionsVisibility();
-  
-  await fetchAllUserData();
+  closeMobileNav();
 }
 
-async function fetchAllUserData() {
-  const token = localStorage.getItem('hc_token');
-  if (!token) return;
-  
-  const authHeader = `Bearer ${token}`;
-  
-  try {
-    const [dashboardRes, planRes] = await Promise.all([
-      fetch('/api/dashboard', { headers: { Authorization: authHeader } }),
-      fetch('/api/plans?type=latest', { headers: { Authorization: authHeader } })
-    ]);
-    
-    const dashboardData = await dashboardRes.json();
-    const planData = await planRes.json();
-    
-    console.log('[fetchAllUserData] Dashboard:', dashboardData);
-    console.log('[fetchAllUserData] Plan:', planData);
-    
-    if (dashboardData.success && dashboardData.data) {
-      const data = dashboardData.data;
-      
-      if (data.profile) {
-        currentUser = { ...currentUser, ...data.profile, auth: true };
-        localStorage.setItem('hc_user', JSON.stringify(currentUser));
-      }
-      
-      if (data.latestResult) {
-        const storedResults = JSON.parse(localStorage.getItem('hc_chatbot_results') || '[]');
-        const newResult = { ...data.latestResult, saved: true };
-        storedResults.unshift(newResult);
-        localStorage.setItem('hc_chatbot_results', JSON.stringify(storedResults.slice(0, 50)));
-      }
-      
-      if (data.bookings && data.bookings.length > 0) {
-        saveStoredBookings(data.bookings);
-      }
-      
-      if (data.orders && data.orders.length > 0) {
-        saveStoredOrders(data.orders);
-      }
-      
-      if (data.stats) {
-        updateDashboardStats(data.stats);
-      }
-    }
-    
-    if (planData.success && planData.data) {
-      currentPlan = planData.data;
-      showPlanInMenu(currentPlan);
-      showDashboardPlan(currentPlan);
-    } else {
-      hidePlanInMenu();
-      hideDashboardPlan();
-    }
-    
-} catch (err) {
-      console.error('Plan save error:', err.message);
-      console.log('[Plan] Error - but plan is still displayed above');
-      // Still show plan even if save fails - don't block UI
-    }
+function goHome() {
+  showView('landing');
 }
 
-function updateDashboardStats(stats) {
-  const scoreEl = document.getElementById('val-score');
-  const statusEl = document.getElementById('val-status');
-  const riskEl = document.getElementById('val-risk');
-  
-  if (stats.totalBookings !== undefined) {
-    const bookingsEl = document.getElementById('val-bookings');
-    if (bookingsEl) bookingsEl.innerText = stats.totalBookings;
-  }
-  if (stats.totalOrders !== undefined) {
-    const ordersEl = document.getElementById('val-orders');
-    if (ordersEl) ordersEl.innerText = stats.totalOrders;
-  }
-  if (stats.assessments !== undefined) {
-    const assessmentsEl = document.getElementById('val-assessments');
-    if (assessmentsEl) assessmentsEl.innerText = stats.assessments;
-  }
-}
-
-// ── Health Score Helpers (mirrors backend logic) ───────────
-function calculateScore(ans) {
-  let score = 0;
-  if (Number(ans.sleep) < 5)        score += 2;
-  if (ans.water === 'no')            score += 1;
-  if (ans.headache === 'yes')        score += 2;
-  if (ans.symptoms === 'fever')      score += 3;
-  if (ans.temperature === 'yes')     score += 2;
-  if (ans.duration === 'more3')      score += 2;
-  if (ans.painSeverity === 'severe') score += 3;
-  if (ans.breathShort === 'yes')     score += 3;
-  return score;
-}
-
-function calculateStatus(score) {
-  if (score <= 2) return { status: 'Stable',   risk: 'Low'    };
-  if (score <= 5) return { status: 'Moderate',  risk: 'Medium' };
-  return            { status: 'Critical',  risk: 'High'   };
-}
-
-function generateAdvice(ans, status) {
-  const tips = [];
-  if (Number(ans.sleep) < 5)        tips.push('Improve your sleep schedule — aim for 7–8 hours nightly.');
-  if (ans.water === 'no')           tips.push('Drink more water daily — at least 2 litres.');
-  if (ans.headache === 'yes')       tips.push('Monitor your headache and try to reduce stress levels.');
-  if (ans.symptoms === 'fever' || ans.temperature === 'yes') tips.push('You may need medical attention for your fever.');
-  if (ans.duration === 'more3')     tips.push('Symptoms lasting more than 3 days — consider consulting a doctor.');
-  if (ans.breathShort === 'yes')    tips.push('Shortness of breath is a serious symptom. Seek medical care promptly.');
-  if (ans.painSeverity === 'severe')tips.push('Severe pain should not be ignored — speak with a healthcare professional.');
-  if (status === 'Stable' && tips.length === 0) {
-    tips.push('Your condition looks good. Keep up your healthy habits.');
-    tips.push('Schedule a routine check-up to stay on top of your health.');
-  }
-  if (status === 'Critical') tips.unshift('⚠️ Immediate medical consultation is required.');
-  return tips;
-}
-
-function calcBMI(weight, height) {
-  if (!weight || !height || height === 0) return null;
-  const hm = height / 100;
-  return (weight / (hm * hm)).toFixed(1);
-}
-
-function bmiCategory(bmi) {
-  if (bmi < 18.5) return { label: 'Underweight', color: 'var(--secondary)' };
-  if (bmi < 25)   return { label: 'Normal',       color: 'var(--success)'  };
-  if (bmi < 30)   return { label: 'Overweight',   color: 'var(--warning)'  };
-  return            { label: 'Obese',         color: 'var(--danger)'   };
-}
-
-// ── Auth Helpers ────────────────────────────────────────────
-function openModal(mode) {
-  document.getElementById('authModal').style.display = 'flex';
-  document.getElementById('authContent').style.display = 'block';
-  document.getElementById('bookingContent').style.display = 'none';
-  document.getElementById('nameField').style.display = mode === 'login' ? 'none' : 'block';
-  document.getElementById('modalTitle').innerText = mode === 'login' ? 'Welcome Back' : 'Create Account';
-  document.getElementById('authSubmitBtn').innerText = mode === 'login' ? 'Login' : 'Sign Up';
-}
-
-function openBookingModal() {
-  document.getElementById('authModal').style.display = 'flex';
-  document.getElementById('authContent').style.display = 'none';
-  document.getElementById('bookingContent').style.display = 'block';
-}
-
-async function confirmBooking() {
-  const date = document.getElementById('bookDate').value;
-  const time = document.getElementById('bookTime').value;
-  if (!date || !time) { alert('Please select a date and time.'); return; }
-
-  const selectedDoctor = window.selectedDoctor || { id: null, name: 'Dr. Essam Mark' };
-  const bookingData = {
-    doctor_id: selectedDoctor.id || null,
-    doctor_name: selectedDoctor.name || 'Doctor',
-    date: date,
-    time_slot: time,
-    payment_method: 'cash',
-    fee: 0,
-    notes: null
-  };
-
-  console.log('[confirmBooking] Sending booking payload:', JSON.stringify(bookingData, null, 2));
-
-  const result = await apiCall('POST', '/booking', bookingData);
-  console.log('[confirmBooking] Response:', result);
-
-  if (result.ok && result.data && result.data.success) {
-    const booking = result.data.data;
-    const bookings = getStoredBookings();
-    bookings.unshift(booking);
-    saveStoredBookings(bookings);
-    alert(`Appointment Confirmed with ${booking.doctor_name || 'Doctor'} for ${date} at ${time}.`);
-    closeModal();
+function handleDashboardNav() {
+  if (!currentUser) { openModal('login'); return; }
+  if (currentUser.role === 'doctor' || currentUser.role === 'coach') {
+    buildProfessionalDashboard();
+    showView('professional-dashboard');
   } else {
-    const errMsg = result.data?.message || 'Failed to save booking';
-    console.error('[confirmBooking] Error:', errMsg);
-    alert('Booking failed: ' + errMsg);
+    showView('dashboard');
+    renderDashboardPage();
+  }
+  closeMobileNav();
+}
+
+function startChat() {
+  if (!currentUser) {
+    openModal('login');
+    return;
+  }
+  showView('chat');
+  if (conversationMessages.length === 0) {
+    document.getElementById('chatWelcome').style.display = 'flex';
   }
 }
 
-function closeModal() { document.getElementById('authModal').style.display = 'none'; }
-function toggleProfileMenu() { document.getElementById('profileMenu').classList.toggle('active'); }
+function showShop() {
+  showView('shop');
+  loadProducts();
+}
+
+function showBookDoctor() {
+  showView('book-doctor');
+  buildSpecGrid();
+}
+
+// ── Auth UI ────────────────────────────────────────────────────
+function openModal(mode) {
+  authMode = mode;
+  const isLogin = mode === 'login';
+  document.getElementById('authModal').style.display = 'flex';
+  document.getElementById('modalTitle').textContent = isLogin ? 'Welcome Back' : 'Create Account';
+  document.getElementById('modalSubtitle').textContent = isLogin
+    ? 'Sign in to your MediAI account'
+    : 'Join thousands who trust MediAI';
+  document.getElementById('nameField').style.display = isLogin ? 'none' : 'block';
+  document.getElementById('roleField').style.display = isLogin ? 'none' : 'block';
+  document.getElementById('authSubmitBtn').querySelector('#authBtnText').textContent = isLogin ? 'Sign In' : 'Create Account';
+  document.getElementById('authSwitchText').textContent = isLogin ? "Don't have an account?" : 'Already have an account?';
+  document.getElementById('authSwitchBtn').textContent = isLogin ? 'Create one' : 'Sign in';
+  toggleRoleFields();
+  hideAuthError();
+
+  // Hide/show patient fields by default in register
+  if (!isLogin) {
+    document.getElementById('patientFields').style.display = 'block';
+    document.getElementById('doctorFields').style.display = 'none';
+    document.getElementById('coachFields').style.display = 'none';
+  } else {
+    document.getElementById('patientFields').style.display = 'none';
+    document.getElementById('doctorFields').style.display = 'none';
+    document.getElementById('coachFields').style.display = 'none';
+  }
+}
+
+function closeAuthModal() {
+  document.getElementById('authModal').style.display = 'none';
+  setAuthLoading(false);
+}
+
+function toggleAuthMode() {
+  openModal(authMode === 'login' ? 'register' : 'login');
+}
+
+function toggleRoleFields() {
+  const role = document.getElementById('authRole')?.value || 'patient';
+  const d = document.getElementById('doctorFields');
+  const c = document.getElementById('coachFields');
+  const p = document.getElementById('patientFields');
+  if (d) d.style.display = role === 'doctor'  ? 'block' : 'none';
+  if (c) c.style.display = role === 'coach'   ? 'block' : 'none';
+  if (p) p.style.display = role === 'patient' ? 'block' : 'none';
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+function hideAuthError() {
+  const el = document.getElementById('authError');
+  if (el) el.style.display = 'none';
+}
+function setAuthLoading(loading) {
+  const btn = document.getElementById('authSubmitBtn');
+  const txt = document.getElementById('authBtnText');
+  const spin = document.getElementById('authBtnSpinner');
+  if (btn) btn.disabled = loading;
+  if (txt) txt.style.display = loading ? 'none' : 'inline';
+  if (spin) spin.style.display = loading ? 'inline-block' : 'none';
+}
+
+async function handleAuth(event) {
+  event.preventDefault();
+  hideAuthError();
+  setAuthLoading(true);
+
+  const email = document.getElementById('authEmail').value.trim();
+  const pass  = document.getElementById('authPass').value;
+  const isLogin = authMode === 'login';
+
+  if (!email || !pass) {
+    showAuthError('Please fill in all required fields.');
+    setAuthLoading(false);
+    return;
+  }
+  if (pass.length < 6) {
+    showAuthError('Password must be at least 6 characters.');
+    setAuthLoading(false);
+    return;
+  }
+
+  let result;
+  if (isLogin) {
+    result = await apiCall('POST', '/auth/login', { email, password: pass });
+  } else {
+    const name = document.getElementById('authName').value.trim();
+    const role = document.getElementById('authRole')?.value || 'patient';
+    if (!name) { showAuthError('Please enter your name.'); setAuthLoading(false); return; }
+    const extra = {};
+    if (role === 'patient') {
+      extra.age    = document.getElementById('patientAge')?.value || null;
+      extra.gender = document.getElementById('patientGender')?.value || null;
+    } else if (role === 'doctor') {
+      extra.specialization  = document.getElementById('docSpec')?.value || null;
+      extra.yearsExperience = document.getElementById('docExp')?.value || null;
+      extra.clinicAddress   = document.getElementById('docClinic')?.value || null;
+    } else if (role === 'coach') {
+      extra.trainingType    = document.getElementById('coachType')?.value || null;
+      extra.yearsExperience = document.getElementById('coachExp')?.value || null;
+    }
+    result = await apiCall('POST', '/auth/register', { name, email, password: pass, role, ...extra });
+  }
+
+  setAuthLoading(false);
+
+  if (!result.ok) {
+    showAuthError(result.data?.message || 'Authentication failed. Please try again.');
+    return;
+  }
+
+  const { token, user } = result.data;
+  localStorage.setItem('hc_token', token);
+  localStorage.setItem('hc_user', JSON.stringify({ ...user, auth: true }));
+  currentUser = { ...user, auth: true };
+
+  closeAuthModal();
+  applyLoggedInUI();
+
+  if (currentUser.role === 'doctor' || currentUser.role === 'coach') {
+    buildProfessionalDashboard();
+    showView('professional-dashboard');
+  } else {
+    showView('chat');
+    if (conversationMessages.length === 0) {
+      document.getElementById('chatWelcome').style.display = 'flex';
+    }
+  }
+}
+
+function applyLoggedInUI() {
+  const name = currentUser?.name || 'User';
+  const initial = name.charAt(0).toUpperCase();
+
+  // Hide auth buttons, show user menu
+  const navLogin  = document.getElementById('navLogin');
+  const navSignup = document.getElementById('navSignup');
+  if (navLogin)  navLogin.style.display  = 'none';
+  if (navSignup) navSignup.style.display = 'none';
+  const userMenu = document.getElementById('userMenu');
+  if (userMenu) userMenu.style.display = 'block';
+
+  // Populate user info
+  setEl('userAvatar',      initial);
+  setEl('userName',        name);
+  setEl('dropdownAvatar',  initial);
+  setEl('dropdownName',    name);
+  setEl('menuEmail',       currentUser.email || '');
+
+  // Show role-specific nav items
+  if (currentUser.role === 'patient') {
+    showEl('navShop');
+    showEl('navChat');
+    showEl('navDash');
+    showEl('menuShopItem');
+    showEl('menuChatItem');
+    showEl('mobileNavShop');
+    showEl('mobileNavChat');
+    showEl('mobileNavDash');
+  } else {
+    showEl('navDash');
+    showEl('mobileNavDash');
+  }
+
+  // Hide mobile auth buttons
+  const mobileNavAuth = document.getElementById('mobileNavAuth');
+  if (mobileNavAuth) mobileNavAuth.style.display = 'none';
+}
 
 function logout() {
   localStorage.removeItem('hc_token');
   localStorage.removeItem('hc_user');
+  localStorage.removeItem('hc_chatbot_results');
+  currentUser = null;
+  conversationMessages = [];
+  currentAssessment = null;
   window.location.reload();
 }
 
-function toggleRoleFields() {
-  const role = document.getElementById('authRole').value;
-  document.getElementById('doctorFields').style.display  = role === 'doctor'  ? 'block' : 'none';
-  document.getElementById('coachFields').style.display   = role === 'coach'   ? 'block' : 'none';
-  document.getElementById('patientFields').style.display = role === 'patient' ? 'block' : 'none';
+// ── User Dropdown ──────────────────────────────────────────────
+function toggleUserDropdown() {
+  const dd = document.getElementById('userDropdown');
+  const trigger = document.getElementById('userMenuTrigger');
+  const isOpen = dd.classList.contains('open');
+  dd.classList.toggle('open', !isOpen);
+  trigger.setAttribute('aria-expanded', String(!isOpen));
+  if (!isOpen) {
+    document.addEventListener('click', closeUserDropdownOutside, { once: true });
+  }
+}
+function closeUserDropdown() {
+  const dd = document.getElementById('userDropdown');
+  const trigger = document.getElementById('userMenuTrigger');
+  if (dd) dd.classList.remove('open');
+  if (trigger) trigger.setAttribute('aria-expanded', 'false');
+}
+function closeUserDropdownOutside(e) {
+  const menu = document.getElementById('userMenu');
+  if (menu && !menu.contains(e.target)) closeUserDropdown();
 }
 
-/** Called by the auth form submit handler */
-async function handleAuth(event) {
-  event.preventDefault();
+// ── Mobile Nav ─────────────────────────────────────────────────
+function toggleMobileNav() {
+  const nav = document.getElementById('mobileNav');
+  const icon = document.getElementById('hamburgerIcon');
+  const isOpen = nav.classList.contains('open');
+  nav.classList.toggle('open', !isOpen);
+  if (icon) icon.className = isOpen ? 'fa-solid fa-bars' : 'fa-solid fa-xmark';
+}
+function closeMobileNav() {
+  const nav = document.getElementById('mobileNav');
+  const icon = document.getElementById('hamburgerIcon');
+  if (nav) nav.classList.remove('open');
+  if (icon) icon.className = 'fa-solid fa-bars';
+}
 
-  const nameInp  = document.getElementById('authName').value;
-  const emailInp = document.getElementById('authEmail').value;
-  const passInp  = document.getElementById('authPass').value;
-  const isLogin  = document.getElementById('nameField').style.display === 'none';
-  const role     = document.getElementById('authRole').value || 'patient';
+// ── Chat Sidebar ───────────────────────────────────────────────
+function toggleChatSidebar() {
+  const sidebar = document.getElementById('chatSidebar');
+  if (!sidebar) return;
+  sidebar.classList.toggle('collapsed');
+  sidebar.classList.toggle('mobile-open');
+}
 
-  let result;
-
-  if (isLogin) {
-    result = await apiCall('POST', '/auth/login', { email: emailInp, password: passInp });
-  } else {
-    // Gather extra fields
-    const extra = {};
-    if (role === 'patient') {
-      extra.age    = document.getElementById('patientAge')?.value;
-      extra.gender = document.getElementById('patientGender')?.value;
-    } else if (role === 'doctor') {
-      extra.specialization  = document.getElementById('docSpec')?.value;
-      extra.yearsExperience = document.getElementById('docExp')?.value;
-      extra.clinicAddress   = document.getElementById('docClinic')?.value;
-    } else if (role === 'coach') {
-      extra.trainingType    = document.getElementById('coachType')?.value;
-      extra.yearsExperience = document.getElementById('coachExp')?.value;
-    }
-    result = await apiCall('POST', '/auth/register', {
-      name: nameInp, email: emailInp, password: passInp, role, ...extra,
-    });
-  }
-
-  console.log('Auth result:', result);
-  
-  if (!result.ok) {
-    const errorMsg = result.data?.message || result.data?.error || 'Authentication failed';
-    console.error('Auth error:', errorMsg);
-    alert('Error: ' + errorMsg);
-    return;
-  }
-
-  // Persist token and user info
-  const { token, user } = result.data;
-  localStorage.setItem('hc_token', token);
-  localStorage.setItem('hc_user', JSON.stringify({ ...user, auth: true }));
-
-  currentUser = { ...user, auth: true };
-
-  // Update UI
-  closeModal();
-  document.getElementById('navSignup').style.display   = 'none';
-  document.getElementById('navLogin').style.display    = 'none';
-  document.getElementById('userProfile').style.display = 'flex';
-  document.getElementById('userName').innerText         = currentUser.name;
-  document.getElementById('avatarLetter').innerText     = currentUser.name[0];
-  document.getElementById('menuDisplayName').innerText  = currentUser.name;
-  document.getElementById('menuDisplayEmail').innerText = emailInp;
-  document.getElementById('chat-stream').innerHTML      = '';
-
-  // Load latest plan and all user data
-  loadLatestPlan();
-  fetchAllUserData();
-  
-  // Hide landing sections after login
-  updateLandingSectionsVisibility();
-
-  if (currentUser.role === 'doctor' || currentUser.role === 'coach') {
-    showProfessionalDashboard();
-  } else {
-    document.getElementById('nav-shop-link').style.display = 'block';
-    document.getElementById('menuShopItem').style.display  = 'flex';
-    if (pendingAction === 'bookDoctor') {
-      pendingAction = '';
-      hideAllViews();
-      document.getElementById('book-doctor-view').style.display = 'block';
-      buildSpecGrid();
-      window.scrollTo(0, 0);
-    } else {
-      askNextQuestion();
-    }
+// ── Modal Helpers ──────────────────────────────────────────────
+function handleOverlayClick(e, modalId) {
+  if (e.target.id === modalId) {
+    if (modalId === 'authModal') closeAuthModal();
+    if (modalId === 'paymentModal') closePaymentModal();
   }
 }
 
-// ── View Routing ────────────────────────────────────────────
-function hideAllViews() {
-  ['home-view', 'dashboard-view', 'professional-dashboard', 'shop-view', 'book-doctor-view']
-    .forEach(id => { document.getElementById(id).style.display = 'none'; });
+// ── Chat Engine ────────────────────────────────────────────────
+function quickStart(text) {
+  const input = document.getElementById('chatInput');
+  if (input) input.value = text;
+  sendChatMessage();
 }
 
-function showHome() {
-  hideAllViews();
-  document.getElementById('home-view').style.display = 'block';
-  window.scrollTo(0, 0);
-}
+async function sendChatMessage() {
+  const input = document.getElementById('chatInput');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
 
-function showDashboard() {
-  hideAllViews();
-  document.getElementById('dashboard-view').style.display = 'block';
-  ['stat-card-status', 'stat-card-score', 'stat-card-risk'].forEach(id => {
-    document.getElementById(id)?.classList.remove('hide-on-skip');
-  });
-  window.scrollTo(0, 0);
-}
-
-function showShop() {
-  hideAllViews();
-  document.getElementById('shop-view').style.display = 'block';
-  loadProducts();
-  window.scrollTo(0, 0);
-}
-
-function showBookDoctor() {
-  if (!currentUser.auth) {
+  if (!currentUser) {
     openModal('login');
-    pendingAction = 'bookDoctor';
     return;
   }
-  hideAllViews();
-  document.getElementById('book-doctor-view').style.display = 'block';
-  buildSpecGrid();
-  window.scrollTo(0, 0);
+
+  input.value = '';
+  autoResizeTextarea(input);
+
+  // Hide welcome screen
+  const welcome = document.getElementById('chatWelcome');
+  if (welcome) welcome.style.display = 'none';
+
+  // Add user message to UI and conversation
+  appendChatMessage('user', text);
+  conversationMessages.push({ role: 'user', content: text });
+
+  // Disable input while waiting
+  const sendBtn = document.getElementById('chatSendBtn');
+  if (input) input.disabled = true;
+  if (sendBtn) sendBtn.disabled = true;
+  showTypingIndicator(true);
+
+  const result = await apiCall('POST', '/chat', { messages: conversationMessages });
+
+  showTypingIndicator(false);
+  if (input) input.disabled = false;
+  if (sendBtn) sendBtn.disabled = false;
+  if (input) input.focus();
+
+  if (!result.ok) {
+    const errMsg = result.data?.message || 'Something went wrong. Please try again.';
+    appendChatMessage('bot', errMsg);
+    conversationMessages.push({ role: 'assistant', content: errMsg });
+    return;
+  }
+
+  const { message, assessment, isComplete } = result.data;
+
+  if (message) {
+    appendChatMessage('bot', message);
+    conversationMessages.push({ role: 'assistant', content: message });
+  }
+
+  if (isComplete && assessment) {
+    currentAssessment = assessment;
+    // Store for the dashboard
+    const results = JSON.parse(localStorage.getItem('hc_chatbot_results') || '[]');
+    results.unshift({ assessment, savedAt: new Date().toISOString() });
+    localStorage.setItem('hc_chatbot_results', JSON.stringify(results.slice(0, 20)));
+
+    // Show "View Assessment" banner in chat
+    setTimeout(() => showAssessmentReadyBanner(), 400);
+  }
 }
 
-function showProfessionalDashboard() {
-  hideAllViews();
-  document.getElementById('professional-dashboard').style.display = 'block';
-  const isDoctor = currentUser.role === 'doctor';
-  document.getElementById('prof-dash-title').innerText = isDoctor
-    ? `Doctor's Panel: Dr. ${currentUser.name}`
-    : `Coach's Panel: Coach ${currentUser.name}`;
-  document.getElementById('prof-dash-subtitle').innerText = isDoctor
-    ? 'Overview of your assigned members and their latest health data.'
-    : 'Fitness management console – client training & lifestyle overview';
-  document.getElementById('nav-dash-link').style.display = 'block';
+function appendChatMessage(role, text) {
+  const container = document.getElementById('chatMessages');
+  if (!container) return;
 
-  if (isDoctor) {
-    document.getElementById('doctor-view-section').style.display = 'block';
-    document.getElementById('coach-view-section').style.display  = 'none';
-    document.getElementById('prof-stat-label').innerText = 'Total Patients';
-    document.getElementById('list-title').innerText = 'Patient Medical Records';
-    populateProfessionalTable();
+  const msgEl = document.createElement('div');
+  msgEl.className = `chat-message ${role}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  if (role === 'bot') {
+    avatar.innerHTML = '<i class="fa-solid fa-robot"></i>';
   } else {
-    document.getElementById('doctor-view-section').style.display = 'none';
-    document.getElementById('coach-view-section').style.display  = 'block';
-    setTimeout(() => buildCoachClientCards(), 0);
+    avatar.textContent = (currentUser?.name || 'U').charAt(0).toUpperCase();
   }
-  window.scrollTo(0, 0);
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.textContent = text;
+
+  msgEl.appendChild(avatar);
+  msgEl.appendChild(bubble);
+  container.appendChild(msgEl);
+  container.scrollTop = container.scrollHeight;
 }
 
-// ── Coach Client Data ────────────────────────────────────────
-const COACH_CLIENTS = [
-  { name: 'Omar Rayan',  goal: 'Muscle Gain',    level: 'High',   diet: 'Healthy',  bmi: 22.4, bmiCat: 'Normal',     bmiColor: 'var(--primary)', location: 'Gym'  },
-  { name: 'Layla Amer',  goal: 'Fat Loss',       level: 'Medium', diet: 'Average',  bmi: 27.8, bmiCat: 'Overweight', bmiColor: 'var(--warning)', location: 'Home' },
-  { name: 'Mike Ross',   goal: 'Fat Loss',       level: 'Low',    diet: 'Poor',     bmi: 31.2, bmiCat: 'Obese',      bmiColor: 'var(--danger)',  location: 'Gym'  },
-  { name: 'Dina Tarek',  goal: 'General',        level: 'Medium', diet: 'Healthy',  bmi: 21.0, bmiCat: 'Normal',     bmiColor: 'var(--primary)', location: 'Home' }
-];
+function showAssessmentReadyBanner() {
+  const container = document.getElementById('chatMessages');
+  if (!container) return;
 
-function buildCoachClientCards() {
-  const grid = document.getElementById('coach-client-grid');
-  grid.innerHTML = '';
-  COACH_CLIENTS.forEach(client => {
-    const locIcon = client.location === 'Gym'
-      ? `<i class="fa-solid fa-dumbbell" style="color:var(--warning);"></i>`
-      : `<i class="fa-solid fa-house" style="color:var(--text-muted);"></i>`;
-    const card = document.createElement('div');
-    card.style.cssText = 'background:white; border:1px solid var(--glass-border); border-radius:20px; padding:22px; transition:0.3s;';
-    card.onmouseenter = () => card.style.transform = 'translateY(-5px)';
-    card.onmouseleave = () => card.style.transform = 'translateY(0)';
-    card.innerHTML = `
-      <h4 style="font-size:1.05rem; font-weight:800; margin-bottom:16px;">${client.name}</h4>
-      <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:0.88rem;">
-        <span style="color:var(--text-muted); font-weight:600;">Fitness Goal</span>
-        <span style="font-weight:700;">${client.goal}</span>
-      </div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:0.88rem;">
-        <span style="color:var(--text-muted); font-weight:600;">Activity Level</span>
-        <span style="font-weight:700;">${client.level}</span>
-      </div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:0.88rem;">
-        <span style="color:var(--text-muted); font-weight:600;">Diet</span>
-        <span style="font-weight:700;">${client.diet}</span>
-      </div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:0.88rem;">
-        <span style="color:var(--text-muted); font-weight:600;">BMI</span>
-        <span style="font-weight:800; color:${client.bmiColor};">${client.bmi} — ${client.bmiCat}</span>
-      </div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:18px; font-size:0.88rem;">
-        <span style="color:var(--text-muted); font-weight:600;">Location</span>
-        <span style="font-weight:700; display:flex; align-items:center; gap:5px;">${locIcon} ${client.location}</span>
-      </div>
-      <button class="btn-glow" style="width:100%; justify-content:center; padding:10px;"
-        onclick="alert('Training plan for ${client.name}:\\nGoal: ${client.goal}\\nLevel: ${client.level}\\nDiet: ${client.diet}\\nLocation: ${client.location}')">
-        View Training Plan
-      </button>`;
-    grid.appendChild(card);
-  });
+  const banner = document.createElement('div');
+  banner.className = 'view-assessment-banner';
+  banner.innerHTML = `
+    <div>
+      <strong>Your health assessment is ready</strong>
+      <p>MediAI has gathered enough information to provide a personalized assessment.</p>
+    </div>
+    <button class="btn btn-primary" onclick="viewAssessment()">
+      <i class="fa-solid fa-file-medical"></i> View Assessment
+    </button>`;
+  container.appendChild(banner);
+  container.scrollTop = container.scrollHeight;
 }
 
-function populateProfessionalTable() {
-  const tableBody = document.getElementById('managementTableBody');
-  const data = currentUser.role === 'doctor' ? [
-    { name: 'Ahmed Salem', sync: '2 mins ago',  status: 'Critical', activity: 'Low',      btn: 'View Vitals'   },
-    { name: 'Sara Hassan', sync: '1 hour ago',  status: 'Stable',   activity: 'Moderate', btn: 'View History'  },
-    { name: 'John Doe',    sync: '5 hours ago', status: 'Stable',   activity: 'High',     btn: 'View History'  }
-  ] : [
-    { name: 'Omar Rayan', sync: 'Just now',   status: 'Active',   activity: 'High Intensity', btn: 'View Plan'      },
-    { name: 'Layla Amer', sync: '3 hours ago',status: 'Resting',  activity: 'Moderate',       btn: 'View Diet'      },
-    { name: 'Mike Ross',  sync: 'Yesterday',  status: 'Inactive', activity: 'None',            btn: 'Send Reminder'  }
-  ];
-  tableBody.innerHTML = data.map(item => `
-    <tr>
-      <td style="font-weight:600;">${item.name}</td>
-      <td style="color:var(--text-muted); font-size:0.85rem;">${item.sync}</td>
-      <td><span class="badge ${item.status === 'Critical' || item.status === 'Inactive' ? 'badge-warning' : 'badge-success'}">${item.status}</span></td>
-      <td>${item.activity}</td>
-      <td><button class="btn-glow" style="padding:5px 12px; font-size:0.8rem;">${item.btn}</button></td>
-    </tr>`).join('');
+function viewAssessment() {
+  if (!currentAssessment) return;
+  showView('dashboard');
+  renderAssessmentDashboard(currentAssessment);
 }
 
-function handleDashboardNavigation() {
-  if (currentUser.role === 'doctor' || currentUser.role === 'coach') showProfessionalDashboard();
-  else showDashboard();
+function showTypingIndicator(show) {
+  const el = document.getElementById('chatTyping');
+  if (el) el.style.display = show ? 'flex' : 'none';
 }
 
-function toggleChat() {
-  const chat = document.getElementById('chat-ui');
-  const stream = document.getElementById('chat-stream');
-  
-  // Show/hide chat
-  chat.style.display = (chat.style.display === 'flex') ? 'none' : 'flex';
-  
-  // If chat is now visible, has messages, and user is logged in - start conversation
-  if (chat.style.display === 'flex' && currentUser.auth && stream.children.length === 0) {
-    currentStep = 0;
-    flowType = '';
-    chatSubFlow = '';
-    askNextQuestion();
+function resetChat() {
+  conversationMessages = [];
+  currentAssessment = null;
+  const container = document.getElementById('chatMessages');
+  if (container) {
+    container.innerHTML = '';
+    // Re-add welcome state
+    const welcome = document.createElement('div');
+    welcome.id = 'chatWelcome';
+    welcome.className = 'chat-welcome';
+    welcome.innerHTML = `
+      <div class="welcome-icon"><i class="fa-solid fa-comments-medical"></i></div>
+      <h2>What's on your mind?</h2>
+      <p>Describe your symptoms, how you're feeling, or any health concern. I'll ask follow-up questions to understand your situation fully.</p>
+      <div class="quick-starts">
+        <button class="quick-start-btn" onclick="quickStart('I have a headache and feel tired')">
+          <i class="fa-solid fa-head-side-virus"></i> Headache &amp; fatigue
+        </button>
+        <button class="quick-start-btn" onclick="quickStart('I have a sore throat and runny nose')">
+          <i class="fa-solid fa-virus"></i> Cold symptoms
+        </button>
+        <button class="quick-start-btn" onclick="quickStart('I have stomach pain and nausea')">
+          <i class="fa-solid fa-stomach"></i> Stomach issues
+        </button>
+        <button class="quick-start-btn" onclick="quickStart('I have back pain that won\\'t go away')">
+          <i class="fa-solid fa-person-rays"></i> Back pain
+        </button>
+      </div>`;
+    container.appendChild(welcome);
   }
 }
 
-// ── Products — load from API ────────────────────────────────
+function handleChatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
+}
+
+function autoResizeTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+}
+
+// ── Dashboard Rendering ────────────────────────────────────────
+function renderDashboardPage() {
+  const content = document.getElementById('dashboardContent');
+  if (!content) return;
+
+  if (currentAssessment) {
+    renderAssessmentDashboard(currentAssessment);
+  } else {
+    content.innerHTML = `
+      <div style="text-align:center; padding:60px 20px; color:var(--text-muted);">
+        <div style="font-size:3rem; margin-bottom:16px;">💬</div>
+        <h3 style="color:var(--text-primary); margin-bottom:10px;">No assessment yet</h3>
+        <p style="margin-bottom:24px;">Start a health chat to get your personalized assessment.</p>
+        <button class="btn btn-primary" onclick="showView('chat')">
+          <i class="fa-solid fa-comments-medical"></i> Start Health Chat
+        </button>
+      </div>`;
+  }
+
+  // Load history from localStorage
+  loadLocalHistory();
+}
+
+function renderAssessmentDashboard(a) {
+  const content = document.getElementById('dashboardContent');
+  if (!content || !a) return;
+
+  const severityBadge = {
+    mild:     '<span class="badge badge-green"><i class="fa-solid fa-circle-check"></i> Mild</span>',
+    moderate: '<span class="badge badge-yellow"><i class="fa-solid fa-circle-exclamation"></i> Moderate</span>',
+    severe:   '<span class="badge badge-red"><i class="fa-solid fa-triangle-exclamation"></i> Severe</span>',
+  }[a.severity] || '<span class="badge badge-gray">Unknown</span>';
+
+  const urgencyClass = { routine: 'urgency-routine', soon: 'urgency-soon', immediate: 'urgency-immediate' }[a.urgency] || 'urgency-routine';
+  const urgencyIcon = { routine: 'fa-clock', soon: 'fa-calendar', immediate: 'fa-siren-on' }[a.urgency] || 'fa-clock';
+  const urgencyText = a.urgencyText || { routine: 'No rush — routine follow-up', soon: 'See a doctor within 2–3 days', immediate: 'Seek medical care today' }[a.urgency] || a.urgency;
+
+  // Medications HTML
+  let medsHTML = '';
+  if (a.medications && a.medications.length > 0) {
+    medsHTML = a.medications.map(med => `
+      <div class="med-card">
+        <div class="med-card-header">
+          <div class="med-name">${escHtml(med.name)}</div>
+          <span class="med-type-tag ${med.type === 'otc' ? 'med-otc' : 'med-rx'}">
+            ${med.type === 'otc' ? 'Over-the-counter' : 'Prescription needed'}
+          </span>
+        </div>
+        <div class="med-detail"><i class="fa-solid fa-flask"></i><span><strong>Dosage:</strong> ${escHtml(med.dosage || '—')}</span></div>
+        <div class="med-detail"><i class="fa-regular fa-clock"></i><span><strong>Frequency:</strong> ${escHtml(med.frequency || '—')}</span></div>
+        <div class="med-detail"><i class="fa-solid fa-calendar-days"></i><span><strong>Duration:</strong> ${escHtml(med.duration || '—')}</span></div>
+        ${med.instructions ? `<div class="med-instructions"><i class="fa-solid fa-circle-info"></i>${escHtml(med.instructions)}</div>` : ''}
+      </div>`).join('');
+  } else {
+    medsHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">No specific medications recommended. Focus on home remedies and rest.</p>';
+  }
+
+  // Home remedies HTML
+  const remediesHTML = buildTipList(a.homeRemedies, 'icon-teal', 'fa-solid fa-leaf');
+
+  // Lifestyle HTML
+  const lifestyleHTML = buildTipList(a.lifestyle, 'icon-green', 'fa-solid fa-heart');
+
+  // Warnings HTML
+  let warningsHTML = '';
+  if (a.warnings && a.warnings.length > 0) {
+    warningsHTML = `
+      <div class="dash-section warning-section">
+        <div class="dash-section">
+          <div class="dash-section-header">
+            <div class="dash-section-icon icon-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <h3>Warning Signs to Watch For</h3>
+          </div>
+          <div class="warning-list">
+            ${a.warnings.map(w => `
+              <div class="warning-item">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span>${escHtml(w)}</span>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  content.innerHTML = `
+    <!-- Condition Overview -->
+    <div class="condition-card">
+      <div class="condition-header">
+        <div class="condition-name-row">
+          <div class="condition-name">${escHtml(a.condition || 'Health Assessment')}</div>
+          ${severityBadge}
+        </div>
+        <div class="urgency-badge ${urgencyClass}">
+          <i class="fa-solid ${urgencyIcon}"></i>
+          ${escHtml(urgencyText)}
+        </div>
+      </div>
+      <p class="condition-overview">${escHtml(a.overview || '')}</p>
+    </div>
+
+    <div class="dashboard-sections">
+      <!-- Medications -->
+      <div class="dash-section">
+        <div class="dash-section-header">
+          <div class="dash-section-icon icon-blue"><i class="fa-solid fa-pills"></i></div>
+          <h3>Recommended Medications</h3>
+        </div>
+        <div class="medications-grid">${medsHTML}</div>
+      </div>
+
+      <!-- Home Remedies -->
+      ${a.homeRemedies && a.homeRemedies.length > 0 ? `
+      <div class="dash-section">
+        <div class="dash-section-header">
+          <div class="dash-section-icon icon-teal"><i class="fa-solid fa-leaf"></i></div>
+          <h3>Home Remedies</h3>
+        </div>
+        <div class="tip-list">${remediesHTML}</div>
+      </div>` : ''}
+
+      <!-- Lifestyle Tips -->
+      ${a.lifestyle && a.lifestyle.length > 0 ? `
+      <div class="dash-section">
+        <div class="dash-section-header">
+          <div class="dash-section-icon icon-green"><i class="fa-solid fa-heart"></i></div>
+          <h3>Lifestyle Recommendations</h3>
+        </div>
+        <div class="tip-list">${lifestyleHTML}</div>
+      </div>` : ''}
+
+      <!-- Warnings -->
+      ${warningsHTML}
+
+      <!-- Follow Up -->
+      ${a.followUp ? `
+      <div class="followup-card">
+        <i class="fa-solid fa-calendar-check"></i>
+        <span>${escHtml(a.followUp)}</span>
+      </div>` : ''}
+
+      <!-- Book Doctor CTA -->
+      <div class="book-cta-card">
+        <h3>Want to speak with a real doctor?</h3>
+        <p>Our specialists are available for consultation across 10+ fields.</p>
+        <button class="btn btn-white btn-lg" onclick="showBookDoctor()">
+          <i class="fa-solid fa-calendar-plus"></i> Book an Appointment
+        </button>
+      </div>
+    </div>`;
+}
+
+function buildTipList(items, iconBg, iconClass) {
+  if (!items || items.length === 0) return '';
+  return items.map(item => `
+    <div class="tip-item">
+      <div class="tip-bullet ${iconBg}"><i class="${iconClass}"></i></div>
+      <span>${escHtml(item)}</span>
+    </div>`).join('');
+}
+
+function loadLocalHistory() {
+  const stored = JSON.parse(localStorage.getItem('hc_chatbot_results') || '[]');
+  if (stored.length === 0) return;
+
+  const section = document.getElementById('historySection');
+  const list = document.getElementById('historyList');
+  if (!section || !list) return;
+
+  list.innerHTML = stored.slice(0, 5).map(r => {
+    const a = r.assessment;
+    if (!a) return '';
+    const date = r.savedAt ? new Date(r.savedAt).toLocaleDateString() : 'Unknown date';
+    const sev = a.severity || 'mild';
+    const badgeCls = { mild: 'badge-green', moderate: 'badge-yellow', severe: 'badge-red' }[sev] || 'badge-gray';
+    return `
+      <div class="history-item">
+        <div>
+          <strong>${escHtml(a.condition || 'Health Assessment')}</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:3px;">${date}</div>
+        </div>
+        <span class="badge ${badgeCls}">${ucFirst(sev)}</span>
+      </div>`;
+  }).join('');
+
+  if (list.innerHTML.trim()) section.style.display = 'block';
+}
+
+// ── Products / Shop ────────────────────────────────────────────
 async function loadProducts() {
   const grid = document.getElementById('shopGrid');
+  if (!grid) return;
+
+  grid.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading products…</p></div>';
+
   const result = await apiCall('GET', '/products');
-  if (!result.ok || !result.data.data) return; // fall back to static HTML
+  if (!result.ok || !result.data?.data) {
+    grid.innerHTML = '<div class="loading-state"><i class="fa-solid fa-box-open"></i><p>Unable to load products. Please try again.</p></div>';
+    return;
+  }
 
   const products = result.data.data;
-  if (products.length === 0) return;
-
-  grid.innerHTML = '';
-  products.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'product-card';
-    card.innerHTML = `
-      <i class="fa-solid ${p.icon || 'fa-capsules'}" style="font-size:3rem; color:var(--primary); margin-bottom:15px;"></i>
-      <h3>${p.name}</h3>
-      <p style="font-size:0.85rem; color:var(--text-muted);">${p.description || ''}</p>
-      <div class="price-tag">$${p.price.toFixed(2)}</div>
-      <button class="btn-glow" onclick="addToCart(this,'${p.name}',${p.price},'${p._id}')" style="width:100%;">
+  grid.innerHTML = products.map(p => `
+    <div class="product-card">
+      <div class="product-icon">
+        <i class="fa-solid ${p.icon || 'fa-capsules'}"></i>
+      </div>
+      <div class="product-name">${escHtml(p.name)}</div>
+      <div class="product-desc">${escHtml(p.description || '')}</div>
+      <div class="product-price">$${Number(p.price).toFixed(2)}</div>
+      <button class="btn btn-primary" onclick="addToCart('${escHtml(p.id || p.name)}','${escHtml(p.name)}',${p.price})">
         <i class="fa-solid fa-cart-plus"></i> Add to Cart
-      </button>`;
-    grid.appendChild(card);
-  });
+      </button>
+    </div>`).join('');
 }
 
-// ── Free-text Input ─────────────────────────────────────────
-function showFreeInput(targetKey, placeholder) {
-  freeInputTarget = targetKey;
-  const row = document.getElementById('chat-input-row');
-  const inp = document.getElementById('chat-free-input');
-  inp.placeholder = placeholder || 'Enter value…';
-  inp.value = '';
-  row.style.display = 'flex';
-  inp.focus();
+function addToCart(productId, name, price) {
+  const existing = cart.find(i => i.productId === productId);
+  if (existing) {
+    existing.qty++;
+  } else {
+    cart.push({ productId, name, price: Number(price), qty: 1 });
+  }
+  updateCartDisplay();
+
+  // Brief visual feedback
+  showToast(`${name} added to cart`);
 }
 
-function hideFreeInput() {
-  freeInputTarget = '';
-  document.getElementById('chat-input-row').style.display = 'none';
-}
+function updateCartDisplay() {
+  const indicator = document.getElementById('cartIndicator');
+  const count = document.getElementById('cartCount');
+  const total = document.getElementById('cartTotalDisplay');
+  if (!indicator) return;
 
-function submitFreeInput() {
-  const val = document.getElementById('chat-free-input').value.trim();
-  if (!val) return;
-  hideFreeInput();
-  handleUserAnswer(Number(val), val);
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('chat-free-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') submitFreeInput();
-  });
-});
-
-// ── Chatbot Flow ────────────────────────────────────────────
-function askNextQuestion() {
-  if (currentStep === 0) {
-    appendMsg('bot', `Hello ${currentUser.name}! What do you need today?`, [
-      { label: 'Doctor / Health help', val: 'health',  icon: 'fa-solid fa-user-doctor' },
-      { label: 'Coach / Fitness',      val: 'fitness', icon: 'fa-solid fa-dumbbell'    }
-    ]);
+  if (cart.length === 0) {
+    indicator.style.display = 'none';
     return;
   }
+  indicator.style.display = 'flex';
+  const totalItems = cart.reduce((s, i) => s + i.qty, 0);
+  const totalPrice = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  if (count) count.textContent = totalItems;
+  if (total) total.textContent = '$' + totalPrice.toFixed(2);
+}
 
-  if (flowType === 'health') {
-    if (currentStep === 1) {
-      appendMsg('bot', 'Would you like to continue with health questions, or book a doctor right away?', [
-        { label: 'Continue questions', val: 'questions', icon: 'fa-solid fa-clipboard-question' },
-        { label: 'Book a doctor now',  val: 'book',      icon: 'fa-solid fa-calendar-plus'      }
-      ]);
-      return;
-    }
-    if (chatSubFlow === 'book') {
-      if (currentStep === 2) {
-        appendMsg('bot', 'Great! Which specialization do you need?');
-        const specOptBox = document.createElement('div');
-        specOptBox.style.cssText = 'display:flex; flex-wrap:wrap; gap:8px; margin:5px 0 15px;';
-        SPECIALIZATIONS.forEach(spec => {
-          const btn = document.createElement('button');
-          btn.className = 'opt-btn';
-          btn.innerHTML = `<i class="${spec.icon}"></i> ${spec.name}`;
-          btn.onclick = () => { specOptBox.remove(); appendMsg('user', spec.name); showSpecDoctorsInChat(spec.name); };
-          specOptBox.appendChild(btn);
-        });
-        document.getElementById('chat-stream').appendChild(specOptBox);
-        document.getElementById('chat-stream').scrollTop = 9999;
-      }
-      return;
-    }
-    switch (currentStep) {
-      case 2:  appendMsg('bot', 'How many hours did you sleep last night?', [{ label:'4-5 hours',val:4,icon:'fa-solid fa-moon'},{label:'7-8 hours',val:8,icon:'fa-solid fa-bed'}]); break;
-      case 3:  appendMsg('bot', 'Did you drink 2L of water today?', [{label:'Yes',val:'yes',icon:'fa-solid fa-glass-water'},{label:'No',val:'no',icon:'fa-solid fa-droplet-slash'}]); break;
-      case 4:  appendMsg('bot', 'Do you have any headache or pain right now?', [{label:'Yes',val:'yes',icon:'fa-solid fa-head-side-virus'},{label:'No',val:'no',icon:'fa-solid fa-smile'}]); break;
-      case 5:
-        if (answers.headache === 'no') { currentStep = 6; askNextQuestion(); return; }
-        appendMsg('bot', 'How would you rate your pain severity?', [{label:'Mild',val:'mild',icon:'fa-solid fa-face-smile'},{label:'Moderate',val:'moderate',icon:'fa-solid fa-face-meh'},{label:'Severe',val:'severe',icon:'fa-solid fa-face-frown'}]); break;
-      case 6:  appendMsg('bot', 'Are you experiencing any other symptoms?', [{label:'Yes',val:'yes',icon:'fa-solid fa-head-side-virus'},{label:'No',val:'no',icon:'fa-solid fa-check'}]); break;
-      case 7:
-        if (answers.symptoms === 'no') { currentStep = 9; askNextQuestion(); return; }
-        appendMsg('bot', 'Do you have a high temperature / fever?', [{label:'Yes',val:'yes',icon:'fa-solid fa-temperature-high'},{label:'No',val:'no',icon:'fa-solid fa-temperature-low'}]); break;
-      case 8:  appendMsg('bot', 'Are you experiencing shortness of breath?', [{label:'Yes',val:'yes',icon:'fa-solid fa-lungs-virus'},{label:'No',val:'no',icon:'fa-solid fa-lungs'}]); break;
-      case 9:
-        if (answers.headache === 'no' && answers.symptoms === 'no') { currentStep = 10; askNextQuestion(); return; }
-        appendMsg('bot', 'How long have you had these symptoms?', [{label:'1 day',val:'1day',icon:'fa-solid fa-clock'},{label:'2–3 days',val:'2-3',icon:'fa-solid fa-calendar'},{label:'More than 3 days',val:'more3',icon:'fa-solid fa-calendar-days'}]); break;
-      case 10: appendMsg('bot', 'What is your main goal from health tracking?', [{label:'Better Sleep',val:'sleep',icon:'fa-solid fa-zzz'},{label:'Stress Mgmt',val:'stress',icon:'fa-solid fa-brain'}]); break;
-      default: finalize(); break;
-    }
-    return;
-  }
+function openCheckout() {
+  if (cart.length === 0) return;
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  currentPayDoc = 'Shop Order';
+  currentPayPrice = total.toFixed(2);
+  currentPaySlot = '';
 
-  if (flowType === 'fitness') {
-    if (currentStep === 1) {
-      appendMsg('bot', 'Would you like to answer fitness questions, or skip to your assessment?', [
-        { label: 'Answer questions',   val: 'questions', icon: 'fa-solid fa-clipboard-question' },
-        { label: 'Skip to Assessment', val: 'skip',      icon: 'fa-solid fa-forward'             }
-      ]);
-      return;
+  resetPaymentModal();
+  const el = document.getElementById('pay-step-delivery');
+  if (el) el.style.display = 'block';
+  document.getElementById('paymentModal').style.display = 'flex';
+}
+
+async function confirmDelivery() {
+  const name    = document.getElementById('deliveryName')?.value.trim();
+  const phone   = document.getElementById('deliveryPhone')?.value.trim();
+  const address = document.getElementById('deliveryAddress')?.value.trim();
+  if (!name || !phone || !address) { showToast('Please fill in all delivery fields.', 'warning'); return; }
+
+  const payload = {
+    items: cart.map(i => ({ productId: i.productId, productName: i.name, price: i.price, quantity: i.qty })),
+    paymentMethod: 'cash',
+    deliveryName: name,
+    deliveryPhone: phone,
+    deliveryAddress: address,
+  };
+
+  const result = await apiCall('POST', '/orders', payload);
+
+  if (result.ok) {
+    cart = [];
+    updateCartDisplay();
+    document.getElementById('pay-step-delivery').style.display = 'none';
+    const cashStep = document.getElementById('pay-step-cash');
+    if (cashStep) {
+      document.getElementById('cashConfirmText').textContent = `Your order has been placed! We'll deliver to ${address}.`;
+      cashStep.style.display = 'block';
     }
-    if (chatSubFlow === 'skip') {
-      if (currentStep === 2) {
-        appendMsg('bot', 'Where would you like to train?', [
-          { label: 'Home', val: 'home', icon: 'fa-solid fa-house'    },
-          { label: 'Gym',  val: 'gym',  icon: 'fa-solid fa-building' }
-        ]);
-      } else if (currentStep === 3) {
-        // NEW: Ask what to train after location
-        appendMsg('bot', 'What do you want to train?', [
-          { label: 'Full Body',    val: 'fullbody',    icon: 'fa-solid fa-person' },
-          { label: 'Upper Body',  val: 'upper',       icon: 'fa-solid fa-dumbbell' },
-          { label: 'Lower Body',  val: 'lower',       icon: 'fa-solid fa-leg' },
-          { label: 'Abs',         val: 'abs',          icon: 'fa-solid fa-burst' },
-          { label: 'Weight Loss',val: 'fatloss',      icon: 'fa-solid fa-fire' },
-          { label: 'Muscle Gain', val: 'muscle',       icon: 'fa-solid fa-arm-flex' }
-        ]);
-      } else if (currentStep === 4) {
-        // Generate workout and diet plan
-        console.log('[Fitness] Generating plan with location:', answers.location, 'trainGoal:', answers.trainGoal);
-        console.log('[Fitness] answers object at this point:', JSON.stringify(answers));
-        
-        // Ensure we have what we need
-        const location = answers.location || 'home';
-        const trainGoal = answers.trainGoal || answers.fitnessGoal || 'general';
-        
-        console.log('[Fitness] Using location:', location, 'trainGoal:', trainGoal);
-        
-        generateFitnessPlanWithDetails();
-      }
-      return;
-    }
-    // Regular questions flow (simplified)
-    switch (currentStep) {
-      case 2: appendMsg('bot', 'What is your primary fitness goal?', [{label:'Muscle Gain',val:'muscle',icon:'fa-solid fa-weight-hanging'},{label:'Fat Loss',val:'fat',icon:'fa-solid fa-fire'},{label:'General Fitness',val:'general',icon:'fa-solid fa-heart'}]); break;
-      case 3: appendMsg('bot', 'Where do you prefer to train?', [{label:'Home',val:'home',icon:'fa-solid fa-house'},{label:'Gym',val:'gym',icon:'fa-solid fa-building'}]); break;
-      case 4: 
-        // NEW: Ask what to train after location
-        appendMsg('bot', 'What do you want to train?', [
-          { label: 'Full Body',    val: 'fullbody',    icon: 'fa-solid fa-person' },
-          { label: 'Upper Body',  val: 'upper',       icon: 'fa-solid fa-dumbbell' },
-          { label: 'Lower Body',  val: 'lower',       icon: 'fa-solid fa-leg' },
-          { label: 'Abs',         val: 'abs',          icon: 'fa-solid fa-burst' },
-          { label: 'Weight Loss',val: 'fatloss',      icon: 'fa-solid fa-fire' },
-          { label: 'Muscle Gain', val: 'muscle',       icon: 'fa-solid fa-arm-flex' }
-        ]); 
-        break;
-      case 5: appendMsg('bot', 'Please enter your current weight (kg):'); showFreeInput('weight', 'Weight in kg…'); break;
-      case 6: appendMsg('bot', 'Please enter your height (cm):'); showFreeInput('height', 'Height in cm…'); break;
-      case 7: appendMsg('bot', 'Do you have any existing injuries?', [{label:'Yes',val:'yes',icon:'fa-solid fa-person-falling'},{label:'No',val:'no',icon:'fa-solid fa-person-running'}]); break;
-      case 8: appendMsg('bot', 'How would you describe your current diet?', [{label:'Healthy',val:'healthy',icon:'fa-solid fa-apple-whole'},{label:'Average',val:'average',icon:'fa-solid fa-utensils'},{label:'Poor',val:'poor',icon:'fa-solid fa-burger'}]); break;
-      default: finalize(); break;
-    }
+  } else {
+    showToast(result.data?.message || 'Order failed. Please try again.', 'error');
   }
 }
 
-function setSkipDashboard(location) {
-  document.getElementById('nav-dash-link').style.display = 'block';
-  document.getElementById('dash-title').innerText = currentUser.name + "'s Fitness Profile";
-  document.getElementById('val-status').innerText = 'Active';
-  document.getElementById('val-status').style.color = 'var(--primary)';
-  document.getElementById('status-icon').style.color = 'var(--primary)';
-  document.getElementById('val-plan').innerText = location === 'gym'
-    ? 'Plan: Head to the gym and start your training journey!'
-    : 'Plan: Train at home with a professional coach!';
-  document.getElementById('rec-title').innerText = 'Fitness Recommendations';
-  document.getElementById('val-score').innerText = 'N/A';
-  document.getElementById('val-risk').innerText = 'Low';
-  document.getElementById('val-risk').style.background = '#e0fbf6';
-  document.getElementById('val-risk').style.color = 'var(--success)';
-  ['stat-card-status','stat-card-score','stat-card-risk'].forEach(id => {
-    document.getElementById(id)?.classList.add('hide-on-skip');
-  });
-  if (location === 'gym') injectGymDashSection();
-  else injectHomeDashSection();
-  
-  // Generate fitness plan after skip flow
-  generateFitnessPlan(currentUser?.name || 'User', location, answers.fitnessGoal || 'general');
-}
-
-// ── Append Message ──────────────────────────────────────────
-function appendMsg(sender, text, options = []) {
-  const stream = document.getElementById('chat-stream');
-  const msgDiv = document.createElement('div');
-  msgDiv.style.cssText = sender === 'bot'
-    ? 'background:#f0f4f8; padding:12px; border-radius:0 15px 15px 15px; margin-bottom:10px; align-self:flex-start; font-size:0.9rem;'
-    : 'background:var(--primary); color:white; padding:12px; border-radius:15px; align-self:flex-end; margin-bottom:10px; font-size:0.9rem; margin-left:auto; width:fit-content;';
-  msgDiv.innerText = text;
-  stream.appendChild(msgDiv);
-  if (options.length > 0) {
-    const optBox = document.createElement('div');
-    optBox.style.cssText = 'display:flex; gap:8px; margin:5px 0 15px; flex-wrap:wrap;';
-    options.forEach(opt => {
-      const btn = document.createElement('button');
-      btn.className = 'opt-btn';
-      btn.innerHTML = `<i class="${opt.icon}"></i> ${opt.label}`;
-      btn.onclick = () => { optBox.remove(); handleUserAnswer(opt.val, opt.label); };
-      optBox.appendChild(btn);
-    });
-    stream.appendChild(optBox);
-  }
-  stream.scrollTop = stream.scrollHeight;
-}
-
-// ── Handle User Answer ──────────────────────────────────────
-function handleUserAnswer(val, label) {
-  appendMsg('user', label);
-  hideFreeInput();
-
-  if (currentStep === 0) { flowType = val; chatSubFlow = ''; currentStep++; setTimeout(askNextQuestion, 600); return; }
-  if (currentStep === 1) {
-    if (val === 'questions') chatSubFlow = 'questions';
-    else if (val === 'book') chatSubFlow = 'book';
-    else if (val === 'skip') chatSubFlow = 'skip';
-    currentStep++; setTimeout(askNextQuestion, 600); return;
-  }
-
-  if (flowType === 'health' && chatSubFlow !== 'book') {
-    if (currentStep === 2)  answers.sleep        = val;
-    if (currentStep === 3)  answers.water        = val;
-    if (currentStep === 4)  answers.headache     = val;
-    if (currentStep === 5)  answers.painSeverity = val;
-    if (currentStep === 6)  answers.symptoms     = val;
-    if (currentStep === 7)  answers.temperature  = val;
-    if (currentStep === 8)  answers.breathShort  = val;
-    if (currentStep === 9)  answers.duration     = val;
-    if (currentStep === 10) answers.healthGoal   = val;
-  }
-  if (flowType === 'fitness' && chatSubFlow === 'questions') {
-    if (currentStep === 2) answers.fitnessGoal = val;
-    if (currentStep === 3) answers.trainFreq   = val;
-    if (currentStep === 4) answers.location    = val;
-    if (currentStep === 5) answers.level       = val;
-    if (currentStep === 6) answers.weight      = Number(val);
-    if (currentStep === 7) answers.height      = Number(val);
-    if (currentStep === 8) answers.injury      = val;
-    if (currentStep === 9) answers.diet        = val;
-  }
-  if (flowType === 'fitness' && chatSubFlow === 'skip') {
-    if (currentStep === 2) answers.location = val;
-    if (currentStep === 3) answers.trainGoal = val;
-  }
-
-  currentStep++;
-  setTimeout(askNextQuestion, 600);
-}
-
-// ── Gym / Coach Data ────────────────────────────────────────
-const GYM_DATA = [
-  { name: 'Fitness Pro Gym',       address: 'Nasr City, Cairo',    rating: 4.6, phone: '+20 100 123 4567', mapsQuery: 'Fitness+Pro+Gym+Nasr+City+Cairo'       },
-  { name: 'Iron House Gym',        address: 'Maadi, Cairo',         rating: 4.4, phone: '+20 111 987 6543', mapsQuery: 'Iron+House+Gym+Maadi+Cairo'             },
-  { name: 'Peak Performance Hub',  address: 'New Cairo, Cairo',     rating: 4.8, phone: '+20 100 200 3344', mapsQuery: 'Peak+Performance+Hub+New+Cairo'         },
-  { name: 'PowerZone Fitness',     address: 'Heliopolis, Cairo',    rating: 4.3, phone: '+20 122 456 7890', mapsQuery: 'PowerZone+Fitness+Heliopolis+Cairo'     },
-  { name: 'EliteFit Center',       address: '6th of October City',  rating: 4.7, phone: '+20 100 555 8899', mapsQuery: 'EliteFit+Center+6th+October+Cairo'      }
+// ── Doctor Booking ─────────────────────────────────────────────
+const SPECIALIZATIONS = [
+  { name:'Cardiology & Critical Care', icon:'fa-solid fa-heart-pulse'   },
+  { name:'General Medicine',           icon:'fa-solid fa-user-doctor'   },
+  { name:'Internal Medicine',          icon:'fa-solid fa-stethoscope'   },
+  { name:'Neurology',                  icon:'fa-solid fa-brain'         },
+  { name:'Pulmonology',                icon:'fa-solid fa-lungs'         },
+  { name:'Emergency Medicine',         icon:'fa-solid fa-truck-medical' },
+  { name:'Dermatology',                icon:'fa-solid fa-hand-dots'     },
+  { name:'Orthopedics',                icon:'fa-solid fa-bone'          },
+  { name:'Pediatrics',                 icon:'fa-solid fa-baby'          },
+  { name:'Ophthalmology',              icon:'fa-solid fa-eye'           },
 ];
 
-const HOME_COACHES = [
-  { name: 'Coach Khaled', spec: 'HIIT & Fat Loss',         rating: 4.8, price: 'EGP 200/session', phone: '+20 100 111 2233' },
-  { name: 'Coach Mariam', spec: 'Yoga & Flexibility',      rating: 4.7, price: 'EGP 180/session', phone: '+20 111 222 3344' },
-  { name: 'Coach Tamer',  spec: 'Strength & Calisthenics', rating: 4.9, price: 'EGP 250/session', phone: '+20 122 333 4455' },
-  { name: 'Coach Nadia',  spec: 'Pilates & Core',          rating: 4.6, price: 'EGP 160/session', phone: '+20 100 444 5566' }
-];
-
-function buildStars(rating) {
-  return '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
-}
-
-function buildGymCardEl(gym) {
-  const card = document.createElement('div');
-  card.className = 'gym-card';
-  card.innerHTML = `
-    <div class="gym-card-name"><i class="fa-solid fa-dumbbell"></i>${gym.name}</div>
-    <div class="gym-card-address"><i class="fa-solid fa-location-dot"></i>${gym.address}</div>
-    <div class="gym-card-address" style="margin-top:4px;">
-      <i class="fa-solid fa-phone" style="color:var(--primary);"></i>
-      <span style="color:var(--primary); font-weight:700;">${gym.phone}</span>
-    </div>
-    <div class="gym-rating-row" style="margin-top:10px;">
-      <span class="gym-stars">${buildStars(gym.rating)}</span>
-      <span class="gym-rating-num">${gym.rating} / 5</span>
-    </div>
-    <div class="gym-contact-note"><i class="fa-solid fa-circle-info"></i>You can contact this gym now</div>
-    <div class="gym-card-actions">
-      <button class="gym-btn-contact" onclick="window.open('tel:${gym.phone}')">
-        <i class="fa-solid fa-phone"></i> Contact Gym
-      </button>
-      <button class="gym-btn-location" onclick="window.open('https://maps.google.com/?q=${gym.mapsQuery}','_blank')">
-        <i class="fa-solid fa-map-location-dot"></i> View Location
-      </button>
-    </div>`;
-  return card;
-}
-
-function showGymCardsInChat() {
-  const stream = document.getElementById('chat-stream');
-  const header = document.createElement('div');
-  header.className = 'gym-match-header';
-  header.innerHTML = '<i class="fa-solid fa-location-dot"></i> Best gym matches for you';
-  stream.appendChild(header);
-  [GYM_DATA[2], GYM_DATA[0], GYM_DATA[4]].forEach(gym => stream.appendChild(buildGymCardEl(gym)));
-  stream.scrollTop = stream.scrollHeight;
-}
-
-function showHomeCoachesInChat() {
-  const stream = document.getElementById('chat-stream');
-  const header = document.createElement('div');
-  header.className = 'gym-match-header';
-  header.style.cssText += 'background:linear-gradient(135deg,#2ec4b618,#00d4ff18); border-color:#2ec4b655; color:var(--success);';
-  header.innerHTML = '<i class="fa-solid fa-house"></i> Home coaches available for you';
-  stream.appendChild(header);
-  HOME_COACHES.forEach(coach => {
-    const card = document.createElement('div');
-    card.className = 'gym-card';
-    card.innerHTML = `
-      <div class="gym-card-name"><i class="fa-solid fa-person-running" style="color:var(--success);"></i>${coach.name}</div>
-      <div class="gym-card-address"><i class="fa-solid fa-bullseye" style="color:var(--warning);"></i>${coach.spec}</div>
-      <div class="gym-rating-row" style="margin-top:8px;">
-        <span class="gym-stars">${buildStars(coach.rating)}</span>
-        <span class="gym-rating-num">${coach.rating} / 5</span>
-      </div>
-      <div style="font-weight:800; color:var(--primary); font-size:0.88rem; margin-bottom:10px;">${coach.price}</div>
-      <div class="gym-card-actions">
-        <button class="gym-btn-contact" onclick="window.open('tel:${coach.phone}')">
-          <i class="fa-solid fa-phone"></i> Contact Coach
-        </button>
-        <button class="gym-btn-location" style="border-color:var(--success); color:var(--success);"
-          onclick="alert('WhatsApp: ${coach.phone}')">
-          <i class="fa-brands fa-whatsapp"></i> WhatsApp
-        </button>
-      </div>`;
-    stream.appendChild(card);
-  });
-  stream.scrollTop = stream.scrollHeight;
-}
-
-function showSpecDoctorsInChat(specName) {
-  const stream = document.getElementById('chat-stream');
-  const filtered = DOCTORS_DATA.filter(d => d.spec === specName);
-  const header = document.createElement('div');
-  header.className = 'gym-match-header';
-  header.innerHTML = `<i class="fa-solid fa-user-doctor"></i> Doctors for ${specName}`;
-  stream.appendChild(header);
-  if (filtered.length === 0) {
-    const noDoc = document.createElement('div');
-    noDoc.style.cssText = 'background:#f0f4f8; padding:12px; border-radius:12px; font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;';
-    noDoc.innerText = 'No doctors found for this specialization.';
-    stream.appendChild(noDoc);
-  }
-  filtered.slice(0,3).forEach(doc => {
-    const mini = document.createElement('div');
-    mini.className = 'gym-card';
-    const cardId = 'chat-doc-' + doc.name.replace(/[\s.]/g,'');
-    mini.id = cardId;
-    const slotsHTML = DOCTOR_SLOTS.map(s => `<button class="slot-btn" onclick="selectSlot(this,'${cardId}')">${s}</button>`).join('');
-    mini.innerHTML = `
-      <div class="gym-card-name"><i class="fa-solid fa-user-doctor"></i>${doc.name}</div>
-      <div class="gym-card-address"><i class="fa-solid fa-stethoscope" style="color:var(--secondary);"></i>${doc.spec}</div>
-      <div class="gym-card-address"><i class="fa-solid fa-location-dot"></i>${doc.location}</div>
-      <div class="gym-rating-row" style="margin-top:8px;">
-        <span class="gym-stars">${buildStars(doc.rating)}</span>
-        <span class="gym-rating-num">${doc.rating} / 5</span>
-      </div>
-      <div style="font-weight:800; color:var(--primary); font-size:0.9rem; margin-bottom:10px;">EGP ${doc.price}</div>
-      <div style="font-size:0.82rem; font-weight:700; color:var(--text-muted); margin-bottom:6px;"><i class="fa-regular fa-clock" style="margin-right:4px;"></i>Available Slots</div>
-      <div class="slots-row">${slotsHTML}</div>
-      <div id="selected-slot-${cardId}" style="font-size:0.8rem; color:var(--primary); font-weight:700; min-height:16px; margin-bottom:8px;"></div>
-      <div class="gym-card-actions">
-        <button class="gym-btn-contact" onclick="openPayment('${doc.name}',${doc.price},'${cardId}')">
-          <i class="fa-solid fa-calendar-check"></i> Book Now
-        </button>
-        <button class="gym-btn-location" onclick="window.open('tel:${doc.phone}')">
-          <i class="fa-solid fa-phone"></i> Call
-        </button>
-      </div>`;
-    stream.appendChild(mini);
-  });
-  const viewAllBtn = document.createElement('button');
-  viewAllBtn.className = 'view-analysis-btn';
-  viewAllBtn.innerHTML = `<i class="fa-solid fa-user-doctor"></i> View All ${specName} Doctors`;
-  viewAllBtn.onclick = () => { toggleChat(); showBookDoctorWithSpec(specName); };
-  stream.appendChild(viewAllBtn);
-  stream.scrollTop = stream.scrollHeight;
-}
-
-function showBookDoctorWithSpec(specName) {
-  hideAllViews();
-  document.getElementById('book-doctor-view').style.display = 'block';
-  buildSpecGrid();
-  selectSpec(specName);
-  window.scrollTo(0, 0);
-}
-
-function injectGymDashSection() {
-  document.getElementById('gym-dash-section')?.remove();
-  document.getElementById('home-coaches-dash-section')?.remove();
-  const section = document.createElement('div');
-  section.id = 'gym-dash-section';
-  section.className = 'gym-section-dash';
-  section.innerHTML = '<h4><i class="fa-solid fa-location-dot"></i> Recommended Gyms Near You</h4><div class="gym-cards-grid" id="gym-cards-grid"></div>';
-  document.querySelector('#dashboard-view .dashboard-grid').appendChild(section);
-  const grid = document.getElementById('gym-cards-grid');
-  [GYM_DATA[2], GYM_DATA[0], GYM_DATA[4]].forEach(gym => grid.appendChild(buildGymCardEl(gym)));
-}
-
-function injectHomeDashSection() {
-  document.getElementById('home-coaches-dash-section')?.remove();
-  document.getElementById('gym-dash-section')?.remove();
-  const section = document.createElement('div');
-  section.id = 'home-coaches-dash-section';
-  section.className = 'coach-home-section';
-  section.innerHTML = '<h4><i class="fa-solid fa-house"></i> Home Training Coaches</h4><div class="coaches-grid" id="coaches-grid"></div>';
-  document.querySelector('#dashboard-view .dashboard-grid').appendChild(section);
-  const grid = document.getElementById('coaches-grid');
-  HOME_COACHES.forEach(coach => {
-    const card = document.createElement('div');
-    card.className = 'coach-card';
-    card.innerHTML = `
-      <div class="coach-avatar"><i class="fa-solid fa-person-running"></i></div>
-      <div class="coach-name">${coach.name}</div>
-      <div class="coach-spec">${coach.spec}</div>
-      <div class="coach-stars">${buildStars(coach.rating)} <span style="font-size:0.8rem; font-weight:700;">${coach.rating}/5</span></div>
-      <div class="coach-price">${coach.price}</div>
-      <button class="coach-contact-btn" onclick="window.open('tel:${coach.phone}')">
-        <i class="fa-solid fa-phone"></i> Contact Coach
-      </button>`;
-    grid.appendChild(card);
-  });
-}
-
-// ── Doctors Data ────────────────────────────────────────────
 const DOCTORS_DATA = [
-  { name:'Dr. Ramy Fouad',     spec:'Cardiology & Critical Care', price:280, rating:4.7, location:'Maadi, Cairo',      phone:'+20 111 234 5670' },
-  { name:'Dr. Dina Saad',      spec:'Cardiology & Critical Care', price:320, rating:4.8, location:'New Cairo',          phone:'+20 122 345 6781' },
-  { name:'Dr. Sara Hossam',    spec:'General Medicine',            price:150, rating:4.7, location:'Maadi, Cairo',      phone:'+20 111 333 5678' },
-  { name:'Dr. Amr Youssef',    spec:'General Medicine',            price:130, rating:4.5, location:'Heliopolis, Cairo', phone:'+20 100 444 6789' },
-  { name:'Dr. Ahmed Nabil',    spec:'Internal Medicine',           price:200, rating:4.6, location:'Heliopolis, Cairo', phone:'+20 122 444 9900' },
-  { name:'Dr. Hossam Refaat',  spec:'Internal Medicine',           price:220, rating:4.8, location:'Downtown, Cairo',   phone:'+20 100 556 1234' },
-  { name:'Dr. Nour El-Din',    spec:'Neurology',                   price:350, rating:4.8, location:'New Cairo',          phone:'+20 100 777 1122' },
-  { name:'Dr. Tarek Mansour',  spec:'Neurology',                   price:330, rating:4.7, location:'Nasr City, Cairo',  phone:'+20 111 888 2233' },
-  { name:'Dr. Mona Tarek',     spec:'Pulmonology',                 price:250, rating:4.5, location:'6th October City',  phone:'+20 112 888 3344' },
-  { name:'Dr. Sherif Hamdy',   spec:'Pulmonology',                 price:270, rating:4.7, location:'New Cairo',          phone:'+20 100 112 4455' },
-  { name:'Dr. Karim Samir',    spec:'Emergency Medicine',          price:180, rating:4.7, location:'Downtown, Cairo',   phone:'+20 100 999 5566' },
-  { name:'Dr. Noha Saber',     spec:'Emergency Medicine',          price:200, rating:4.8, location:'Maadi, Cairo',      phone:'+20 100 445 7788' },
-  { name:'Dr. Hana Fahmy',     spec:'Dermatology',                 price:220, rating:4.6, location:'Zamalek, Cairo',    phone:'+20 111 000 7788' },
-  { name:'Dr. Mira Adel',      spec:'Dermatology',                 price:240, rating:4.8, location:'New Cairo',          phone:'+20 122 556 8899' },
-  { name:'Dr. Omar Saleh',     spec:'Orthopedics',                 price:280, rating:4.8, location:'Nasr City, Cairo',  phone:'+20 122 111 8899' },
-  { name:'Dr. Islam Khairy',   spec:'Orthopedics',                 price:300, rating:4.7, location:'Heliopolis, Cairo', phone:'+20 111 778 0011' },
-  { name:'Dr. Rana Mostafa',   spec:'Pediatrics',                  price:160, rating:4.9, location:'Maadi, Cairo',      phone:'+20 100 222 9900' },
-  { name:'Dr. Farah Mahmoud',  spec:'Pediatrics',                  price:170, rating:4.8, location:'Zamalek, Cairo',    phone:'+20 111 101 3344' },
-  { name:'Dr. Sameh Adel',     spec:'Ophthalmology',               price:200, rating:4.5, location:'Heliopolis, Cairo', phone:'+20 111 333 0011' },
-  { name:'Dr. Ghada Tawfik',   spec:'Ophthalmology',               price:220, rating:4.7, location:'Nasr City, Cairo',  phone:'+20 100 212 4455' },
+  { name:'Dr. Ramy Fouad',    spec:'Cardiology & Critical Care', price:280, rating:4.7, location:'Maadi, Cairo',       phone:'+20 111 234 5670' },
+  { name:'Dr. Dina Saad',     spec:'Cardiology & Critical Care', price:320, rating:4.8, location:'New Cairo',           phone:'+20 122 345 6781' },
+  { name:'Dr. Sara Hossam',   spec:'General Medicine',           price:150, rating:4.7, location:'Maadi, Cairo',       phone:'+20 111 333 5678' },
+  { name:'Dr. Amr Youssef',   spec:'General Medicine',           price:130, rating:4.5, location:'Heliopolis, Cairo',  phone:'+20 100 444 6789' },
+  { name:'Dr. Ahmed Nabil',   spec:'Internal Medicine',          price:200, rating:4.6, location:'Heliopolis, Cairo',  phone:'+20 122 444 9900' },
+  { name:'Dr. Hossam Refaat', spec:'Internal Medicine',          price:220, rating:4.8, location:'Downtown, Cairo',    phone:'+20 100 556 1234' },
+  { name:'Dr. Nour El-Din',   spec:'Neurology',                  price:350, rating:4.8, location:'New Cairo',           phone:'+20 100 777 1122' },
+  { name:'Dr. Tarek Mansour', spec:'Neurology',                  price:330, rating:4.7, location:'Nasr City, Cairo',   phone:'+20 111 888 2233' },
+  { name:'Dr. Mona Tarek',    spec:'Pulmonology',                price:250, rating:4.5, location:'6th October City',   phone:'+20 112 888 3344' },
+  { name:'Dr. Sherif Hamdy',  spec:'Pulmonology',                price:270, rating:4.7, location:'New Cairo',           phone:'+20 100 112 4455' },
+  { name:'Dr. Karim Samir',   spec:'Emergency Medicine',         price:180, rating:4.7, location:'Downtown, Cairo',    phone:'+20 100 999 5566' },
+  { name:'Dr. Noha Saber',    spec:'Emergency Medicine',         price:200, rating:4.8, location:'Maadi, Cairo',       phone:'+20 100 445 7788' },
+  { name:'Dr. Hana Fahmy',    spec:'Dermatology',                price:220, rating:4.6, location:'Zamalek, Cairo',     phone:'+20 111 000 7788' },
+  { name:'Dr. Mira Adel',     spec:'Dermatology',                price:240, rating:4.8, location:'New Cairo',           phone:'+20 122 556 8899' },
+  { name:'Dr. Omar Saleh',    spec:'Orthopedics',                price:280, rating:4.8, location:'Nasr City, Cairo',   phone:'+20 122 111 8899' },
+  { name:'Dr. Islam Khairy',  spec:'Orthopedics',                price:300, rating:4.7, location:'Heliopolis, Cairo',  phone:'+20 111 778 0011' },
+  { name:'Dr. Rana Mostafa',  spec:'Pediatrics',                 price:160, rating:4.9, location:'Maadi, Cairo',       phone:'+20 100 222 9900' },
+  { name:'Dr. Farah Mahmoud', spec:'Pediatrics',                 price:170, rating:4.8, location:'Zamalek, Cairo',     phone:'+20 111 101 3344' },
+  { name:'Dr. Sameh Adel',    spec:'Ophthalmology',              price:200, rating:4.5, location:'Heliopolis, Cairo',  phone:'+20 111 333 0011' },
+  { name:'Dr. Ghada Tawfik',  spec:'Ophthalmology',              price:220, rating:4.7, location:'Nasr City, Cairo',   phone:'+20 100 212 4455' },
 ];
 
 const DOCTOR_SLOTS = ['9:00 AM','10:00 AM','11:30 AM','1:00 PM','3:00 PM','5:00 PM'];
-let selectedSlots = {};
+
+function buildSpecGrid() {
+  const grid = document.getElementById('specGrid');
+  if (!grid) return;
+  grid.innerHTML = SPECIALIZATIONS.map(s => `
+    <div class="spec-card" onclick="selectSpec('${escHtml(s.name)}')">
+      <i class="${s.icon}"></i>
+      ${escHtml(s.name)}
+    </div>`).join('');
+}
+
+function selectSpec(specName) {
+  document.getElementById('spec-section').style.display   = 'none';
+  document.getElementById('doctors-section').style.display = 'block';
+  document.getElementById('specTitle').textContent = specName + ' Specialists';
+  const grid = document.getElementById('doctorsGrid');
+  if (!grid) return;
+
+  const docs = DOCTORS_DATA.filter(d => d.spec === specName);
+  if (docs.length === 0) {
+    grid.innerHTML = '<p style="color:var(--text-muted); grid-column:1/-1;">No doctors found for this specialization.</p>';
+    return;
+  }
+  grid.innerHTML = docs.map(doc => buildDoctorCardHTML(doc)).join('');
+}
+
+function buildDoctorCardHTML(doc) {
+  const cardId = 'doc-' + doc.name.replace(/[\s.']/g, '');
+  const stars  = '★'.repeat(Math.floor(doc.rating)) + '☆'.repeat(5 - Math.floor(doc.rating));
+  const slots  = DOCTOR_SLOTS.map(s =>
+    `<button class="slot-btn" onclick="selectSlot(this,'${cardId}')">${s}</button>`
+  ).join('');
+
+  return `
+    <div class="doctor-card" id="${cardId}">
+      <div class="doctor-card-header">
+        <div class="doctor-avatar"><i class="fa-solid fa-user-doctor"></i></div>
+        <div>
+          <div class="doctor-name">${escHtml(doc.name)}</div>
+          <div class="doctor-spec">${escHtml(doc.spec)}</div>
+        </div>
+      </div>
+      <div class="doctor-meta">
+        <span><i class="fa-solid fa-location-dot" style="margin-right:5px; color:var(--text-muted);"></i>${escHtml(doc.location)}</span>
+        <span class="doctor-price">EGP ${doc.price}</span>
+      </div>
+      <div class="doctor-rating">
+        ${stars} <span>${doc.rating} / 5</span>
+      </div>
+      <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted); margin-bottom:8px;">
+        <i class="fa-regular fa-clock" style="margin-right:4px;"></i>Available Slots
+      </div>
+      <div class="slots-row">${slots}</div>
+      <div class="slot-selected-text" id="slot-${cardId}"></div>
+      <div class="doctor-actions">
+        <button class="btn btn-primary" onclick="openPayment('${escHtml(doc.name)}',${doc.price},'${cardId}')">
+          <i class="fa-solid fa-calendar-check"></i> Book Now
+        </button>
+        <button class="btn btn-outline" onclick="window.open('tel:${escHtml(doc.phone)}')">
+          <i class="fa-solid fa-phone"></i> Call
+        </button>
+      </div>
+    </div>`;
+}
 
 function selectSlot(btn, cardId) {
   document.querySelectorAll(`#${cardId} .slot-btn`).forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
-  selectedSlots[cardId] = btn.innerText;
-  const label = document.getElementById('selected-slot-' + cardId);
-  if (label) label.innerText = '✓ Selected: ' + btn.innerText;
-}
-
-function buildDoctorCard(doc) {
-  const cardId = 'doc-' + doc.name.replace(/[\s.]/g,'');
-  const card = document.createElement('div');
-  card.id = cardId;
-  card.style.cssText = 'background:white; border:1px solid var(--glass-border); border-radius:20px; padding:22px; transition:0.3s; box-shadow:0 4px 18px rgba(0,119,255,0.06);';
-  card.onmouseenter = () => card.style.transform = 'translateY(-5px)';
-  card.onmouseleave = () => card.style.transform = 'translateY(0)';
-  const slotsHTML = DOCTOR_SLOTS.map(s => `<button class="slot-btn" onclick="selectSlot(this,'${cardId}')">${s}</button>`).join('');
-  card.innerHTML = `
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-      <div style="width:48px; height:48px; background:linear-gradient(135deg,var(--primary),var(--secondary)); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-        <i class="fa-solid fa-user-doctor" style="color:white; font-size:1.2rem;"></i>
-      </div>
-      <div>
-        <div style="font-weight:800; font-size:1rem;">${doc.name}</div>
-        <div style="font-size:0.8rem; color:var(--text-muted);">${doc.spec}</div>
-      </div>
-    </div>
-    <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:0.88rem;">
-      <span style="color:var(--text-muted); font-weight:600;"><i class="fa-solid fa-tag" style="margin-right:5px;"></i>Fee</span>
-      <span style="font-weight:800; color:var(--primary);">EGP ${doc.price}</span>
-    </div>
-    <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:0.88rem;">
-      <span style="color:var(--text-muted); font-weight:600;"><i class="fa-solid fa-location-dot" style="margin-right:5px;"></i>Location</span>
-      <span style="font-weight:700;">${doc.location}</span>
-    </div>
-    <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
-      <span style="color:#f4b400;">${buildStars(doc.rating)}</span>
-      <span style="font-size:0.85rem; font-weight:700; background:#fff8e1; color:#b8860b; padding:2px 10px; border-radius:20px;">${doc.rating} / 5</span>
-    </div>
-    <div style="margin-bottom:14px;">
-      <div style="font-size:0.85rem; font-weight:700; color:var(--text-muted); margin-bottom:8px;">
-        <i class="fa-regular fa-clock" style="margin-right:5px;"></i>Available Slots — Today
-      </div>
-      <div class="slots-row">${slotsHTML}</div>
-      <div id="selected-slot-${cardId}" style="font-size:0.82rem; color:var(--primary); font-weight:700; min-height:18px;"></div>
-    </div>
-    <div style="display:flex; gap:8px;">
-      <button class="btn-glow" style="flex:1; justify-content:center; padding:10px; font-size:0.85rem;"
-        onclick="openPayment('${doc.name}', ${doc.price}, '${cardId}')">
-        <i class="fa-solid fa-calendar-check"></i> Book Now
-      </button>
-      <button class="gym-btn-location" style="flex:1; font-size:0.85rem;" onclick="window.open('tel:${doc.phone}')">
-        <i class="fa-solid fa-phone"></i> Call
-      </button>
-    </div>`;
-  return card;
-}
-
-// ── Specializations ─────────────────────────────────────────
-const SPECIALIZATIONS = [
-  { name:'Cardiology & Critical Care', icon:'fa-solid fa-heart-pulse'    },
-  { name:'General Medicine',            icon:'fa-solid fa-user-doctor'    },
-  { name:'Internal Medicine',           icon:'fa-solid fa-stethoscope'    },
-  { name:'Neurology',                   icon:'fa-solid fa-brain'          },
-  { name:'Pulmonology',                 icon:'fa-solid fa-lungs'          },
-  { name:'Emergency Medicine',          icon:'fa-solid fa-truck-medical'  },
-  { name:'Dermatology',                 icon:'fa-solid fa-hand-dots'      },
-  { name:'Orthopedics',                 icon:'fa-solid fa-bone'           },
-  { name:'Pediatrics',                  icon:'fa-solid fa-baby'           },
-  { name:'Ophthalmology',               icon:'fa-solid fa-eye'            }
-];
-
-function buildSpecGrid() {
-  const grid = document.getElementById('specGrid');
-  grid.innerHTML = '';
-  SPECIALIZATIONS.forEach(spec => {
-    const card = document.createElement('div');
-    card.className = 'spec-card';
-    card.innerHTML = `<i class="${spec.icon}"></i>${spec.name}`;
-    card.onclick = () => selectSpec(spec.name);
-    grid.appendChild(card);
-  });
-}
-
-function selectSpec(specName) {
-  document.getElementById('spec-selector-section').style.display = 'none';
-  document.getElementById('spec-doctors-section').style.display  = 'block';
-  document.getElementById('spec-doctors-title').innerText = `${specName} Doctors`;
-  const grid = document.getElementById('bookDoctorsGrid');
-  grid.innerHTML = '';
-  const docs = DOCTORS_DATA.filter(d => d.spec === specName);
-  if (docs.length === 0) {
-    grid.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">No doctors found for this specialization.</p>';
-  } else {
-    docs.forEach(doc => grid.appendChild(buildDoctorCard(doc)));
-  }
+  selectedSlots[cardId] = btn.textContent.trim();
+  const label = document.getElementById('slot-' + cardId);
+  if (label) label.textContent = '✓ ' + selectedSlots[cardId];
 }
 
 function resetSpecSelection() {
-  document.getElementById('spec-selector-section').style.display = 'block';
-  document.getElementById('spec-doctors-section').style.display  = 'none';
+  document.getElementById('spec-section').style.display    = 'block';
+  document.getElementById('doctors-section').style.display = 'none';
 }
 
-// ── Payment Flow ────────────────────────────────────────────
-let currentPayDoc = '', currentPayPrice = 0, currentPaySlot = '';
-
+// ── Payment ────────────────────────────────────────────────────
 function openPayment(docName, price, cardId) {
-  const slot = selectedSlots[cardId] || null;
-  if (!slot) { alert('Please select an available time slot first.'); return; }
-  currentPayDoc = docName; currentPayPrice = price; currentPaySlot = slot;
-  ['pay-step-delivery','pay-step-cash','pay-step-visa','pay-step-success'].forEach(id => {
-    document.getElementById(id).style.display = 'none';
-  });
-  document.getElementById('pay-step-1').style.display     = 'block';
-  document.getElementById('pay-doc-info').innerText  = `${docName} • EGP ${price}`;
-  document.getElementById('pay-slot-info').innerText = `📅 Appointment: Today at ${slot}`;
-  document.getElementById('paymentOverlay').style.display = 'flex';
+  const slot = selectedSlots[cardId];
+  if (!slot) { showToast('Please select a time slot first.', 'warning'); return; }
+  if (!currentUser) { openModal('login'); return; }
+
+  currentPayDoc   = docName;
+  currentPayPrice = price;
+  currentPaySlot  = slot;
+
+  resetPaymentModal();
+  document.getElementById('payDocInfo').textContent  = `${docName} · EGP ${price}`;
+  document.getElementById('paySlotInfo').textContent = `📅 Today at ${slot}`;
+  document.getElementById('pay-step-1').style.display = 'block';
+  document.getElementById('paymentModal').style.display = 'flex';
 }
 
-function closePayment() { document.getElementById('paymentOverlay').style.display = 'none'; }
+function closePaymentModal() {
+  document.getElementById('paymentModal').style.display = 'none';
+  resetPaymentModal();
+}
+
+function resetPaymentModal() {
+  ['pay-step-1','pay-step-delivery','pay-step-visa','pay-step-cash','pay-step-success']
+    .forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+}
 
 async function selectPayment(method) {
   const isShop = currentPayDoc === 'Shop Order';
 
-  if (!isShop && currentPayDoc && currentPaySlot) {
+  if (!isShop) {
     const bookingData = {
       doctor_name: currentPayDoc,
       date: new Date().toISOString().split('T')[0],
       time_slot: currentPaySlot,
       payment_method: method,
       fee: parseInt(currentPayPrice) || 0,
-      notes: `Booked with ${currentPayDoc}`
     };
-    console.log('[selectPayment] Saving booking:', JSON.stringify(bookingData, null, 2));
-    
     const result = await apiCall('POST', '/booking', bookingData);
-    console.log('[selectPayment] Booking response:', result);
-    
-    if (result.ok && result.data && result.data.success) {
-      const booking = result.data.data;
-      console.log('[selectPayment] Booking saved to Supabase:', booking);
-      await loadBookings(); // Refresh from API
-      
-      // Generate treatment plan after doctor booking
-      if (!isShop && currentPayDoc) {
-        await generateTreatmentPlan(currentPayDoc, currentUser?.name || 'Patient');
-      }
-    } else {
-      console.error('[selectPayment] Booking API failed:', result.data?.message);
-      alert('Booking failed: ' + (result.data?.message || 'Unknown error'));
+    if (!result.ok) {
+      showToast(result.data?.message || 'Booking failed. Please try again.', 'error');
+      return;
     }
-  } else {
-    // Refresh bookings from API for any payment method
-    await loadBookings();
   }
 
   document.getElementById('pay-step-1').style.display = 'none';
+
   if (method === 'cash') {
-    // For shop orders, save to API on cash confirm
-    if (isShop && cart.length > 0) {
-      const deliveryName = document.getElementById('delivery-name').value.trim();
-      const deliveryPhone = document.getElementById('delivery-phone').value.trim();
-      const deliveryAddress = document.getElementById('delivery-address').value.trim();
-      const orderPayload = {
-        items: cart.map(i => ({ productId: i.productId, productName: i.name, price: i.price, quantity: i.qty })),
-        paymentMethod: 'cash',
-        deliveryName,
-        deliveryPhone,
-        deliveryAddress,
-      };
-      console.log('[Order] Button clicked');
-      console.log('[Order] Payload:', JSON.stringify(orderPayload, null, 2));
-      const orderResult = await apiCall('POST', '/orders', orderPayload);
-      console.log('[Order] Response:', orderResult);
-      if (orderResult.ok && orderResult.data && orderResult.data.success) {
-        console.log('[Order] Saved to Supabase:', orderResult.data.data);
-        await loadOrdersFromAPI();
-      } else {
-        console.error('[selectPayment] Order failed:', orderResult.data?.message);
-      }
+    const cashStep = document.getElementById('pay-step-cash');
+    if (cashStep) {
+      document.getElementById('cashConfirmText').textContent = isShop
+        ? `Your order has been confirmed. Total: $${currentPayPrice}.`
+        : `Appointment with ${currentPayDoc} confirmed for today at ${currentPaySlot}. Total: EGP ${currentPayPrice}.`;
+      cashStep.style.display = 'block';
     }
-    
-    document.getElementById('cash-confirm-text').innerText = isShop
-      ? `Your order is confirmed. Total: $${currentPayPrice}.`
-      : `Appointment with ${currentPayDoc} confirmed for today at ${currentPaySlot}. Total: EGP ${currentPayPrice}.`;
-    document.getElementById('pay-step-cash').style.display = 'block';
-    if (isShop) { cart = []; updateCartBar(); }
+    if (isShop) { cart = []; updateCartDisplay(); }
   } else {
-    document.getElementById('visa-amount-text').innerText = isShop ? `Total: $${currentPayPrice}` : `Total: EGP ${currentPayPrice}`;
+    document.getElementById('visaAmountText').textContent = isShop
+      ? `Total: $${currentPayPrice}`
+      : `Total: EGP ${currentPayPrice}`;
     document.getElementById('pay-step-visa').style.display = 'block';
   }
 }
 
-function formatCard(inp) {
-  let v = inp.value.replace(/\D/g,'').substring(0,16);
-  inp.value = v.replace(/(.{4})/g,'$1 ').trim();
-}
-function formatExpiry(inp) {
-  let v = inp.value.replace(/\D/g,'').substring(0,4);
-  if (v.length >= 3) v = v.substring(0,2) + ' / ' + v.substring(2);
-  inp.value = v;
-}
+function processVisaPayment() {
+  const card    = document.getElementById('visaCard')?.value.replace(/\s/g,'');
+  const expiry  = document.getElementById('visaExpiry')?.value;
+  const cvv     = document.getElementById('visaCvv')?.value;
+  const name    = document.getElementById('visaName')?.value.trim();
 
-async function submitVisa() {
-  const name   = document.getElementById('visa-name').value.trim();
-  const number = document.getElementById('visa-number').value.trim();
-  const expiry = document.getElementById('visa-expiry').value.trim();
-  const cvv    = document.getElementById('visa-cvv').value.trim();
-  if (!name || number.replace(/\s/g,'').length < 16 || expiry.length < 7 || cvv.length < 3) {
-    alert('Please fill in all card details correctly.'); return;
-  }
-
-  if (currentPayDoc === 'Shop Order') {
-    const deliveryName = document.getElementById('delivery-name').value.trim();
-    const deliveryPhone = document.getElementById('delivery-phone').value.trim();
-    const deliveryAddress = document.getElementById('delivery-address').value.trim();
-    const orderPayload = {
-      items: cart.map(i => ({ productId: i.productId, productName: i.name, price: i.price, quantity: i.qty })),
-      paymentMethod: 'visa',
-      deliveryName,
-      deliveryPhone,
-      deliveryAddress,
-    };
-    console.log('[Order] Button clicked');
-    console.log('[Order] Payload:', JSON.stringify(orderPayload, null, 2));
-    
-    const orderResult = await apiCall('POST', '/orders', orderPayload);
-    console.log('[Order] Response:', orderResult);
-    
-    if (orderResult.ok && orderResult.data && orderResult.data.success) {
-      console.log('[Order] Saved to Supabase:', orderResult.data.data);
-      await loadOrdersFromAPI();
-    } else {
-      console.error('[Order] Failed:', orderResult.data?.message);
-      alert('Order failed: ' + (orderResult.data?.message || 'Unknown error'));
-    }
-    cart = []; updateCartBar();
-  } else if (currentPayDoc !== '') {
-    // Save doctor booking via API
-    const bookingData = {
-      doctor_name: currentPayDoc,
-      date: new Date().toISOString().split('T')[0],
-      time_slot: currentPaySlot,
-      payment_method: 'visa',
-      fee: currentPayPrice,
-      notes: null
-    };
-    console.log('[paymentVisaConfirm] Saving booking:', JSON.stringify(bookingData, null, 2));
-    const bookingResult = await apiCall('POST', '/booking', bookingData);
-    if (bookingResult.ok && bookingResult.data && bookingResult.data.success) {
-      console.log('[paymentVisaConfirm] Booking saved:', bookingResult.data.data);
-      await loadBookings(); // Refresh from API
-    } else {
-      console.error('[paymentVisaConfirm] Booking failed:', bookingResult.data?.message);
-      alert('Booking failed: ' + (bookingResult.data?.message || 'Unknown error'));
-    }
-  } else {
-    await loadBookings();
+  if (!card || card.length < 13 || !expiry || !cvv || !name) {
+    showToast('Please fill in all card details.', 'warning');
+    return;
   }
 
   document.getElementById('pay-step-visa').style.display = 'none';
-  document.getElementById('visa-confirm-text').innerText = currentPayDoc === 'Shop Order'
-    ? `Payment of $${currentPayPrice} confirmed. Your order is on its way!`
-    : `Payment of EGP ${currentPayPrice} confirmed. Appointment with ${currentPayDoc} at ${currentPaySlot}.`;
-  document.getElementById('pay-step-success').style.display = 'block';
-}
-
-function showDoctorsSection() {
-  const section = document.getElementById('doctors-section');
-  const grid    = document.getElementById('doctors-grid');
-  section.style.display = 'block';
-  grid.innerHTML = '';
-  DOCTORS_DATA.forEach(doc => grid.appendChild(buildDoctorCard(doc)));
-}
-
-// ── Finalize Chatbot ─────────────────────────────────────────
-async function finalize() {
-  appendMsg('bot', 'Processing your responses…');
-  setTimeout(async () => {
-    let plan = '';
-    answers.flowType = flowType;
-
-    if (flowType === 'health') {
-      const score  = calculateScore(answers);
-      const result = calculateStatus(score);
-      const adviceList = generateAdvice(answers, result.status);
-
-      if (result.status === 'Critical')       plan = 'Alert: High risk detected. Immediate intervention needed.';
-      else if (result.status === 'Moderate')  plan = 'Caution: Some symptoms detected. Monitor closely and rest well.';
-      else                                    plan = 'Excellent! Your vitals are stable.';
-
-      const colorMap = { Stable:'var(--success)', Moderate:'var(--warning)', Critical:'var(--danger)' };
-      const color = colorMap[result.status];
-      document.getElementById('val-status').innerText    = result.status;
-      document.getElementById('val-status').style.color  = color;
-      document.getElementById('status-icon').style.color = color;
-      document.getElementById('val-plan').innerText      = plan;
-      document.getElementById('rec-title').innerText     = 'Medical Recommendations';
-      const scoreEl = document.getElementById('val-score');
-      scoreEl.innerText   = score;
-      scoreEl.style.color = color;
-      document.getElementById('score-subtext').innerText = 'Lower is better';
-      const riskEl = document.getElementById('val-risk');
-      riskEl.innerText = result.risk;
-      const rs = { Low:['#e0fbf6','var(--success)'], Medium:['#fff4e5','var(--warning)'], High:['#fff0f0','var(--danger)'] };
-      riskEl.style.background = rs[result.risk][0];
-      riskEl.style.color      = rs[result.risk][1];
-      document.getElementById('val-advice').innerHTML = adviceList.map(t => `<li><i class="fa-solid fa-circle-check"></i> ${t}</li>`).join('');
-      if (result.status === 'Critical') showDoctorsSection();
-      else document.getElementById('doctors-section').style.display = 'none';
-
-      // Save to API
-      await apiCall('POST', '/chatbot', answers);
-
-    } else {
-      // Fitness
-      if (answers.fitnessGoal === 'muscle')
-        plan = `Plan: High-protein intake and ${answers.location === 'gym' ? 'heavy lifting' : 'bodyweight strength'} 4×/week.`;
-      else if (answers.fitnessGoal === 'fat')
-        plan = `Plan: Calorie deficit and high-intensity training ${answers.trainFreq} times weekly.`;
-      else
-        plan = `Plan: Balanced approach with flexibility and moderate cardio.`;
-
-      if (answers.diet === 'poor') plan += ' ⚠️ Improve your diet — nutrition is 70% of the result.';
-      if (answers.injury === 'yes') plan += ' 🩹 Modify exercises around your injury.';
-
-      document.getElementById('val-status').innerText    = 'Active';
-      document.getElementById('val-status').style.color  = 'var(--primary)';
-      document.getElementById('status-icon').style.color = 'var(--primary)';
-      document.getElementById('val-plan').innerText      = plan;
-      document.getElementById('rec-title').innerText     = 'Fitness Recommendations';
-
-      const bmi    = calcBMI(answers.weight, answers.height);
-      const bmiCat = bmi ? bmiCategory(Number(bmi)) : null;
-      const scoreEl = document.getElementById('val-score');
-      if (bmi) { scoreEl.innerText = bmi; scoreEl.style.color = bmiCat.color; }
-      else      { scoreEl.innerText = 'N/A'; scoreEl.style.color = 'var(--text-muted)'; }
-
-      const riskEl = document.getElementById('val-risk');
-      let rL = 'Low', rB = '#e0fbf6', rC = 'var(--success)';
-      if (bmiCat?.label === 'Overweight') { rL = 'Medium'; rB = '#fff4e5'; rC = 'var(--warning)'; }
-      if (bmiCat?.label === 'Obese')      { rL = 'High';   rB = '#fff0f0'; rC = 'var(--danger)';  }
-      if (bmiCat?.label === 'Underweight'){ rL = 'Medium'; rB = '#fff4e5'; rC = 'var(--warning)'; }
-      riskEl.innerText = rL; riskEl.style.background = rB; riskEl.style.color = rC;
-
-      const fitnessAdvice = [];
-      if (bmiCat?.label === 'Obese')       fitnessAdvice.push('⚠️ BMI indicates obesity. Focus on consistent cardio and calorie deficit.');
-      if (bmiCat?.label === 'Overweight')  fitnessAdvice.push('BMI is above normal. Gradual weight loss recommended.');
-      if (bmiCat?.label === 'Underweight') fitnessAdvice.push('BMI is low — prioritise nutrition and increase caloric intake.');
-      if (answers.diet === 'poor')    fitnessAdvice.push('Improve your diet quality.');
-      if (answers.injury === 'yes')   fitnessAdvice.push('Consult a physiotherapist about your injury.');
-      if (fitnessAdvice.length === 0) fitnessAdvice.push('Great fitness habits! Keep up consistency.');
-      document.getElementById('val-advice').innerHTML = fitnessAdvice.map(t => `<li><i class="fa-solid fa-circle-check"></i> ${t}</li>`).join('');
-      document.getElementById('doctors-section').style.display = 'none';
-      if (answers.location === 'gym')  injectGymDashSection();
-      else if (answers.location === 'home') injectHomeDashSection();
-
-      // Generate fitness plan after full flow - with detailed display in chatbot
-      // Use existing function that displays workout and diet plans in chat
-      await generateFitnessPlanWithDetails();
-
-      // Also save to Supabase for dashboard
-      await generateFitnessPlan(currentUser?.name || 'User', answers.location, answers.fitnessGoal);
-
-      // Save answers
-      await apiCall('POST', '/chatbot', answers);
-    }
-
-    document.getElementById('nav-dash-link').style.display = 'block';
-    document.getElementById('dash-title').innerText = `${currentUser.name}'s Health Profile`;
-
-    const stream = document.getElementById('chat-stream');
-    const vBtn = document.createElement('button');
-    vBtn.className = 'view-analysis-btn';
-    vBtn.innerHTML = '<i class="fa-solid fa-chart-line"></i> View Full Dashboard';
-    vBtn.onclick = () => { toggleChat(); showDashboard(); };
-    stream.appendChild(vBtn);
-    stream.scrollTop = stream.scrollHeight;
-  }, 1000);
-}
-
-// ── Shop Cart ────────────────────────────────────────────────
-let cart = [];
-
-function addToCart(btn, name, price, productId) {
-  const existing = cart.find(i => i.name === name);
-  if (existing) { existing.qty++; }
-  else {
-    cart.push({ name, price, qty: 1, productId });
-    const orders = getStoredOrders();
-    orders.push({ name, price, qty: 1, savedAt: new Date().toISOString() });
-    saveStoredOrders(orders);
-    btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Added ✓';
-    btn.style.background = 'var(--success)';
-    setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-cart-plus"></i> Add More'; btn.style.background = ''; }, 1200);
+  const successStep = document.getElementById('pay-step-success');
+  if (successStep) {
+    document.getElementById('successText').textContent = currentPayDoc === 'Shop Order'
+      ? `Payment of $${currentPayPrice} confirmed. Your order is on its way!`
+      : `Payment of EGP ${currentPayPrice} confirmed. Appointment with ${currentPayDoc} at ${currentPaySlot}.`;
+    successStep.style.display = 'block';
   }
-  updateCartBar();
+  if (currentPayDoc === 'Shop Order') { cart = []; updateCartDisplay(); }
 }
 
-function updateCartBar() {
-  const bar   = document.getElementById('cart-bar');
-  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const count = cart.reduce((s, i) => s + i.qty, 0);
-  document.getElementById('cart-count-text').innerText = `${count} item${count !== 1 ? 's' : ''} in cart`;
-  document.getElementById('cart-total-text').innerText = `— Total: $${total.toFixed(2)}`;
-  bar.style.display = count > 0 ? 'flex' : 'none';
+function formatCardNumber(el) {
+  let v = el.value.replace(/\D/g, '').substring(0, 16);
+  el.value = v.match(/.{1,4}/g)?.join(' ') || v;
+}
+function formatExpiry(el) {
+  let v = el.value.replace(/\D/g, '');
+  if (v.length >= 2) v = v.substring(0,2) + '/' + v.substring(2,4);
+  el.value = v;
 }
 
-function openShopPayment() {
-  if (cart.length === 0) return;
-  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  currentPayDoc   = 'Shop Order';
-  currentPayPrice = total.toFixed(2);
-  currentPaySlot  = cart.map(i => `${i.name} x${i.qty}`).join(', ');
-  ['pay-step-1','pay-step-cash','pay-step-visa','pay-step-success'].forEach(id => {
-    document.getElementById(id).style.display = 'none';
-  });
-  document.getElementById('pay-step-delivery').style.display = 'block';
-  ['delivery-name','delivery-phone','delivery-address'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-  document.getElementById('paymentOverlay').style.display = 'flex';
+// ── Professional Dashboard ──────────────────────────────────────
+const COACH_CLIENTS = [
+  { name:'Omar Rayan',  goal:'Muscle Gain',  level:'High',   diet:'Healthy', bmi:22.4, bmiLabel:'Normal',     bmiColor:'var(--primary)',   location:'Gym'  },
+  { name:'Layla Amer',  goal:'Fat Loss',     level:'Medium', diet:'Average', bmi:27.8, bmiLabel:'Overweight', bmiColor:'var(--warning)',   location:'Home' },
+  { name:'Mike Ross',   goal:'Fat Loss',     level:'Low',    diet:'Poor',    bmi:31.2, bmiLabel:'Obese',      bmiColor:'var(--danger)',    location:'Gym'  },
+  { name:'Dina Tarek',  goal:'General',      level:'Medium', diet:'Healthy', bmi:21.0, bmiLabel:'Normal',     bmiColor:'var(--secondary)', location:'Home' },
+];
+
+function buildProfessionalDashboard() {
+  const isDoctor = currentUser?.role === 'doctor';
+  const name = currentUser?.name || 'Professional';
+
+  setEl('profDashTitle', isDoctor ? `Dr. ${name}'s Panel` : `Coach ${name}'s Panel`);
+  setEl('profDashSubtitle', isDoctor
+    ? 'Overview of your patients and their latest health data.'
+    : 'Fitness management console — client training and lifestyle overview.');
+  setEl('profStatLabel', isDoctor ? 'Total Patients' : 'Total Clients');
+  setEl('profStatCount', isDoctor ? '3' : '4');
+  setEl('profStatBookings', isDoctor ? '8' : '12');
+
+  document.getElementById('doctor-panel').style.display = isDoctor ? 'block' : 'none';
+  document.getElementById('coach-panel').style.display  = isDoctor ? 'none'  : 'block';
+
+  if (isDoctor) buildPatientTable();
+  else buildCoachClients();
 }
 
-function submitDelivery() {
-  const name    = document.getElementById('delivery-name').value.trim();
-  const phone   = document.getElementById('delivery-phone').value.trim();
-  const address = document.getElementById('delivery-address').value.trim();
-  if (!name || !phone || !address) { alert('Please fill in all delivery details.'); return; }
-  document.getElementById('pay-step-delivery').style.display = 'none';
-  document.getElementById('pay-step-1').style.display        = 'block';
-  document.getElementById('pay-doc-info').innerText  = `Order: ${cart.map(i => i.name).join(', ')}`;
-  document.getElementById('pay-slot-info').innerText = `📦 Deliver to: ${address} • Total: $${currentPayPrice}`;
-}
-
-// ── Storage Helpers ──────────────────────────────────────────
-function getStoredBookings() { try { return JSON.parse(localStorage.getItem('hc_bookings') || '[]'); } catch { return []; } }
-function saveStoredBookings(arr) { localStorage.setItem('hc_bookings', JSON.stringify(arr)); }
-function getStoredOrders() { try { return JSON.parse(localStorage.getItem('hc_orders') || '[]'); } catch { return []; } }
-function saveStoredOrders(arr) { localStorage.setItem('hc_orders', JSON.stringify(arr)); }
-
-async function refreshBookingsFromAPI() {
-  const result = await apiCall('GET', '/booking');
-  if (result.ok && result.data && result.data.success && result.data.data) {
-    saveStoredBookings(result.data.data);
-    console.log('[refreshBookingsFromAPI] Bookings refreshed:', result.data.data.length);
-  }
-}
-
-// ── My Bookings UI ───────────────────────────────────────────
-async function loadBookings() {
-  console.log('[loadBookings] Fetching from API...');
-  const result = await apiCall('GET', '/booking');
-  console.log('[loadBookings] Response:', result);
-  
-  if (result.ok && result.data && result.data.success && result.data.data) {
-    const bookings = result.data.data;
-    saveStoredBookings(bookings);
-    console.log('[loadBookings] Saved', bookings.length, 'bookings from API');
-    return bookings;
-  } else {
-    console.warn('[loadBookings] API failed, using local storage');
-    return getStoredBookings();
-  }
-}
-
-async function openMyBookings() {
-  document.getElementById('profileMenu').classList.remove('active');
-  
-  // Fetch fresh from API first
-  const bookings = await loadBookings();
-  
-  const list = document.getElementById('myBookingsList');
-  list.innerHTML = '';
-  if (!bookings || bookings.length === 0) {
-    list.innerHTML = '<div class="records-empty"><i class="fa-solid fa-calendar-xmark"></i>No bookings yet.</div>';
-  } else {
-    bookings.slice().reverse().forEach(b => {
-      const d = b.created_at ? new Date(b.created_at) : (b.savedAt ? new Date(b.savedAt) : null);
-      const when = d && !isNaN(d) ? d.toLocaleDateString('en-EG', { day:'numeric', month:'short', year:'numeric' }) : '';
-      const item = document.createElement('div');
-      item.className = 'record-item';
-      item.innerHTML = `
-        <div class="record-item-icon"><i class="fa-solid fa-user-doctor"></i></div>
-        <div class="record-item-body">
-          <div class="record-item-title">${b.doctor_name || b.doctor || 'Doctor'}</div>
-          <div class="record-item-meta"><i class="fa-regular fa-calendar" style="margin-right:4px;"></i>${b.date || '—'} &nbsp; <i class="fa-regular fa-clock" style="margin-right:4px;"></i>${b.time_slot || b.time || '—'}</div>
-          ${b.fee ? `<div class="record-item-meta" style="margin-top:3px;"><i class="fa-solid fa-tag" style="margin-right:4px;"></i>EGP ${b.fee} · ${b.payment_method || b.method || 'cash'}</div>` : ''}
-          <div class="record-item-meta" style="margin-top:3px; font-size:0.75rem; opacity:0.7;">${when}</div>
-        </div>`;
-      list.appendChild(item);
-    });
-  }
-  document.getElementById('myBookingsOverlay').classList.add('active');
-}
-function closeMyBookings() { document.getElementById('myBookingsOverlay').classList.remove('active'); }
-function clearMyBookings() {
-  if (confirm('Clear all saved bookings?')) {
-    saveStoredBookings([]);
-    document.getElementById('myBookingsList').innerHTML = '<div class="records-empty"><i class="fa-solid fa-calendar-xmark"></i>No bookings yet.</div>';
-  }
-}
-
-// ── My Orders UI ─────────────────────────────────────────────
-async function loadOrdersFromAPI() {
-  console.log('[loadOrdersFromAPI] Fetching orders from API...');
-  const result = await apiCall('GET', '/orders');
-  console.log('[loadOrdersFromAPI] Response:', result);
-  
-  if (result.ok && result.data && result.data.success && result.data.data) {
-    const orders = result.data.data;
-    saveStoredOrders(orders);
-    console.log('[loadOrdersFromAPI] Saved', orders.length, 'orders from API');
-    return orders;
-  } else {
-    console.warn('[loadOrdersFromAPI] API failed, using local storage');
-    return getStoredOrders();
-  }
-}
-
-async function openMyOrders() {
-  document.getElementById('profileMenu').classList.remove('active');
-  
-  // Fetch fresh from API first
-  const orders = await loadOrdersFromAPI();
-  
-  const list = document.getElementById('myOrdersList');
-  list.innerHTML = '';
-  if (!orders || orders.length === 0) {
-    list.innerHTML = '<div class="records-empty"><i class="fa-solid fa-box-open"></i>No orders yet.</div>';
-  } else {
-    orders.forEach(o => {
-      const d = o.created_at ? new Date(o.created_at) : (o.savedAt ? new Date(o.savedAt) : null);
-      const when = d && !isNaN(d) ? d.toLocaleDateString('en-EG', { day:'numeric', month:'short', year:'numeric' }) : '';
-      const items = Array.isArray(o.items) ? o.items : (typeof o.items === 'string' ? JSON.parse(o.items) : []);
-      const total = o.total_amount || (items.reduce((s, i) => s + (i.price * (i.quantity || 1)), 0));
-      
-      items.forEach(item => {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'record-item';
-        itemDiv.innerHTML = `
-          <div class="record-item-icon"><i class="fa-solid fa-capsules"></i></div>
-          <div class="record-item-body">
-            <div class="record-item-title">${item.product_name || item.name || 'Product'}</div>
-            <div class="record-item-meta"><i class="fa-solid fa-hashtag" style="margin-right:4px;"></i>Qty: ${item.quantity || 1}</div>
-            <div class="record-item-price" style="margin-top:4px;">$ ${(item.price || 0).toFixed(2)}</div>
-            <div class="record-item-meta" style="margin-top:2px; font-size:0.75rem; opacity:0.7;">${when} · ${o.payment_method || 'cash'} · ${o.status || 'processing'}</div>
-          </div>`;
-        list.appendChild(itemDiv);
-      });
-    });
-  }
-  document.getElementById('myOrdersOverlay').classList.add('active');
-}
-function closeMyOrders() { document.getElementById('myOrdersOverlay').classList.remove('active'); }
-function clearMyOrders() {
-  if (confirm('Clear all saved orders?')) {
-    saveStoredOrders([]);
-    document.getElementById('myOrdersList').innerHTML = '<div class="records-empty"><i class="fa-solid fa-box-open"></i>No orders yet.</div>';
-  }
-}
-
-// ── Close overlays on outside click ─────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('myBookingsOverlay').addEventListener('click', function(e) { if (e.target === this) closeMyBookings(); });
-  document.getElementById('myOrdersOverlay').addEventListener('click',  function(e) { if (e.target === this) closeMyOrders(); });
-  document.getElementById('planModal').addEventListener('click', function(e) { if (e.target === this) closePlanModal(); });
-  
-  // Initialize landing sections visibility based on login
-  updateLandingSectionsVisibility();
-});
-
-// ── Landing Sections Visibility ─────────────────────────────
-function updateLandingSectionsVisibility() {
-  // Keep home page visible, only hide the logged-out CTA section
-  const ctaSection = document.getElementById('cta-section-logged-out');
-  if (!ctaSection) return;
-  
-  if (currentUser.auth) {
-    ctaSection.style.display = 'none';
-  } else {
-    ctaSection.style.display = 'block';
-  }
-}
-
-// ── Testimonial Carousel ───────────────────────────────────
-let currentSlide = 0;
-const totalSlides = 4; // 10 cards, 3 per slide = 4 slides (last one has 1)
-let slideInterval;
-
-function initCarousel() {
-  const container = document.getElementById('testimonials-container');
-  const dotsContainer = document.getElementById('testimonial-dots');
-  if (!container) return;
-  
-  // Create dots
-  for (let i = 0; i < totalSlides; i++) {
-    const dot = document.createElement('span');
-    if (i === 0) dot.className = 'active';
-    dot.onclick = () => goToSlide(i);
-    dotsContainer.appendChild(dot);
-  }
-  
-  updateCarousel();
-  startAutoSlide();
-  
-  // Pause on hover
-  container.onmouseenter = () => stopAutoSlide();
-  container.onmouseleave = () => startAutoSlide();
-}
-
-function updateCarousel() {
-  const container = document.getElementById('testimonials-container');
-  const dots = document.querySelectorAll('.testimonials-dots span');
-  const isMobile = window.innerWidth <= 768;
-  const cardsPerSlide = isMobile ? 1 : 3;
-  
-  const offset = currentSlide * 100;
-  container.style.transform = `translateX(-${offset}%)`;
-  
-  dots.forEach((dot, i) => {
-    dot.className = i === currentSlide ? 'active' : '';
-  });
-}
-
-function nextSlide() {
-  currentSlide = currentSlide >= totalSlides - 1 ? 0 : currentSlide + 1;
-  updateCarousel();
-  restartAutoSlide();
-}
-
-function prevSlide() {
-  currentSlide = currentSlide <= 0 ? totalSlides - 1 : currentSlide - 1;
-  updateCarousel();
-  restartAutoSlide();
-}
-
-function goToSlide(index) {
-  currentSlide = index;
-  updateCarousel();
-  restartAutoSlide();
-}
-
-function startAutoSlide() {
-  stopAutoSlide();
-  slideInterval = setInterval(nextSlide, 4000);
-}
-
-function stopAutoSlide() {
-  if (slideInterval) {
-    clearInterval(slideInterval);
-    slideInterval = null;
-  }
-}
-
-function restartAutoSlide() {
-  stopAutoSlide();
-  startAutoSlide();
-}
-
-document.addEventListener('DOMContentLoaded', initCarousel);
-window.addEventListener('resize', updateCarousel);
-
-function startAutoSlide() {
-  stopAutoSlide();
-  testimonialInterval = setInterval(nextTestimonial, 4000);
-}
-
-function stopAutoSlide() {
-  if (testimonialInterval) {
-    clearInterval(testimonialInterval);
-    testimonialInterval = null;
-  }
-}
-
-function restartAutoSlide() {
-  stopAutoSlide();
-  startAutoSlide();
-}
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', initTestimonialCarousel);
-window.addEventListener('resize', updateCarousel);
-
-// ── Plans Functions ─────────────────────────────────────────
-let currentPlan = null;
-
-async function loadLatestPlan() {
-  if (!currentUser.auth) return;
-  
-  const result = await apiCall('GET', '/plans?type=latest');
-  console.log('[loadLatestPlan] Response:', result);
-  
-  if (result.ok && result.data && result.data.success) {
-    const plan = result.data.data;
-    if (plan) {
-      currentPlan = plan;
-      showPlanInMenu(plan);
-      showDashboardPlan(plan);
-      return;
-    }
-  }
-  hidePlanInMenu();
-  hideDashboardPlan();
-}
-
-function showPlanInMenu(plan) {
-  const planSection = document.getElementById('menuPlanSection');
-  const planCard = document.getElementById('menuPlanCard');
-  
-  if (planSection && planCard) {
-    planSection.style.display = 'block';
-    document.getElementById('menuPlanTitle').innerText = plan.title || 'Your Personalized Plan';
-    document.getElementById('menuPlanSummary').innerText = plan.summary || 'Your personalized plan is ready';
-  }
-}
-
-function hidePlanInMenu() {
-  const planSection = document.getElementById('menuPlanSection');
-  if (planSection) planSection.style.display = 'none';
-}
-
-function showDashboardPlan(plan) {
-  const dashboardPlanSection = document.getElementById('dashboardPlanSection');
-  if (!dashboardPlanSection) return;
-  
-  dashboardPlanSection.style.display = 'block';
-  
-  const titleEl = document.getElementById('dashboardPlanTitle');
-  const typeEl = document.getElementById('dashboardPlanType');
-  const summaryEl = document.getElementById('dashboardPlanSummary');
-  const workoutEl = document.getElementById('dashboardPlanWorkout');
-  const dietEl = document.getElementById('dashboardPlanDiet');
-  const supplementsEl = document.getElementById('dashboardPlanSupplements');
-  const instructionsEl = document.getElementById('dashboardPlanInstructions');
-  const followUpEl = document.getElementById('dashboardPlanFollowUp');
-  
-  if (titleEl) titleEl.innerText = plan.title || 'Your Personalized Plan';
-  if (typeEl) typeEl.innerText = plan.type === 'treatment' ? '🏥 Treatment Plan' : '💪 Fitness Plan';
-  if (summaryEl) summaryEl.innerText = plan.summary || '';
-  
-  // Display weekly workout from exercises
-  let workoutHtml = '';
-  if (plan.exercises) {
-    try {
-      const exercises = typeof plan.exercises === 'string' ? JSON.parse(plan.exercises) : plan.exercises;
-      if (Array.isArray(exercises)) {
-        exercises.forEach((ex, i) => {
-          if (typeof ex === 'object') {
-            workoutHtml += `<div class="workout-day"><strong>${ex.day || 'Day ' + (i+1)}</strong>: ${Array.isArray(ex.exercises) ? ex.exercises.join(', ') : ex.exercises}</div>`;
-          } else {
-            workoutHtml += `<div>${ex}</div>`;
-          }
-        });
-      } else {
-        workoutHtml = '<div>' + exercises + '</div>';
-      }
-    } catch(e) {
-      workoutHtml = '<div>' + plan.exercises + '</div>';
-    }
-  }
-  if (workoutEl) workoutEl.innerHTML = workoutHtml || '<div>No workout plan</div>';
-  
-  // Diet plan
-  if (dietEl) dietEl.innerText = plan.dietPlan || 'No diet plan';
-  
-  // Supplements
-  if (supplementsEl) supplementsEl.innerText = plan.supplements || 'No supplements specified';
-  
-  // Instructions
-  if (instructionsEl) instructionsEl.innerText = plan.instructions || 'No instructions';
-  
-  // Follow up
-  if (followUpEl) followUpEl.innerText = plan.followUp || '';
-}
-
-function hideDashboardPlan() {
-  const dashboardPlanSection = document.getElementById('dashboardPlanSection');
-  if (dashboardPlanSection) dashboardPlanSection.style.display = 'none';
-}
-
-function openPlanModal() {
-  if (!currentPlan) return;
-  
-  document.getElementById('profileMenu').classList.remove('active');
-  const modal = document.getElementById('planModal');
-  modal.style.display = 'flex';
-  
-  // Fill plan details
-  document.getElementById('planModalTitle').innerText = currentPlan.type === 'treatment' ? '🏥 Treatment Plan' : '💪 Fitness Plan';
-  document.getElementById('planTitle').innerText = currentPlan.title || 'Your Personalized Plan';
-  document.getElementById('planPatientName').innerText = currentPlan.patientName || currentUser.name;
-  document.getElementById('planSummary').innerText = currentPlan.summary || 'No summary available';
-  
-  // Exercises
-  let exercisesHtml = '';
-  if (currentPlan.exercises) {
-    try {
-      const exercises = typeof currentPlan.exercises === 'string' ? JSON.parse(currentPlan.exercises) : currentPlan.exercises;
-      if (Array.isArray(exercises)) {
-        exercises.forEach(ex => {
-          if (typeof ex === 'object') {
-            exercisesHtml += `<li><strong>${ex.name || ex.day}</strong>: ${ex.sets ? ex.sets + 'x' + ex.reps : ''} ${ex.rest ? '- ' + ex.rest : ''}</li>`;
-          } else {
-            exercisesHtml += `<li>${ex}</li>`;
-          }
-        });
-      } else {
-        exercisesHtml = '<li>' + exercises + '</li>';
-      }
-    } catch(e) {
-      exercisesHtml = '<li>' + currentPlan.exercises + '</li>';
-    }
-  }
-  document.getElementById('planExercises').innerHTML = exercisesHtml || '<li>No exercises specified</li>';
-  
-  document.getElementById('planDiet').innerText = currentPlan.dietPlan || 'No diet plan specified';
-  document.getElementById('planSupplements').innerText = currentPlan.supplements || 'No supplements specified';
-  document.getElementById('planMedicines').innerText = currentPlan.medicines || 'No medicines specified';
-  document.getElementById('planInstructions').innerText = currentPlan.instructions || 'No special instructions';
-  document.getElementById('planFollowUp').innerText = currentPlan.followUp || 'No follow-up specified';
-  document.getElementById('planLifestyle').innerText = currentPlan.lifestyleTips || 'No lifestyle tips specified';
-}
-
-function closePlanModal() {
-  document.getElementById('planModal').style.display = 'none';
-}
-
-// Generate Treatment Plan after doctor booking
-async function generateTreatmentPlan(doctorName, patientName) {
-  const planData = {
-    type: 'treatment',
-    title: `Treatment Plan - ${doctorName}`,
-    patientName: patientName,
-    summary: 'Prescribed treatment plan based on your consultation',
-    medicines: '• Paracetamol 500mg - 1 tablet 3 times daily\n• Vitamin C 1000mg - 1 tablet daily\n• Follow prescribed dosage as directed',
-    instructions: '• Complete full course of medicines\n• Rest for 2-3 days\n• Avoid heavy physical activity\n• Stay hydrated\n• Take medicines after meals',
-    followUp: 'Follow-up appointment in 1 week or if symptoms worsen',
-    lifestyleTips: '• Get 7-8 hours of sleep\n• Eat healthy, balanced meals\n• Avoid stress\n• Exercise lightly after recovery'
-  };
-  
-const result = await apiCall('POST', '/plans', planData);
-  if (result.ok && result.data && result.data.success && result.data.data) {
-    currentPlan = result.data.data;
-    showPlanInMenu(currentPlan);
-    showDashboardPlan(currentPlan);
-    await loadLatestPlan();
-  } else {
-    const errMsg = result.data?.message || result.data?.details || 'Unknown error';
-    console.error('[generateTreatmentPlan] Failed to save plan:', errMsg);
-    // Still display currentPlan since it's already set above
-  }
-}
-
-// Generate Detailed Weekly Workout Plan with Diet (NEW)
-async function generateFitnessPlanWithDetails() {
-  console.log('[generateFitnessPlanWithDetails] Called');
-  console.log('[generateFitnessPlanWithDetails] answers:', JSON.stringify(answers));
-  
-  // Use values from answers, with fallbacks
-  const location = answers.location || answers.trainGoal === undefined ? 'home' : 'home';
-  let trainGoal = answers.trainGoal || answers.fitnessGoal || 'general';
-  
-  // Also check for specific body part goals
-  if (answers.fitnessGoal === 'upper') trainGoal = 'upper';
-  else if (answers.fitnessGoal === 'lower') trainGoal = 'lower';
-  else if (answers.fitnessGoal === 'abs') trainGoal = 'abs';
-  else if (answers.fitnessGoal === 'muscle') trainGoal = 'muscle';
-  else if (answers.fitnessGoal === 'fat') trainGoal = 'fatloss';
-  else if (answers.fitnessGoal === 'fatloss') trainGoal = 'fatloss';
-  else if (answers.fitnessGoal === 'general') trainGoal = 'general';
-  
-  const userName = currentUser?.name || 'User';
-  
-  console.log('[generateFitnessPlanWithDetails] location:', location, 'trainGoal:', trainGoal, 'userName:', userName);
-  
-  const stream = document.getElementById('chat-stream');
-  if (!stream) {
-    console.error('[generateFitnessPlanWithDetails] chat-stream element not found!');
-    return;
-  }
-  const typingMsg = document.createElement('div');
-  typingMsg.id = 'typing-indicator';
-  typingMsg.style.cssText = 'background:#f0f4f8; padding:12px; border-radius:0 15px 15px 15px; margin-bottom:10px; font-size:0.9rem; color:var(--text-muted);';
-  typingMsg.innerHTML = '<i class="fa-solid fa-robot fa-fade"></i> Generating your personalized weekly plan...';
-  stream.appendChild(typingMsg);
-  stream.scrollTop = stream.scrollHeight;
-  
-  setTimeout(async () => {
-    // Remove typing indicator
-    const typingEl = document.getElementById('typing-indicator');
-    if (typingEl) typingEl.remove();
-    
-    // Generate Weekly Workout Plan
-    const weeklyPlan = generateWeeklyWorkoutPlan(location, trainGoal);
-    const dietPlan = generateDietPlan(trainGoal);
-    
-    // Display Workout Plan Card
-    const workoutCard = document.createElement('div');
-    workoutCard.style.cssText = 'background:white; border:2px solid var(--primary); border-radius:16px; padding:20px; margin:10px 0; text-align:left;';
-    workoutCard.innerHTML = `
-      <h4 style="font-size:1.1rem; font-weight:800; color:var(--primary); margin-bottom:15px;">🏋️ Your Weekly Workout Plan</h4>
-      <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">Training Location: ${location === 'gym' ? '🏋️ Gym' : '🏠 Home'} | Focus: ${trainGoal}</div>
-      ${weeklyPlan.map((day, i) => `
-        <div style="margin-bottom:12px; padding:10px; background:var(--bg-light); border-radius:10px;">
-          <div style="font-weight:700; color:var(--text-main); font-size:0.9rem;">Day ${i+1}: ${day.day}</div>
-          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">${day.exercises.join(', ')}</div>
-        </div>
-      `).join('')}
-    `;
-    stream.appendChild(workoutCard);
-    console.log('[Plan] Generated workout plan:', JSON.stringify(weeklyPlan));
-    
-    // Display Diet Plan Card
-    const dietCard = document.createElement('div');
-    dietCard.style.cssText = 'background:white; border:2px solid var(--success); border-radius:16px; padding:20px; margin:10px 0; text-align:left;';
-    dietCard.innerHTML = `
-      <h4 style="font-size:1.1rem; font-weight:800; color:var(--success); margin-bottom:15px;">🥗 Your Daily Diet Plan</h4>
-      <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">Goal: ${trainGoal === 'muscle' ? '💪 Muscle Gain' : trainGoal === 'fatloss' ? '🔥 Weight Loss' : '⚖️ General Fitness'}</div>
-      <div style="margin-bottom:10px;"><strong>🌅 Breakfast:</strong><div style="font-size:0.85rem; color:var(--text-muted);">${dietPlan.breakfast}</div></div>
-      <div style="margin-bottom:10px;"><strong>☀️ Lunch:</strong><div style="font-size:0.85rem; color:var(--text-muted);">${dietPlan.lunch}</div></div>
-      <div style="margin-bottom:10px;"><strong>🌙 Dinner:</strong><div style="font-size:0.85rem; color:var(--text-muted);">${dietPlan.dinner}</div></div>
-      <div style="margin-bottom:10px;"><strong>🍎 Snacks:</strong><div style="font-size:0.85rem; color:var(--text-muted);">${dietPlan.snacks}</div></div>
-    `;
-    stream.appendChild(dietCard);
-    console.log('[Plan] Generated diet plan:', JSON.stringify(dietPlan));
-    
-    // Save to Supabase
-    const planData = {
-      type: 'fitness',
-      title: `Weekly ${trainGoal === 'muscle' ? 'Muscle' : trainGoal === 'fatloss' ? 'Weight Loss' : 'Fitness'} Plan - ${location === 'gym' ? 'Gym' : 'Home'}`,
-      patientName: userName,
-      summary: `Your personalized weekly workout and diet plan for ${trainGoal} goal`,
-      exercises: weeklyPlan,
-      dietPlan: `Breakfast: ${dietPlan.breakfast}\nLunch: ${dietPlan.lunch}\nDinner: ${dietPlan.dinner}\nSnacks: ${dietPlan.snacks}`,
-      supplements: trainGoal === 'muscle' ? '• Whey Protein\n• Creatine 5g\n• Multivitamin' : trainGoal === 'fatloss' ? '• L-Carnitine\n• Fat Burner\n• Electrolytes' : '• Multivitamin\n• Fish Oil',
-      instructions: '• Follow the weekly schedule\n• Rest on rest days\n• Stay hydrated\n• Track your progress',
-      followUp: 'Weekly progress check-in',
-      lifestyleTips: '• Sleep 7-8 hours\n• Consistency is key\n• Progressive overload',
-      workoutLocation: location,
-      goal: trainGoal
-    };
-    
-    console.log('[Fitness] Saving plan data:', JSON.stringify(planData));
-    console.log('[Plan] Saving:', JSON.stringify(planData, null, 2));
-    
-    // Save to Supabase with error handling
-    try {
-      console.log('[Plan] Sending POST to /api/plans...');
-      const result = await apiCall('POST', '/plans', planData);
-      console.log('[Plan] API response:', result);
-      
-      if (result.ok && result.data && result.data.success && result.data.data) {
-        currentPlan = result.data.data;
-        showPlanInMenu(currentPlan);
-        showDashboardPlan(currentPlan);
-        // Refresh from API
-        await loadLatestPlan();
-      } else {
-        const errMsg = result.data?.message || result.data?.details || 'Failed to save plan';
-        console.error('[Fitness] Plan save error:', errMsg);
-        console.log('[Plan] API error - but plan is still displayed above');
-      }
-    } catch (err) {
-      console.error('Plan save error:', err.message);
-      console.log('[Plan] Error - but plan is still displayed in chat');
-      const errorMsg = document.createElement('div');
-      errorMsg.style.cssText = 'background:#fff0f0; border:1px solid #ff4444; color:#cc0000; padding:12px; border-radius:10px; margin:10px 0; font-size:0.85rem;';
-      errorMsg.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Could not save plan: ' + err.message + '. Your plan is still displayed above.';
-      stream.appendChild(errorMsg);
-    }
-    
-    // Add Go to Dashboard button
-    const goBtn = document.createElement('button');
-    goBtn.className = 'view-analysis-btn';
-    goBtn.style.background = 'linear-gradient(45deg,#2ec4b6,#00d4ff)';
-    goBtn.style.marginTop = '15px';
-    goBtn.innerHTML = '<i class="fa-solid fa-chart-line"></i> View Full Dashboard';
-    goBtn.onclick = () => {
-      setSkipDashboard(location);
-      toggleChat(); showDashboard();
-    };
-    stream.appendChild(goBtn);
-    stream.scrollTop = stream.scrollHeight;
-  }, 1500);
-}
-
-function generateWeeklyWorkoutPlan(location, goal) {
-  const isGym = location === 'gym';
-  
-  const gymExercises = {
-    fullbody: ['Bench Press', 'Lat Pulldown', 'Squats', 'Shoulder Press', 'Rows'],
-    upper: ['Bench Press', 'Pull-ups', 'Shoulder Press', 'Dumbbell Curls', 'Tricep Dips'],
-    lower: ['Leg Press', 'Deadlifts', 'Lunges', 'Calf Raises', 'Leg Curls'],
-    abs: ['Cable Crunches', 'Hanging Leg Raises', 'Plank', 'Russian Twists', 'Ab Roller'],
-    fatloss: ['Treadmill', 'Rowing Machine', 'Jump Rope', 'Battle Ropes', 'Burpees'],
-    muscle: ['Bench Press', 'Deadlifts', 'Squats', 'Pull-ups', 'Overhead Press']
-  };
-  
-  const homeExercises = {
-    fullbody: ['Push-ups', 'Squats', 'Lunges', 'Plank', 'Mountain Climbers'],
-    upper: ['Push-ups', 'Diamond Push-ups', 'Pike Push-ups', 'Tricep Dips', 'Superman'],
-    lower: ['Squats', 'Lunges', 'Jump Squats', 'Calf Raises', 'Glute Bridges'],
-    abs: ['Plank', 'Crunches', 'Leg Raises', 'Bicycle Crunches', 'V-Ups'],
-    fatloss: ['Jumping Jacks', 'Burpees', 'Mountain Climbers', 'High Knees', 'Jump Rope'],
-    muscle: ['Push-ups', 'Squats', 'Lunges', 'Plank', 'Burpees']
-  };
-  
-  const exercises = isGym ? gymExercises[goal] : homeExercises[goal];
-  
-  return [
-    { day: exercises[0] || 'Upper Body', exercises: isGym ? ['Bench Press 4x12', 'Lat Pulldown 3x12', 'Shoulder Press 3x10'] : ['Push-ups 4x15', 'Diamond Push-ups 3x12', 'Pike Push-ups 3x10'] },
-    { day: 'Cardio / HIIT', exercises: isGym ? ['Treadmill 20min', 'Rowing 15min', 'Cycling 15min'] : ['Jump Rope 15min', 'Burpees 3x10', 'High Knees 3x30s'] },
-    { day: 'Rest', exercises: ['Light stretching', 'Yoga', 'Walk'] },
-    { day: exercises[2] || 'Lower Body', exercises: isGym ? ['Squats 4x10', 'Deadlifts 3x10', 'Leg Press 3x12'] : ['Squats 4x20', 'Lunges 3x12', 'Jump Squats 3x10'] },
-    { day: exercises[3] || 'Abs / Core', exercises: isGym ? ['Cable Crunches 4x15', 'Hanging Leg Raises 3x12', 'Plank 3x60s'] : ['Plank 4x60s', 'Crunches 4x20', 'Leg Raises 3x15'] },
-    { day: 'Light Cardio', exercises: isGym ? ['Elliptical 20min', 'Stair Climber 15min'] : ['Jogging 20min', 'Jump Rope 10min'] },
-    { day: 'Rest', exercises: ['Active recovery', 'Stretching', 'Foam rolling'] }
+function buildPatientTable() {
+  const tbody = document.getElementById('patientTableBody');
+  if (!tbody) return;
+  const patients = [
+    { name:'Ahmed Salem', sync:'2 mins ago',  status:'Critical', activity:'Low',      btn:'View Vitals'  },
+    { name:'Sara Hassan', sync:'1 hour ago',  status:'Stable',   activity:'Moderate', btn:'View History' },
+    { name:'John Doe',    sync:'5 hours ago', status:'Stable',   activity:'High',     btn:'View History' },
   ];
+  tbody.innerHTML = patients.map(p => {
+    const isCritical = p.status === 'Critical';
+    const badgeCls = isCritical ? 'badge-red' : 'badge-green';
+    return `
+      <tr>
+        <td><strong>${escHtml(p.name)}</strong></td>
+        <td style="color:var(--text-muted)">${escHtml(p.sync)}</td>
+        <td><span class="badge ${badgeCls}">${escHtml(p.status)}</span></td>
+        <td>${escHtml(p.activity)}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="showToast('Feature coming soon','info')">${escHtml(p.btn)}</button></td>
+      </tr>`;
+  }).join('');
 }
 
-function generateDietPlan(goal) {
-  if (goal === 'muscle') {
-    return {
-      breakfast: '3 eggs + 2 slices whole grain bread + avocado',
-      lunch: '200g grilled chicken + 1 cup rice + vegetables + olive oil',
-      dinner: '200g salmon + sweet potato + salad',
-      snacks: 'Protein shake / Greek yogurt / Nuts / Banana'
-    };
-  } else if (goal === 'fatloss') {
-    return {
-      breakfast: '2 egg whites + oatmeal + berries',
-      lunch: '150g grilled chicken + large salad + minimal dressing',
-      dinner: 'White fish + steamed vegetables + quinoa',
-      snacks: 'Apple / Celery sticks / Protein bar / Green tea'
-    };
-  } else {
-    return {
-      breakfast: '2 eggs + whole grain toast + fruit',
-      lunch: 'Grilled chicken/rice + mixed vegetables',
-      dinner: 'Lean protein + salad + small portion carbs',
-      snacks: 'Fruits / Nuts / Yogurt'
-    };
-  }
+function buildCoachClients() {
+  const grid = document.getElementById('coachClientsGrid');
+  if (!grid) return;
+  grid.innerHTML = COACH_CLIENTS.map(c => `
+    <div class="client-card">
+      <div class="client-name">${escHtml(c.name)}</div>
+      <div class="client-detail"><span>Goal</span><span>${escHtml(c.goal)}</span></div>
+      <div class="client-detail"><span>Activity Level</span><span>${escHtml(c.level)}</span></div>
+      <div class="client-detail"><span>Diet</span><span>${escHtml(c.diet)}</span></div>
+      <div class="client-detail"><span>BMI</span><span style="color:${c.bmiColor}; font-weight:700;">${c.bmi} — ${escHtml(c.bmiLabel)}</span></div>
+      <div class="client-detail"><span>Location</span><span>${escHtml(c.location)}</span></div>
+    </div>`).join('');
 }
 
-// Generate Fitness Plan after gym/home booking
-async function generateFitnessPlan(userName, location, fitnessGoal) {
-  const focusAreas = {
-    muscle: ['Chest', 'Back', 'Shoulders', 'Arms'],
-    fat: ['Cardio', 'HIIT', 'Core'],
-    general: ['Full Body', 'Core', 'Cardio']
-  };
-  
-  const exercises = location === 'gym' 
-    ? [
-        { name: 'Bench Press', sets: '4', reps: '10-12', rest: '90s' },
-        { name: 'Lat Pulldown', sets: '3', reps: '12', rest: '60s' },
-        { name: 'Shoulder Press', sets: '3', reps: '10', rest: '60s' },
-        { name: 'Leg Press', sets: '4', reps: '12', rest: '90s' },
-        { name: 'Cable Curls', sets: '3', reps: '12', rest: '45s' }
-      ]
-    : [
-        { name: 'Push-ups', sets: '4', reps: '15', rest: '60s' },
-        { name: 'Squats', sets: '4', reps: '20', rest: '60s' },
-        { name: 'Plank', sets: '3', reps: '45s', rest: '30s' },
-        { name: 'Lunges', sets: '3', reps: '12 each', rest: '60s' },
-        { name: 'Burpees', sets: '3', reps: '10', rest: '45s' }
-      ];
-  
-  const dietPlan = fitnessGoal === 'muscle' 
-    ? '• High protein diet (1.6-2g per kg bodyweight)\n• Chicken, fish, eggs, legumes\n• Complex carbs: rice, oats, potatoes\n• Healthy fats: nuts, avocado'
-    : fitnessGoal === 'fat'
-    ? '• Calorie deficit diet\n• Lean proteins: chicken breast, fish\n• High fiber vegetables\n• Limit carbs, avoid sugar\n• Small frequent meals'
-    : '• Balanced diet\n• Moderate protein\n• Whole grains, fruits, vegetables\n• Stay hydrated';
-  
-  const planData = {
-    type: 'fitness',
-    title: `Fitness Plan - ${location === 'gym' ? 'Gym' : 'Home'} Training`,
-    patientName: userName,
-    summary: `Your personalized ${location} training plan for ${fitnessGoal} goal`,
-    exercises: exercises,
-    dietPlan: dietPlan,
-    supplements: '• Protein powder (optional)\n• Creatine 5g daily\n• Multivitamin\n• Fish Oil',
-    instructions: location === 'gym' 
-      ? '• Warm up 5-10 mins before starting\n• Rest 60-90s between heavy exercises\n• Stay hydrated throughout\n• Cool down stretch after workout'
-      : '• Clear space for exercises\n• Use proper form over weight\n• Rest 45-60s between exercises\n• Stay consistent',
-    followUp: 'Weekly progress check-in',
-    lifestyleTips: '• Sleep 7-8 hours\n• Track your meals\n• Consistency is key\n• Listen to your body'
-  };
-  
-const result = await apiCall('POST', '/plans', planData);
-  if (result.ok && result.data && result.data.success && result.data.data) {
-    currentPlan = result.data.data;
-    showPlanInMenu(currentPlan);
-    showDashboardPlan(currentPlan);
-    await loadLatestPlan();
-  } else {
-    const errMsg = result.data?.message || result.data?.details || 'Unknown error';
-    console.error('[generateFitnessPlan] Failed to save plan:', errMsg);
-  }
+// ── Toast Notifications ────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const id = 'toast-' + Date.now();
+  const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#2563eb' };
+  const toast = document.createElement('div');
+  toast.id = id;
+  toast.style.cssText = `
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    background: ${colors[type] || colors.success}; color: white;
+    padding: 12px 20px; border-radius: 10px; font-size: 0.875rem;
+    font-weight: 500; font-family: inherit; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    max-width: 320px; animation: fadeInUp 0.2s ease;
+  `;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+// ── Utility ────────────────────────────────────────────────────
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function setEl(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function showEl(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = '';
+}
+
+function ucFirst(s) {
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }

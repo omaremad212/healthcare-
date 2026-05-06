@@ -10,7 +10,7 @@ const generateToken = (userId) => {
   });
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   }
@@ -22,7 +22,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
 
-    // Fetch user from Supabase
     const { data: users, error } = await supabase
       .from('users')
       .select('*')
@@ -40,7 +39,6 @@ export default async function handler(req, res) {
 
     const user = users[0];
 
-    // Verify password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -62,4 +60,4 @@ export default async function handler(req, res) {
     console.error('Login error:', err);
     res.status(500).json({ success: false, message: err.message });
   }
-}
+};
