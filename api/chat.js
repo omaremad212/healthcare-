@@ -1,7 +1,16 @@
 // api/chat.js — Conversational AI health assessment via Google Gemini
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require('@google/generative-ai');
 const jwt = require('jsonwebtoken');
+
+// Medical content (drug names, dosages, symptoms) often trips Gemini's default
+// safety filters. Lower thresholds so the doctor persona can actually prescribe.
+const SAFETY_SETTINGS = [
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT,        threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,       threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+];
 
 const SYSTEM_PROMPT = `You are Dr. HealthCare, a licensed general practitioner running a virtual clinic on this healthcare platform. You consult patients directly, diagnose, and prescribe — just like an in-person doctor visit. Patients are here BECAUSE they want a real medical decision, not a referral.
 
@@ -139,6 +148,7 @@ module.exports = async function handler(req, res) {
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
       systemInstruction: SYSTEM_PROMPT,
+      safetySettings: SAFETY_SETTINGS,
       generationConfig: {
         maxOutputTokens: 1500,
         temperature: 0.7,
@@ -160,9 +170,32 @@ module.exports = async function handler(req, res) {
       history.shift();
     }
 
-    const chat = model.startChat({ history });
+    const chat = model.startChat({ history, safetySettings: SAFETY_SETTINGS });
     const result = await chat.sendMessage(last.parts[0].text);
-    const rawContent = result.response.text() || '';
+
+    // Defensive: response.text() throws if the response was blocked or empty.
+    // Pull text manually so we can give a useful error.
+    const candidate = result?.response?.candidates?.[0];
+    if (!candidate || candidate.finishReason === 'SAFETY' || candidate.finishReason === 'BLOCKLIST') {
+      console.error('[chat] Response blocked. finishReason=', candidate?.finishReason, 'safetyRatings=', JSON.stringify(candidate?.safetyRatings));
+      return res.status(200).json({
+        success: true,
+        message: "I want to help, but my safety filter blocked that response. Could you rephrase, or describe your symptoms a different way?",
+        assessment: null,
+        isComplete: false,
+      });
+    }
+
+    const rawContent = (candidate.content?.parts || []).map(p => p.text || '').join('') || '';
+    if (!rawContent.trim()) {
+      console.error('[chat] Empty response. finishReason=', candidate.finishReason);
+      return res.status(200).json({
+        success: true,
+        message: "Sorry, I didn't catch that. Could you tell me a bit more about how you're feeling?",
+        assessment: null,
+        isComplete: false,
+      });
+    }
 
     // Extract assessment JSON if present
     let assessment = null;
@@ -187,16 +220,30 @@ module.exports = async function handler(req, res) {
       isComplete: !!assessment,
     });
   } catch (err) {
-    console.error('Chat API error:', err);
+    console.error('Chat API error:', err?.message || err, err?.stack);
 
     const status = err.status || err.statusCode;
-    if (status === 401 || status === 403) {
+    const msg = String(err?.message || '');
+
+    if (status === 401 || status === 403 || /API key|invalid/i.test(msg)) {
       return res.status(503).json({ success: false, message: 'AI service authentication failed' });
     }
-    if (status === 429) {
+    if (status === 429 || /quota|rate/i.test(msg)) {
       return res.status(429).json({ success: false, message: 'AI service is busy. Please try again in a moment.' });
     }
+    if (/safety|blocked/i.test(msg)) {
+      return res.status(200).json({
+        success: true,
+        message: "I want to help, but my safety filter blocked that. Could you rephrase or describe your symptoms differently?",
+        assessment: null,
+        isComplete: false,
+      });
+    }
 
-    return res.status(500).json({ success: false, message: 'Something went wrong. Please try again.' });
+    return res.status(500).json({
+      success: false,
+      message: 'Something went wrong. Please try again.',
+      detail: process.env.NODE_ENV === 'production' ? undefined : msg,
+    });
   }
 };
