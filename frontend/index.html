@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MediAI — Your Personal Health Assistant</title>
-  <meta name="description" content="Chat naturally with MediAI to get personalized health insights, medication guidance, and doctor recommendations.">
+  <title>Healthcare — Your Complete Health &amp; Wellness Platform</title>
+  <meta name="description" content="AI-powered health assessments, specialist bookings, fitness coaching, and emergency support — all in one platform.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -18,7 +18,7 @@
     <div class="nav-container">
       <div class="nav-brand" onclick="goHome()">
         <div class="brand-icon"><i class="fa-solid fa-heart-pulse"></i></div>
-        <span class="brand-name">MediAI</span>
+        <span class="brand-name">Healthcare</span>
       </div>
 
       <ul class="nav-links" id="navLinks">
@@ -26,10 +26,15 @@
         <li><a href="#" onclick="showView('chat')" class="nav-link" id="navChat" style="display:none">Health Chat</a></li>
         <li><a href="#" onclick="handleDashboardNav()" class="nav-link" id="navDash" style="display:none">Dashboard</a></li>
         <li><a href="#" onclick="showShop()" class="nav-link" id="navShop" style="display:none">Shop</a></li>
-        <li><a href="#" onclick="showBookDoctor()" class="nav-link">Book a Doctor</a></li>
+        <li><a href="#" onclick="showBookDoctor()" class="nav-link" id="navBookDoctor">Book a Doctor</a></li>
+        <li><a href="#" onclick="showMyBookings()" class="nav-link" id="navBookings" style="display:none">My Bookings</a></li>
       </ul>
 
       <div class="nav-actions">
+        <button class="btn btn-emergency" onclick="openEmergencyModal()" aria-label="Emergency services">
+          <i class="fa-solid fa-truck-medical"></i> Emergency
+        </button>
+
         <button class="btn btn-ghost" id="navLogin" onclick="openModal('login')">Sign In</button>
         <button class="btn btn-primary" id="navSignup" onclick="openModal('register')">Get Started</button>
 
@@ -57,6 +62,12 @@
             <button class="dropdown-item" onclick="showShop(); closeUserDropdown();" id="menuShopItem" style="display:none" role="menuitem">
               <i class="fa-solid fa-bag-shopping"></i> Shop
             </button>
+            <button class="dropdown-item" onclick="showMyBookings(); closeUserDropdown();" id="menuBookingsItem" style="display:none" role="menuitem">
+              <i class="fa-solid fa-calendar-check"></i> My Bookings
+            </button>
+            <button class="dropdown-item" onclick="showProfilePage(); closeUserDropdown();" id="menuProfileItem" style="display:none" role="menuitem">
+              <i class="fa-solid fa-user-pen"></i> Edit Profile
+            </button>
             <div class="dropdown-divider"></div>
             <button class="dropdown-item dropdown-item-danger" onclick="logout()" role="menuitem">
               <i class="fa-solid fa-right-from-bracket"></i> Sign Out
@@ -76,7 +87,11 @@
       <a href="#" onclick="showView('chat'); closeMobileNav();" class="mobile-nav-link" id="mobileNavChat" style="display:none">Health Chat</a>
       <a href="#" onclick="handleDashboardNav(); closeMobileNav();" class="mobile-nav-link" id="mobileNavDash" style="display:none">Dashboard</a>
       <a href="#" onclick="showShop(); closeMobileNav();" class="mobile-nav-link" id="mobileNavShop" style="display:none">Shop</a>
-      <a href="#" onclick="showBookDoctor(); closeMobileNav();" class="mobile-nav-link">Book a Doctor</a>
+      <a href="#" onclick="showBookDoctor(); closeMobileNav();" class="mobile-nav-link" id="mobileNavBook">Book a Doctor</a>
+      <a href="#" onclick="showMyBookings(); closeMobileNav();" class="mobile-nav-link" id="mobileNavBookings" style="display:none">My Bookings</a>
+      <a href="#" onclick="openEmergencyModal(); closeMobileNav();" class="mobile-nav-link mobile-nav-emergency">
+        <i class="fa-solid fa-truck-medical"></i> Emergency
+      </a>
       <div class="mobile-nav-auth" id="mobileNavAuth">
         <button class="btn btn-ghost btn-full" onclick="openModal('login'); closeMobileNav();">Sign In</button>
         <button class="btn btn-primary btn-full" onclick="openModal('register'); closeMobileNav();">Get Started</button>
@@ -87,34 +102,46 @@
   <!-- ── Landing View ──────────────────────────────────────── -->
   <div id="landing-view" class="view">
 
+    <!-- Emergency Banner -->
+    <div class="emergency-banner" id="emergencyBanner">
+      <div class="container">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <strong>Medical Emergency?</strong> Call <strong>911</strong> immediately for life-threatening situations.
+        <button class="emergency-banner-btn" onclick="openEmergencyModal()">
+          View Hotlines &amp; First Aid <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
     <!-- Hero -->
     <section class="hero">
       <div class="hero-content">
         <div class="hero-badge">
           <i class="fa-solid fa-shield-heart"></i>
-          AI-Powered Healthcare
+          AI-Powered Healthcare Platform
         </div>
         <h1 class="hero-title">
-          Talk to an AI that<br>
-          <span class="gradient-text">understands your health</span>
+          Your health,<br>
+          <span class="gradient-text">expertly guided</span>
         </h1>
         <p class="hero-subtitle">
-          Describe your symptoms naturally. MediAI asks the right follow-up questions, then delivers a personalized health assessment with medication guidance — the way a real doctor would.
+          Chat naturally with our AI to understand your health. Book verified doctors and fitness coaches. Get emergency support when it matters most.
         </p>
         <div class="hero-cta">
           <button class="btn btn-primary btn-xl" onclick="startChat()">
             <i class="fa-solid fa-comments-medical"></i>
             Start Health Chat
           </button>
-          <button class="btn btn-outline btn-xl" onclick="showBookDoctor()">
+          <button class="btn btn-outline btn-xl" id="heroBookBtn" onclick="showBookDoctor()">
             <i class="fa-solid fa-calendar-check"></i>
-            Book a Doctor
+            Book a Specialist
           </button>
         </div>
         <div class="hero-trust">
           <div class="trust-item"><i class="fa-solid fa-lock"></i> Private &amp; Secure</div>
           <div class="trust-item"><i class="fa-solid fa-clock"></i> Available 24/7</div>
           <div class="trust-item"><i class="fa-solid fa-stethoscope"></i> Evidence-based</div>
+          <div class="trust-item"><i class="fa-solid fa-truck-medical" style="color:#ef4444"></i> Emergency Support</div>
         </div>
       </div>
       <div class="hero-visual">
@@ -122,19 +149,18 @@
           <div class="chat-preview-header">
             <div class="chat-preview-avatar"><i class="fa-solid fa-robot"></i></div>
             <div>
-              <div class="chat-preview-name">MediAI</div>
+              <div class="chat-preview-name">Healthcare AI</div>
               <div class="chat-preview-status"><span class="online-dot"></span>Online</div>
             </div>
           </div>
           <div class="chat-preview-messages">
-            <div class="preview-msg bot">Hi! I'm here to help. What's been bothering you lately?</div>
-            <div class="preview-msg user">I've had a headache for 2 days and feel tired</div>
-            <div class="preview-msg bot">I'm sorry to hear that. On a scale of 1–10, how would you rate the pain? And is it in a specific area or all over?</div>
-            <div class="preview-msg user">About a 5, mostly in my forehead and temples</div>
+            <div class="preview-msg bot">Hi! I'm here to help. Are you looking for medical advice or fitness coaching?</div>
+            <div class="preview-msg user">I need a doctor — I have a headache for 2 days</div>
+            <div class="preview-msg bot">I'm sorry to hear that. On a scale of 1–10, how would you rate the pain? And is it in a specific area?</div>
+            <div class="preview-msg user">About a 6, mostly in my forehead and temples</div>
             <div class="preview-msg bot typing"><span></span><span></span><span></span></div>
           </div>
         </div>
-
         <div class="floating-stat stat-1">
           <i class="fa-solid fa-heart-pulse" style="color:#ef4444"></i>
           <div>
@@ -152,18 +178,83 @@
       </div>
     </section>
 
-    <!-- Features -->
-    <section class="section features-section">
+    <!-- Stats / Impact -->
+    <section class="stats-section">
+      <div class="container">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-number" data-target="15000">0</div>
+            <div class="stat-label">Patients Served</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" data-target="200">0</div>
+            <div class="stat-label">Verified Doctors</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" data-target="98">0</div>
+            <div class="stat-label">% Satisfaction Rate</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" data-target="24">0</div>
+            <div class="stat-label">Hour Emergency Support</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="section how-section" id="how-it-works">
       <div class="container">
         <div class="section-header">
+          <div class="section-badge">Simple Process</div>
+          <h2>How Healthcare works</h2>
+          <p>From first message to personalized care in minutes</p>
+        </div>
+        <div class="steps-row">
+          <div class="step-card">
+            <div class="step-number">1</div>
+            <div class="step-icon"><i class="fa-solid fa-comment-medical"></i></div>
+            <h3>Choose your path</h3>
+            <p>Select between medical consultation or fitness coaching — then chat naturally.</p>
+          </div>
+          <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
+          <div class="step-card">
+            <div class="step-number">2</div>
+            <div class="step-icon"><i class="fa-solid fa-brain"></i></div>
+            <h3>AI analysis</h3>
+            <p>Our AI asks smart follow-up questions to fully understand your situation.</p>
+          </div>
+          <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
+          <div class="step-card">
+            <div class="step-number">3</div>
+            <div class="step-icon"><i class="fa-solid fa-file-medical"></i></div>
+            <h3>Your assessment</h3>
+            <p>Get a personalized plan — medications, exercises, lifestyle tips, and warnings.</p>
+          </div>
+          <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
+          <div class="step-card">
+            <div class="step-number">4</div>
+            <div class="step-icon"><i class="fa-solid fa-user-doctor"></i></div>
+            <h3>Book a specialist</h3>
+            <p>Connect with a verified doctor or coach for professional follow-up care.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section features-section" id="features">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-badge">Our Services</div>
           <h2>Everything for your health in one place</h2>
-          <p>A complete platform connecting AI assessments, specialist doctors, and health products.</p>
+          <p>A complete platform connecting AI assessments, specialist doctors, fitness coaches, and emergency services.</p>
         </div>
         <div class="features-grid">
           <div class="feature-card">
             <div class="feature-icon icon-blue"><i class="fa-solid fa-comments-medical"></i></div>
             <h3>Natural AI Chat</h3>
-            <p>Describe symptoms in your own words. MediAI responds like a real doctor — asking the right follow-ups to fully understand your situation.</p>
+            <p>Describe symptoms in your own words. Our AI responds like a real doctor — asking the right follow-ups to fully understand your situation.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon icon-green"><i class="fa-solid fa-pills"></i></div>
@@ -180,10 +271,10 @@
             <h3>Fitness Coaching</h3>
             <p>Get matched with certified coaches for personalized workout and nutrition plans, whether you train at home or the gym.</p>
           </div>
-          <div class="feature-card">
-            <div class="feature-icon icon-red"><i class="fa-solid fa-bag-shopping"></i></div>
-            <h3>Health Shop</h3>
-            <p>Browse supplements, medical devices, and wellness products — recommended based on your health profile.</p>
+          <div class="feature-card feature-card-emergency">
+            <div class="feature-icon icon-red"><i class="fa-solid fa-truck-medical"></i></div>
+            <h3>Emergency Services</h3>
+            <p>Instant access to emergency hotlines, nearby hospitals, first-aid guides, and priority emergency bookings with verified professionals.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon icon-teal"><i class="fa-solid fa-chart-line"></i></div>
@@ -194,33 +285,214 @@
       </div>
     </section>
 
-    <!-- How it works -->
-    <section class="section how-section">
+    <!-- Why Choose Us -->
+    <section class="section why-section">
+      <div class="container">
+        <div class="why-layout">
+          <div class="why-content">
+            <div class="section-badge">Why Healthcare</div>
+            <h2>Trust built on results,<br>not promises</h2>
+            <p class="why-intro">We combine cutting-edge AI with real medical expertise to give you guidance you can actually trust.</p>
+            <div class="why-points">
+              <div class="why-point">
+                <div class="why-point-icon"><i class="fa-solid fa-shield-check"></i></div>
+                <div>
+                  <h4>Evidence-based guidance</h4>
+                  <p>Every recommendation is grounded in established medical guidelines and clinical best practices.</p>
+                </div>
+              </div>
+              <div class="why-point">
+                <div class="why-point-icon"><i class="fa-solid fa-user-shield"></i></div>
+                <div>
+                  <h4>Your privacy, protected</h4>
+                  <p>All conversations are encrypted. We never sell your health data to third parties.</p>
+                </div>
+              </div>
+              <div class="why-point">
+                <div class="why-point-icon"><i class="fa-solid fa-clock"></i></div>
+                <div>
+                  <h4>Available around the clock</h4>
+                  <p>Get health guidance at 3am, on weekends, or during holidays — whenever you need it most.</p>
+                </div>
+              </div>
+              <div class="why-point">
+                <div class="why-point-icon"><i class="fa-solid fa-star"></i></div>
+                <div>
+                  <h4>Verified professionals only</h4>
+                  <p>Every doctor and coach on our platform is credential-verified before being listed.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="why-visual">
+            <div class="why-card-stack">
+              <div class="why-card why-card-primary">
+                <i class="fa-solid fa-heart-pulse"></i>
+                <h3>98%</h3>
+                <p>User satisfaction rate</p>
+              </div>
+              <div class="why-card why-card-secondary">
+                <i class="fa-solid fa-bolt"></i>
+                <h3>&lt; 2 min</h3>
+                <p>Average response time</p>
+              </div>
+              <div class="why-card why-card-accent">
+                <i class="fa-solid fa-certificate"></i>
+                <h3>100%</h3>
+                <p>Verified professionals</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- About Us -->
+    <section class="section about-section" id="about">
+      <div class="container">
+        <div class="about-layout">
+          <div class="about-image-side">
+            <div class="about-graphic">
+              <div class="about-circle-1"></div>
+              <div class="about-circle-2"></div>
+              <div class="about-icon-grid">
+                <div class="about-icon-item icon-blue"><i class="fa-solid fa-stethoscope"></i></div>
+                <div class="about-icon-item icon-green"><i class="fa-solid fa-heart-pulse"></i></div>
+                <div class="about-icon-item icon-purple"><i class="fa-solid fa-brain"></i></div>
+                <div class="about-icon-item icon-orange"><i class="fa-solid fa-dumbbell"></i></div>
+              </div>
+            </div>
+          </div>
+          <div class="about-content">
+            <div class="section-badge">About Us</div>
+            <h2>Healthcare for everyone, everywhere</h2>
+            <p>Healthcare was founded with a simple mission: make quality medical guidance accessible to everyone, regardless of where they live or what time it is.</p>
+            <p>We built an AI that doesn't just answer questions — it <em>listens</em>. It asks the follow-ups a good doctor would ask. It gives you the kind of personalized guidance that used to require an expensive appointment.</p>
+            <p>Behind our AI is a team of physicians, medical researchers, and technology experts who continuously refine our platform to meet the highest standards of accuracy and safety.</p>
+            <div class="about-values">
+              <div class="about-value"><i class="fa-solid fa-check-circle"></i> Founded by medical professionals</div>
+              <div class="about-value"><i class="fa-solid fa-check-circle"></i> Continuously reviewed by doctors</div>
+              <div class="about-value"><i class="fa-solid fa-check-circle"></i> Serving Egypt and beyond</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="section testimonials-section">
       <div class="container">
         <div class="section-header">
-          <h2>How MediAI works</h2>
-          <p>From first message to personalized dashboard in minutes</p>
+          <div class="section-badge">Patient Stories</div>
+          <h2>Trusted by thousands</h2>
+          <p>Real experiences from people who use Healthcare every day</p>
         </div>
-        <div class="steps-row">
-          <div class="step-card">
-            <div class="step-number">1</div>
-            <div class="step-icon"><i class="fa-solid fa-comment-medical"></i></div>
-            <h3>Chat naturally</h3>
-            <p>Tell MediAI how you're feeling. No forms, no checkboxes — just a real conversation.</p>
+        <div class="testimonials-grid">
+          <div class="testimonial-card">
+            <div class="testimonial-stars">
+              <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+            </div>
+            <p class="testimonial-text">"I described my symptoms at midnight and got a clear, calm assessment with medication advice. By morning I was already feeling better. This is genuinely life-changing."</p>
+            <div class="testimonial-author">
+              <div class="testimonial-avatar" style="background:#3b82f6">SA</div>
+              <div>
+                <div class="testimonial-name">Sara A.</div>
+                <div class="testimonial-role">Patient, Cairo</div>
+              </div>
+            </div>
           </div>
-          <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
-          <div class="step-card">
-            <div class="step-number">2</div>
-            <div class="step-icon"><i class="fa-solid fa-brain"></i></div>
-            <h3>AI analysis</h3>
-            <p>MediAI asks smart follow-up questions to fully understand your condition.</p>
+          <div class="testimonial-card">
+            <div class="testimonial-stars">
+              <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+            </div>
+            <p class="testimonial-text">"Booked a cardiologist appointment in under 5 minutes. The doctor was exactly what I needed. The whole experience — AI chat, booking, payment — was seamless."</p>
+            <div class="testimonial-author">
+              <div class="testimonial-avatar" style="background:#10b981">MK</div>
+              <div>
+                <div class="testimonial-name">Mohamed K.</div>
+                <div class="testimonial-role">Patient, Giza</div>
+              </div>
+            </div>
           </div>
-          <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
-          <div class="step-card">
-            <div class="step-number">3</div>
-            <div class="step-icon"><i class="fa-solid fa-file-medical"></i></div>
-            <h3>Your assessment</h3>
-            <p>Get a personalized health summary with medication guidance, lifestyle tips, and doctor recommendations.</p>
+          <div class="testimonial-card">
+            <div class="testimonial-stars">
+              <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+            </div>
+            <p class="testimonial-text">"The fitness coach AI created a full weekly workout plan for me based on my goals and home setup. As someone with no gym access, it was exactly what I needed."</p>
+            <div class="testimonial-author">
+              <div class="testimonial-avatar" style="background:#8b5cf6">LH</div>
+              <div>
+                <div class="testimonial-name">Layla H.</div>
+                <div class="testimonial-role">Fitness User, Alexandria</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section faq-section" id="faq">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-badge">FAQ</div>
+          <h2>Frequently asked questions</h2>
+          <p>Everything you need to know about Healthcare</p>
+        </div>
+        <div class="faq-list" id="faqList">
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+              Is the AI health assessment a replacement for seeing a doctor?
+              <i class="fa-solid fa-chevron-down faq-icon"></i>
+            </button>
+            <div class="faq-answer">
+              <p>No — and we're very clear about this. Our AI provides general health information and guidance to help you understand your symptoms. It is not a substitute for professional medical advice, diagnosis, or treatment. We always recommend consulting a qualified healthcare provider, and our platform makes it easy to book one.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+              How does the emergency service work?
+              <i class="fa-solid fa-chevron-down faq-icon"></i>
+            </button>
+            <div class="faq-answer">
+              <p>Click the red <strong>Emergency</strong> button in the navigation bar at any time. You'll instantly see emergency hotlines (including 911 and Egypt's 123 ambulance service), a list of nearby hospitals with phone numbers, and step-by-step first-aid guides for critical situations like heart attacks, strokes, and severe bleeding. You can also book an emergency consultation with a doctor or coach at an emergency rate.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+              Are the doctors on the platform verified?
+              <i class="fa-solid fa-chevron-down faq-icon"></i>
+            </button>
+            <div class="faq-answer">
+              <p>Yes. Every healthcare professional listed on our platform goes through a credential verification process before being approved. You can also read verified patient reviews for each doctor or coach to make an informed decision.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+              Can I cancel or reschedule my booking?
+              <i class="fa-solid fa-chevron-down faq-icon"></i>
+            </button>
+            <div class="faq-answer">
+              <p>Yes. Visit <strong>My Bookings</strong> from your profile menu to see all your appointments. You can cancel a booking with a single click. Rescheduling can be done by cancelling and booking a new slot.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+              How is my health data protected?
+              <i class="fa-solid fa-chevron-down faq-icon"></i>
+            </button>
+            <div class="faq-answer">
+              <p>All data is encrypted in transit and at rest. We use industry-standard security practices and never sell your personal health information to third parties. You can delete your account and all associated data at any time.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)">
+              What's the difference between a regular and emergency booking?
+              <i class="fa-solid fa-chevron-down faq-icon"></i>
+            </button>
+            <div class="faq-answer">
+              <p>Regular bookings are scheduled appointments at the doctor's standard rate. Emergency bookings are prioritized for urgent situations and are priced at the emergency rate (typically 1.5–2× the regular rate). Emergency bookings are clearly labeled in your booking history.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -231,25 +503,75 @@
       <div class="container">
         <div class="cta-banner">
           <div class="cta-text">
-            <h2>Start your health assessment now</h2>
-            <p>Join thousands who use MediAI for clear, personalized health guidance.</p>
+            <h2>Start your health journey today</h2>
+            <p>Join thousands who use Healthcare for clear, personalized guidance — whenever they need it.</p>
           </div>
-          <button class="btn btn-white btn-lg" onclick="startChat()">
-            <i class="fa-solid fa-comments-medical"></i>
-            Chat with MediAI
-          </button>
+          <div class="cta-actions">
+            <button class="btn btn-white btn-lg" onclick="startChat()">
+              <i class="fa-solid fa-comments-medical"></i>
+              Chat with AI
+            </button>
+            <button class="btn btn-white-outline btn-lg" id="ctaBookBtn" onclick="showBookDoctor()">
+              <i class="fa-solid fa-user-doctor"></i>
+              Book a Doctor
+            </button>
+          </div>
         </div>
       </div>
     </section>
 
+    <!-- Footer -->
     <footer class="footer">
       <div class="container">
-        <div class="footer-brand">
-          <div class="brand-icon"><i class="fa-solid fa-heart-pulse"></i></div>
-          <span class="brand-name">MediAI</span>
+        <div class="footer-grid">
+          <div class="footer-brand-col">
+            <div class="footer-brand">
+              <div class="brand-icon"><i class="fa-solid fa-heart-pulse"></i></div>
+              <span class="brand-name">Healthcare</span>
+            </div>
+            <p class="footer-tagline">AI-powered health guidance, available 24/7.</p>
+            <div class="footer-social">
+              <a href="#" class="social-link" aria-label="Facebook"><i class="fa-brands fa-facebook"></i></a>
+              <a href="#" class="social-link" aria-label="Twitter"><i class="fa-brands fa-x-twitter"></i></a>
+              <a href="#" class="social-link" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+              <a href="#" class="social-link" aria-label="LinkedIn"><i class="fa-brands fa-linkedin"></i></a>
+            </div>
+          </div>
+          <div class="footer-links-col">
+            <h4>Platform</h4>
+            <ul>
+              <li><a href="#" onclick="startChat()">Health Chat</a></li>
+              <li><a href="#" onclick="showBookDoctor()">Book a Doctor</a></li>
+              <li><a href="#" onclick="showShop()">Health Shop</a></li>
+              <li><a href="#" onclick="openEmergencyModal()">Emergency</a></li>
+            </ul>
+          </div>
+          <div class="footer-links-col">
+            <h4>Company</h4>
+            <ul>
+              <li><a href="#about">About Us</a></li>
+              <li><a href="#features">Services</a></li>
+              <li><a href="#faq">FAQ</a></li>
+              <li><a href="#how-it-works">How It Works</a></li>
+            </ul>
+          </div>
+          <div class="footer-links-col">
+            <h4>Emergency</h4>
+            <ul>
+              <li><a href="tel:911"><i class="fa-solid fa-phone"></i> 911 — Emergency</a></li>
+              <li><a href="tel:123"><i class="fa-solid fa-phone"></i> 123 — Ambulance (Egypt)</a></li>
+              <li><a href="tel:988"><i class="fa-solid fa-phone"></i> 988 — Mental Health</a></li>
+              <li><a href="#" onclick="openEmergencyModal()">First Aid Guides</a></li>
+            </ul>
+          </div>
         </div>
-        <p class="footer-disclaimer">MediAI provides general health information only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always consult a qualified healthcare provider.</p>
-        <p class="footer-copy">&copy; 2026 MediAI Healthcare Platform</p>
+        <div class="footer-bottom">
+          <p class="footer-disclaimer">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            Healthcare provides general health information only. It is NOT a substitute for professional medical advice, diagnosis, or treatment. Always consult a qualified healthcare provider. For emergencies, call 911 immediately.
+          </p>
+          <p class="footer-copy">&copy; 2026 Healthcare Platform. All rights reserved.</p>
+        </div>
       </div>
     </footer>
   </div>
@@ -263,16 +585,16 @@
         <div class="sidebar-header">
           <div class="sidebar-bot-icon"><i class="fa-solid fa-robot"></i></div>
           <div class="sidebar-bot-info">
-            <strong>MediAI</strong>
+            <strong>Healthcare AI</strong>
             <span class="online-dot"></span>
-            <small>AI Health Assistant</small>
+            <small id="sidebarModeLabel">Health Assistant</small>
           </div>
         </div>
-        <div class="sidebar-tips">
-          <p class="sidebar-tip"><i class="fa-solid fa-comment-dots"></i> Describe symptoms naturally</p>
+        <div class="sidebar-tips" id="sidebarTips">
+          <p class="sidebar-tip"><i class="fa-solid fa-comment-dots"></i> Choose Doctor or Coach to begin</p>
           <p class="sidebar-tip"><i class="fa-solid fa-stethoscope"></i> AI asks smart follow-ups</p>
           <p class="sidebar-tip"><i class="fa-solid fa-file-medical"></i> Personalized assessment</p>
-          <p class="sidebar-tip"><i class="fa-solid fa-pills"></i> Medication guidance</p>
+          <p class="sidebar-tip"><i class="fa-solid fa-pills"></i> Medication or fitness guidance</p>
         </div>
         <div class="sidebar-actions">
           <button class="btn btn-outline btn-sm btn-full" onclick="resetChat()">
@@ -281,7 +603,8 @@
         </div>
         <div class="sidebar-warning">
           <i class="fa-solid fa-triangle-exclamation"></i>
-          Not a substitute for medical care. For emergencies, call <strong>911</strong>.
+          Not a substitute for medical care. For emergencies, call <strong>911</strong> or
+          <button class="link-btn" onclick="openEmergencyModal()">view emergency info</button>.
         </div>
       </aside>
 
@@ -294,7 +617,7 @@
           <div class="chat-topbar-info">
             <div class="chat-topbar-avatar"><i class="fa-solid fa-robot"></i></div>
             <div>
-              <strong>MediAI</strong>
+              <strong>Healthcare AI</strong>
               <span class="online-dot"></span>
             </div>
           </div>
@@ -304,23 +627,27 @@
         </div>
 
         <div class="chat-messages" id="chatMessages" aria-live="polite" aria-label="Conversation">
-          <!-- Welcome state shown initially -->
+          <!-- Welcome state — shown initially -->
           <div class="chat-welcome" id="chatWelcome">
             <div class="welcome-icon"><i class="fa-solid fa-comments-medical"></i></div>
-            <h2>What's on your mind?</h2>
-            <p>Describe your symptoms, how you're feeling, or any health concern. I'll ask follow-up questions to understand your situation fully.</p>
-            <div class="quick-starts">
-              <button class="quick-start-btn" onclick="quickStart('I have a headache and feel tired')">
-                <i class="fa-solid fa-head-side-virus"></i> Headache &amp; fatigue
+            <h2>How can we help you today?</h2>
+            <p>Choose what kind of help you're looking for to get started.</p>
+            <div class="chat-mode-choice">
+              <button class="chat-mode-btn" onclick="selectChatMode('medical')">
+                <div class="chat-mode-icon icon-blue"><i class="fa-solid fa-stethoscope"></i></div>
+                <div class="chat-mode-info">
+                  <strong>Talk to a Doctor AI</strong>
+                  <small>Describe symptoms, get a health assessment &amp; medication guidance</small>
+                </div>
+                <i class="fa-solid fa-arrow-right chat-mode-arrow"></i>
               </button>
-              <button class="quick-start-btn" onclick="quickStart('I have a sore throat and runny nose')">
-                <i class="fa-solid fa-virus"></i> Cold symptoms
-              </button>
-              <button class="quick-start-btn" onclick="quickStart('I have stomach pain and nausea')">
-                <i class="fa-solid fa-stomach"></i> Stomach issues
-              </button>
-              <button class="quick-start-btn" onclick="quickStart('I have back pain that won\'t go away')">
-                <i class="fa-solid fa-person-rays"></i> Back pain
+              <button class="chat-mode-btn" onclick="selectChatMode('fitness')">
+                <div class="chat-mode-icon icon-orange"><i class="fa-solid fa-dumbbell"></i></div>
+                <div class="chat-mode-info">
+                  <strong>Talk to a Coach AI</strong>
+                  <small>Get a personalized fitness plan &amp; nutrition guidance</small>
+                </div>
+                <i class="fa-solid fa-arrow-right chat-mode-arrow"></i>
               </button>
             </div>
           </div>
@@ -331,25 +658,25 @@
           <div class="typing-dots">
             <span></span><span></span><span></span>
           </div>
-          <small>MediAI is thinking…</small>
+          <small>Healthcare AI is thinking…</small>
         </div>
 
-        <div class="chat-input-area">
+        <div class="chat-input-area" id="chatInputArea" style="display:none">
           <div class="chat-input-wrapper">
             <textarea
               id="chatInput"
               class="chat-textarea"
-              placeholder="Describe your symptoms or ask a health question…"
+              placeholder="Type your message…"
               rows="1"
               onkeydown="handleChatKeydown(event)"
               oninput="autoResizeTextarea(this)"
-              aria-label="Health message input"
+              aria-label="Message input"
             ></textarea>
             <button class="chat-send-btn" id="chatSendBtn" onclick="sendChatMessage()" aria-label="Send message">
               <i class="fa-solid fa-paper-plane"></i>
             </button>
           </div>
-          <p class="chat-input-disclaimer">MediAI provides general health information, not medical diagnosis. Always consult a doctor for medical decisions.</p>
+          <p class="chat-input-disclaimer">Healthcare AI provides general information, not medical diagnosis. Always consult a doctor for medical decisions. <button class="link-btn" onclick="openEmergencyModal()">Emergency?</button></p>
         </div>
       </div>
     </div>
@@ -361,43 +688,27 @@
       <div class="page-header">
         <div>
           <h1 id="dashTitle">Your Health Assessment</h1>
-          <p class="page-subtitle" id="dashSubtitle">Based on your conversation with MediAI</p>
+          <p class="page-subtitle" id="dashSubtitle">Based on your conversation with Healthcare AI</p>
         </div>
         <div class="page-header-actions">
           <button class="btn btn-outline" onclick="showView('chat')">
             <i class="fa-solid fa-comments"></i> New Chat
           </button>
-          <button class="btn btn-primary" onclick="showBookDoctor()">
-            <i class="fa-solid fa-calendar-plus"></i> Book a Doctor
+          <button class="btn btn-primary" id="dashBookBtn" onclick="showBookDoctor()">
+            <i class="fa-solid fa-calendar-plus"></i> Book a Specialist
           </button>
         </div>
       </div>
-
-      <!-- Dynamic assessment content injected here by JS -->
       <div id="dashboardContent"></div>
-
-      <!-- Static history section for returning users -->
       <div id="historySection" style="display:none">
         <h2 class="section-title-sm">Past Assessments</h2>
         <div class="history-list" id="historyList"></div>
       </div>
-
-      <div id="bookingsSection" style="display:none">
-        <h2 class="section-title-sm">Your Appointments</h2>
-        <div class="bookings-list" id="bookingsList"></div>
-      </div>
-
-      <!-- Medical disclaimer always visible at bottom of dashboard -->
       <div class="disclaimer-card">
         <div class="disclaimer-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
         <div class="disclaimer-body">
-          <h3>⚠️ Important Medical Disclaimer</h3>
-          <p>
-            <strong>This assessment is for informational purposes only and is NOT a substitute for professional medical advice, diagnosis, or treatment.</strong>
-            Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.
-            Never disregard professional medical advice or delay in seeking it because of something you have read here.
-            <strong>If you think you may have a medical emergency, call your doctor or emergency services (911) immediately.</strong>
-          </p>
+          <h3>Important Medical Disclaimer</h3>
+          <p><strong>This assessment is for informational purposes only and is NOT a substitute for professional medical advice, diagnosis, or treatment.</strong> Always seek the advice of your physician or other qualified health provider. <strong>If you think you may have a medical emergency, call 911 immediately.</strong></p>
         </div>
       </div>
     </div>
@@ -431,9 +742,12 @@
     <div class="container page-container">
       <div class="page-header">
         <div>
-          <h1>Book a Doctor</h1>
-          <p class="page-subtitle">Choose a specialist and find your appointment slot</p>
+          <h1 id="bookViewTitle">Book a Specialist</h1>
+          <p class="page-subtitle" id="bookViewSubtitle">Choose a specialist and find your appointment slot</p>
         </div>
+        <button class="btn btn-emergency btn-sm" onclick="openEmergencyModal()">
+          <i class="fa-solid fa-bolt"></i> Emergency Booking
+        </button>
       </div>
 
       <div id="spec-section">
@@ -451,6 +765,159 @@
     </div>
   </div>
 
+  <!-- ── My Bookings View ──────────────────────────────────── -->
+  <div id="bookings-view" class="view" style="display:none">
+    <div class="container page-container">
+      <div class="page-header">
+        <div>
+          <h1>My Bookings</h1>
+          <p class="page-subtitle">Your upcoming and past appointments</p>
+        </div>
+        <button class="btn btn-primary" id="newBookingBtn" onclick="showBookDoctor()">
+          <i class="fa-solid fa-calendar-plus"></i> New Booking
+        </button>
+      </div>
+      <div id="bookingsContent">
+        <div class="loading-state">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <p>Loading bookings…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Profile View ──────────────────────────────────────── -->
+  <div id="profile-view" class="view" style="display:none">
+    <div class="container page-container">
+      <div class="page-header">
+        <div>
+          <h1>Edit Profile</h1>
+          <p class="page-subtitle">Update your personal information and settings</p>
+        </div>
+      </div>
+      <div class="profile-layout">
+        <!-- Avatar section -->
+        <div class="profile-avatar-section">
+          <div class="profile-avatar-large" id="profileAvatarDisplay">U</div>
+          <h3 id="profileDisplayNameShow">User</h3>
+          <p id="profileEmailShow" class="profile-email-show"></p>
+          <div class="profile-role-badge" id="profileRoleBadge">Patient</div>
+        </div>
+
+        <!-- Form section -->
+        <div class="profile-form-section">
+          <div class="profile-tabs">
+            <button class="profile-tab active" onclick="switchProfileTab('info', this)">Personal Info</button>
+            <button class="profile-tab" onclick="switchProfileTab('security', this)">Security</button>
+          </div>
+
+          <!-- Personal Info Tab -->
+          <div id="profileTabInfo" class="profile-tab-content">
+            <div id="profileMsg" class="form-success" style="display:none"></div>
+            <div id="profileErr" class="form-error" style="display:none"></div>
+
+            <div class="form-group">
+              <label class="form-label">Display Name</label>
+              <input type="text" id="profileDisplayName" class="form-input" placeholder="How you appear to others" maxlength="80">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" id="profileName" class="form-input" placeholder="Your legal name" maxlength="80">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Username</label>
+              <div class="username-input-wrap">
+                <span class="username-prefix">@</span>
+                <input type="text" id="profileUsername" class="form-input username-input" placeholder="3-20 chars, letters/numbers/underscore" maxlength="20" oninput="debounceCheckUsername(this.value)">
+                <span class="username-status" id="usernameStatus"></span>
+              </div>
+              <small class="form-hint">3–20 characters. Letters, numbers, and underscores only.</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" id="profileEmail" class="form-input" placeholder="your@email.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Avatar URL</label>
+              <input type="url" id="profileAvatar" class="form-input" placeholder="https://... (image URL)" oninput="previewAvatar(this.value)">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Age</label>
+                <input type="number" id="profileAge" class="form-input" placeholder="Age" min="1" max="120">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Gender</label>
+                <select id="profileGender" class="form-input">
+                  <option value="">Select gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Bio</label>
+              <textarea id="profileBio" class="form-input" rows="3" placeholder="A short description about yourself" maxlength="500"></textarea>
+            </div>
+            <!-- Doctor/coach fields -->
+            <div id="profFields" style="display:none">
+              <div class="form-group">
+                <label class="form-label" id="profSpecLabel">Specialization</label>
+                <input type="text" id="profSpecialization" class="form-input" placeholder="e.g. Cardiology / HIIT Training">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Years Experience</label>
+                  <input type="number" id="profYearsExp" class="form-input" placeholder="Years" min="0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Regular Rate (EGP)</label>
+                  <input type="number" id="profRegRate" class="form-input" placeholder="200" min="0">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Emergency Rate (EGP)</label>
+                  <input type="number" id="profEmgRate" class="form-input" placeholder="400" min="0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" id="profAddressLabel">Clinic Address</label>
+                  <input type="text" id="profAddress" class="form-input" placeholder="Address">
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-full" onclick="saveProfile()">
+              <span id="profileSaveTxt">Save Changes</span>
+              <i class="fa-solid fa-spinner fa-spin" id="profileSaveSpinner" style="display:none"></i>
+            </button>
+          </div>
+
+          <!-- Security Tab -->
+          <div id="profileTabSecurity" class="profile-tab-content" style="display:none">
+            <div id="securityMsg" class="form-success" style="display:none"></div>
+            <div id="securityErr" class="form-error" style="display:none"></div>
+            <div class="form-group">
+              <label class="form-label">Current Password</label>
+              <input type="password" id="currentPwd" class="form-input" placeholder="Enter current password">
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <input type="password" id="newPwd" class="form-input" placeholder="At least 6 characters">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm New Password</label>
+              <input type="password" id="confirmPwd" class="form-input" placeholder="Repeat new password">
+            </div>
+            <button class="btn btn-primary btn-full" onclick="changePassword()">
+              <span id="pwdSaveTxt">Change Password</span>
+              <i class="fa-solid fa-spinner fa-spin" id="pwdSaveSpinner" style="display:none"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Professional Dashboard ────────────────────────────── -->
   <div id="professional-dashboard" class="view" style="display:none">
     <div class="container page-container">
@@ -460,7 +927,6 @@
           <p class="page-subtitle" id="profDashSubtitle">Overview of your patients</p>
         </div>
       </div>
-
       <div class="prof-stats-row">
         <div class="prof-stat-card">
           <div class="prof-stat-icon icon-blue"><i class="fa-solid fa-users"></i></div>
@@ -474,34 +940,81 @@
         </div>
         <div class="prof-stat-card">
           <div class="prof-stat-icon icon-orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
-          <div class="prof-stat-value" id="profStatCritical">1</div>
+          <div class="prof-stat-value" id="profStatCritical">0</div>
           <div class="prof-stat-label">Critical Cases</div>
         </div>
       </div>
-
-      <!-- Doctor view -->
       <div id="doctor-panel" style="display:none">
         <h2 class="section-title-sm">Patient Medical Records</h2>
         <div class="table-wrapper">
           <table class="data-table">
             <thead>
-              <tr>
-                <th>Patient</th>
-                <th>Last Sync</th>
-                <th>Status</th>
-                <th>Activity</th>
-                <th>Action</th>
-              </tr>
+              <tr><th>Patient</th><th>Last Sync</th><th>Status</th><th>Activity</th><th>Action</th></tr>
             </thead>
             <tbody id="patientTableBody"></tbody>
           </table>
         </div>
       </div>
-
-      <!-- Coach view -->
       <div id="coach-panel" style="display:none">
         <h2 class="section-title-sm">Client Overview</h2>
         <div class="clients-grid" id="coachClientsGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Emergency Modal ──────────────────────────────────── -->
+  <div class="modal-overlay" id="emergencyModal" style="display:none" onclick="handleOverlayClick(event,'emergencyModal')">
+    <div class="modal modal-large" role="dialog" aria-modal="true" aria-labelledby="emergencyModalTitle">
+      <button class="modal-close-btn" onclick="closeEmergencyModal()" aria-label="Close">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="emergency-modal-header">
+        <div class="emergency-modal-icon"><i class="fa-solid fa-truck-medical"></i></div>
+        <div>
+          <h2 id="emergencyModalTitle">Emergency Services</h2>
+          <p>Immediate help and first-aid guidance</p>
+        </div>
+      </div>
+
+      <div class="emergency-modal-tabs">
+        <button class="emg-tab active" onclick="switchEmgTab('hotlines', this)">
+          <i class="fa-solid fa-phone"></i> Hotlines
+        </button>
+        <button class="emg-tab" onclick="switchEmgTab('hospitals', this)">
+          <i class="fa-solid fa-hospital"></i> Hospitals
+        </button>
+        <button class="emg-tab" onclick="switchEmgTab('firstaid', this)">
+          <i class="fa-solid fa-kit-medical"></i> First Aid
+        </button>
+      </div>
+
+      <div id="emgTabHotlines" class="emg-tab-content">
+        <div class="emg-warning-box">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <strong>Life-threatening emergency? Call 911 immediately. Do not wait.</strong>
+        </div>
+        <div id="hotlinesList" class="hotlines-list">
+          <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i></div>
+        </div>
+        <div class="emg-book-section">
+          <h3>Need an emergency consultation?</h3>
+          <p>Book a priority appointment with a verified doctor — available within the hour at emergency rates.</p>
+          <button class="btn btn-emergency btn-full" onclick="closeEmergencyModal(); showBookDoctor(true);">
+            <i class="fa-solid fa-bolt"></i> Book Emergency Appointment
+          </button>
+        </div>
+      </div>
+
+      <div id="emgTabHospitals" class="emg-tab-content" style="display:none">
+        <div id="hospitalsList" class="hospitals-list">
+          <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i></div>
+        </div>
+      </div>
+
+      <div id="emgTabFirstaid" class="emg-tab-content" style="display:none">
+        <div id="firstAidList" class="first-aid-list">
+          <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i></div>
+        </div>
       </div>
     </div>
   </div>
@@ -512,12 +1025,11 @@
       <button class="modal-close-btn" onclick="closeAuthModal()" aria-label="Close">
         <i class="fa-solid fa-xmark"></i>
       </button>
-
       <div class="modal-inner">
         <div class="modal-brand">
           <div class="modal-brand-icon"><i class="fa-solid fa-heart-pulse"></i></div>
           <h2 class="modal-title" id="modalTitle">Welcome Back</h2>
-          <p class="modal-subtitle" id="modalSubtitle">Sign in to your MediAI account</p>
+          <p class="modal-subtitle" id="modalSubtitle">Sign in to your Healthcare account</p>
         </div>
 
         <form id="authForm" onsubmit="handleAuth(event)" novalidate>
@@ -580,33 +1092,28 @@
         <i class="fa-solid fa-xmark"></i>
       </button>
 
-      <!-- Step 1: Confirm -->
       <div id="pay-step-1" style="display:none" class="modal-inner">
         <div class="modal-brand">
           <div class="modal-brand-icon icon-green"><i class="fa-solid fa-calendar-check"></i></div>
           <h2 class="modal-title">Confirm Booking</h2>
           <p class="modal-subtitle" id="payDocInfo">Doctor · Price</p>
           <p class="modal-subtitle" id="paySlotInfo"></p>
+          <div id="payEmergencyBadge" class="emergency-booking-badge" style="display:none">
+            <i class="fa-solid fa-bolt"></i> Emergency Booking — Priority Scheduling
+          </div>
         </div>
         <div class="payment-options">
           <button class="payment-option-btn" onclick="selectPayment('cash')">
             <i class="fa-solid fa-money-bill-wave"></i>
-            <div>
-              <strong>Cash on Arrival</strong>
-              <small>Pay when you visit</small>
-            </div>
+            <div><strong>Cash on Arrival</strong><small>Pay when you visit</small></div>
           </button>
           <button class="payment-option-btn" onclick="selectPayment('visa')">
             <i class="fa-brands fa-cc-visa"></i>
-            <div>
-              <strong>Pay by Card</strong>
-              <small>Secure online payment</small>
-            </div>
+            <div><strong>Pay by Card</strong><small>Secure online payment</small></div>
           </button>
         </div>
       </div>
 
-      <!-- Step 2: Delivery info (shop) -->
       <div id="pay-step-delivery" style="display:none" class="modal-inner">
         <div class="modal-brand">
           <div class="modal-brand-icon icon-green"><i class="fa-solid fa-truck"></i></div>
@@ -620,7 +1127,6 @@
         </button>
       </div>
 
-      <!-- Step 3: Card payment -->
       <div id="pay-step-visa" style="display:none" class="modal-inner">
         <div class="modal-brand">
           <div class="modal-brand-icon icon-blue"><i class="fa-brands fa-cc-visa"></i></div>
@@ -630,7 +1136,7 @@
         <input type="text" id="visaCard" placeholder="Card Number (1234 5678 9012 3456)" maxlength="19" class="form-input" oninput="formatCardNumber(this)">
         <div class="form-row">
           <input type="text" id="visaExpiry" placeholder="MM/YY" maxlength="5" class="form-input" oninput="formatExpiry(this)">
-          <input type="text" id="visaCvv" placeholder="CVV" maxlength="4" class="form-input" type="password">
+          <input type="password" id="visaCvv" placeholder="CVV" maxlength="4" class="form-input">
         </div>
         <input type="text" id="visaName" placeholder="Name on Card" class="form-input">
         <button class="btn btn-primary btn-full" onclick="processVisaPayment()">
@@ -638,7 +1144,6 @@
         </button>
       </div>
 
-      <!-- Step 4: Cash confirmed -->
       <div id="pay-step-cash" style="display:none" class="modal-inner">
         <div class="success-state">
           <div class="success-icon"><i class="fa-solid fa-circle-check"></i></div>
@@ -648,7 +1153,6 @@
         </div>
       </div>
 
-      <!-- Step 5: Payment success -->
       <div id="pay-step-success" style="display:none" class="modal-inner">
         <div class="success-state">
           <div class="success-icon"><i class="fa-solid fa-circle-check"></i></div>
@@ -656,6 +1160,80 @@
           <p id="successText">Your booking is confirmed.</p>
           <button class="btn btn-primary" onclick="closePaymentModal()">Done</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Feedback Modal ──────────────────────────────────────── -->
+  <div class="modal-overlay" id="feedbackModal" style="display:none" onclick="handleOverlayClick(event,'feedbackModal')">
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close-btn" onclick="closeFeedbackModal()" aria-label="Close">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="modal-inner">
+        <div class="modal-brand">
+          <div class="modal-brand-icon icon-orange"><i class="fa-solid fa-star"></i></div>
+          <h2 class="modal-title">Rate Your Experience</h2>
+          <p class="modal-subtitle" id="feedbackDoctorName">Doctor</p>
+        </div>
+
+        <div id="feedbackErr" class="form-error" style="display:none"></div>
+
+        <div class="form-group">
+          <label class="form-label">Overall Rating <span class="required">*</span></label>
+          <div class="star-rating" id="starRating">
+            <button class="star-btn" data-value="1" onclick="setRating(1)" aria-label="1 star"><i class="fa-regular fa-star"></i></button>
+            <button class="star-btn" data-value="2" onclick="setRating(2)" aria-label="2 stars"><i class="fa-regular fa-star"></i></button>
+            <button class="star-btn" data-value="3" onclick="setRating(3)" aria-label="3 stars"><i class="fa-regular fa-star"></i></button>
+            <button class="star-btn" data-value="4" onclick="setRating(4)" aria-label="4 stars"><i class="fa-regular fa-star"></i></button>
+            <button class="star-btn" data-value="5" onclick="setRating(5)" aria-label="5 stars"><i class="fa-regular fa-star"></i></button>
+          </div>
+          <div class="star-label" id="starLabel">Tap to rate</div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Communication</label>
+            <select id="fbCommunication" class="form-input">
+              <option value="">N/A</option>
+              <option value="1">1 — Poor</option>
+              <option value="2">2 — Fair</option>
+              <option value="3">3 — Good</option>
+              <option value="4">4 — Very Good</option>
+              <option value="5">5 — Excellent</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Professionalism</label>
+            <select id="fbProfessionalism" class="form-input">
+              <option value="">N/A</option>
+              <option value="1">1 — Poor</option>
+              <option value="2">2 — Fair</option>
+              <option value="3">3 — Good</option>
+              <option value="4">4 — Very Good</option>
+              <option value="5">5 — Excellent</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Written Review (optional)</label>
+          <textarea id="fbReview" class="form-input" rows="3" placeholder="Share your experience…" maxlength="1000"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="fbAnonymous"> Submit anonymously
+          </label>
+        </div>
+
+        <input type="hidden" id="fbBookingId">
+        <input type="hidden" id="fbDoctorId">
+
+        <button class="btn btn-primary btn-full" onclick="submitFeedback()">
+          <span id="fbSubmitTxt">Submit Review</span>
+          <i class="fa-solid fa-spinner fa-spin" id="fbSubmitSpinner" style="display:none"></i>
+        </button>
       </div>
     </div>
   </div>
