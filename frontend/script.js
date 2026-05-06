@@ -846,48 +846,107 @@ function updateCartDisplay() {
   if (total) total.textContent = '$' + totalPrice.toFixed(2);
 }
 
+// Holds delivery info between steps so we only POST /orders at the very end.
+let pendingDelivery = null;
+
 function openCheckout() {
   if (cart.length === 0) return;
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   currentPayDoc = 'Shop Order';
   currentPayPrice = total.toFixed(2);
   currentPaySlot = '';
+  pendingDelivery = null;
 
   resetPaymentModal();
-  const el = document.getElementById('pay-step-delivery');
-  if (el) el.style.display = 'block';
+  renderOrderSummaryStep();
+  goToCheckoutStep('pay-step-summary');
   document.getElementById('paymentModal').style.display = 'flex';
 }
 
-async function confirmDelivery() {
+function goToCheckoutStep(stepId) {
+  resetPaymentModal();
+  const el = document.getElementById(stepId);
+  if (el) el.style.display = 'block';
+}
+
+function renderOrderSummaryStep() {
+  const list = document.getElementById('orderSummaryList');
+  if (!list) return;
+  list.innerHTML = '';
+  cart.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'order-summary-row';
+    row.innerHTML = `
+      <div class="osr-main">
+        <strong>${escapeHTML(item.name)}</strong>
+        <span>$${item.price.toFixed(2)} × ${item.qty}</span>
+      </div>
+      <div class="osr-price">$${(item.price * item.qty).toFixed(2)}</div>
+    `;
+    list.appendChild(row);
+  });
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  document.getElementById('orderSubtotal').textContent = '$' + subtotal.toFixed(2);
+  document.getElementById('orderGrandTotal').textContent = '$' + subtotal.toFixed(2);
+}
+
+function summaryContinue() {
+  if (cart.length === 0) { showToast('Your cart is empty', 'warning'); return; }
+  goToCheckoutStep('pay-step-delivery');
+}
+
+function deliveryContinue() {
   const name    = document.getElementById('deliveryName')?.value.trim();
   const phone   = document.getElementById('deliveryPhone')?.value.trim();
   const address = document.getElementById('deliveryAddress')?.value.trim();
+  const notes   = document.getElementById('deliveryNotes')?.value.trim() || '';
   if (!name || !phone || !address) { showToast('Please fill in all delivery fields.', 'warning'); return; }
+  pendingDelivery = { name, phone, address, notes };
 
-  const payload = {
-    items: cart.map(i => ({ productId: i.productId, productName: i.name, price: i.price, quantity: i.qty })),
-    paymentMethod: 'cash',
-    deliveryName: name,
-    deliveryPhone: phone,
-    deliveryAddress: address,
-  };
+  // Move to payment method picker
+  const total = '$' + (parseFloat(currentPayPrice) || 0).toFixed(2);
+  const totalEl = document.getElementById('shopPayTotal');
+  if (totalEl) totalEl.textContent = `Total: ${total}`;
+  goToCheckoutStep('pay-step-shop-pay');
+}
 
-  const result = await apiCall('POST', '/orders', payload);
+async function selectShopPayment(method) {
+  if (method === 'cash') {
+    // Place the order now, then show cash confirm.
+    const result = await placeShopOrder('cash');
+    if (!result.ok) { showToast(result.message, 'error'); return; }
 
-  if (result.ok) {
     cart = [];
     updateCartDisplay();
-    document.getElementById('pay-step-delivery').style.display = 'none';
     const cashStep = document.getElementById('pay-step-cash');
-    if (cashStep) {
-      document.getElementById('cashConfirmText').textContent = `Your order has been placed! We'll deliver to ${address}.`;
-      cashStep.style.display = 'block';
-    }
+    document.getElementById('cashConfirmText').textContent =
+      `Your order has been placed! We'll deliver to ${pendingDelivery?.address || 'your address'}. Total: $${currentPayPrice}.`;
+    goToCheckoutStep('pay-step-cash');
   } else {
-    showToast(result.data?.message || 'Order failed. Please try again.', 'error');
+    // Card flow — order is placed after card details succeed.
+    document.getElementById('visaAmountText').textContent = `Total: $${currentPayPrice}`;
+    goToCheckoutStep('pay-step-visa');
   }
 }
+
+async function placeShopOrder(paymentMethod) {
+  if (!pendingDelivery) return { ok: false, message: 'Missing delivery info' };
+  const payload = {
+    items: cart.map(i => ({ productId: i.productId, productName: i.name, price: i.price, quantity: i.qty })),
+    paymentMethod,
+    deliveryName: pendingDelivery.name,
+    deliveryPhone: pendingDelivery.phone,
+    deliveryAddress: pendingDelivery.address + (pendingDelivery.notes ? ` — ${pendingDelivery.notes}` : ''),
+  };
+  const result = await apiCall('POST', '/orders', payload);
+  if (!result.ok) {
+    return { ok: false, message: result.data?.message || 'Order failed. Please try again.' };
+  }
+  return { ok: true, data: result.data };
+}
+
+// Kept for backwards-compat (any old links); routes through new flow.
+function confirmDelivery() { deliveryContinue(); }
 
 // ── Doctor Booking ─────────────────────────────────────────────
 const SPECIALIZATIONS = [
@@ -1028,7 +1087,7 @@ function closePaymentModal() {
 }
 
 function resetPaymentModal() {
-  ['pay-step-1','pay-step-delivery','pay-step-visa','pay-step-cash','pay-step-success']
+  ['pay-step-summary','pay-step-1','pay-step-delivery','pay-step-shop-pay','pay-step-visa','pay-step-cash','pay-step-success']
     .forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
@@ -1072,7 +1131,7 @@ async function selectPayment(method) {
   }
 }
 
-function processVisaPayment() {
+async function processVisaPayment() {
   const card    = document.getElementById('visaCard')?.value.replace(/\s/g,'');
   const expiry  = document.getElementById('visaExpiry')?.value;
   const cvv     = document.getElementById('visaCvv')?.value;
@@ -1083,6 +1142,14 @@ function processVisaPayment() {
     return;
   }
 
+  // For shop orders, place the order on the backend AFTER card details validate.
+  if (currentPayDoc === 'Shop Order') {
+    const result = await placeShopOrder('visa');
+    if (!result.ok) { showToast(result.message, 'error'); return; }
+    cart = [];
+    updateCartDisplay();
+  }
+
   document.getElementById('pay-step-visa').style.display = 'none';
   const successStep = document.getElementById('pay-step-success');
   if (successStep) {
@@ -1091,7 +1158,6 @@ function processVisaPayment() {
       : `Payment of EGP ${currentPayPrice} confirmed. Appointment with ${currentPayDoc} at ${currentPaySlot}.`;
     successStep.style.display = 'block';
   }
-  if (currentPayDoc === 'Shop Order') { cart = []; updateCartDisplay(); }
 }
 
 function formatCardNumber(el) {

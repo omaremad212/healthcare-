@@ -580,6 +580,33 @@
         <i class="fa-solid fa-xmark"></i>
       </button>
 
+      <!-- Step 0: Order Summary (shop only) -->
+      <div id="pay-step-summary" style="display:none" class="modal-inner">
+        <div class="modal-brand">
+          <div class="modal-brand-icon icon-green"><i class="fa-solid fa-bag-shopping"></i></div>
+          <h2 class="modal-title">Order Summary</h2>
+          <p class="modal-subtitle">Review your items before continuing</p>
+        </div>
+
+        <div class="checkout-stepper">
+          <span class="step active">1. Summary</span>
+          <span class="step">2. Delivery</span>
+          <span class="step">3. Payment</span>
+        </div>
+
+        <div class="order-summary-list" id="orderSummaryList"></div>
+
+        <div class="order-summary-totals">
+          <div><span>Subtotal</span><strong id="orderSubtotal">$0.00</strong></div>
+          <div><span>Delivery</span><strong>Free</strong></div>
+          <div class="grand"><span>Total</span><strong id="orderGrandTotal">$0.00</strong></div>
+        </div>
+
+        <button class="btn btn-primary btn-full" onclick="summaryContinue()">
+          Continue to Delivery <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+
       <!-- Step 1: Confirm -->
       <div id="pay-step-1" style="display:none" class="modal-inner">
         <div class="modal-brand">
@@ -611,13 +638,60 @@
         <div class="modal-brand">
           <div class="modal-brand-icon icon-green"><i class="fa-solid fa-truck"></i></div>
           <h2 class="modal-title">Delivery Details</h2>
+          <p class="modal-subtitle">Where should we send your order?</p>
+        </div>
+        <div class="checkout-stepper">
+          <span class="step done">1. Summary</span>
+          <span class="step active">2. Delivery</span>
+          <span class="step">3. Payment</span>
         </div>
         <input type="text" id="deliveryName" placeholder="Full Name" class="form-input">
         <input type="tel" id="deliveryPhone" placeholder="Phone Number" class="form-input">
-        <input type="text" id="deliveryAddress" placeholder="Delivery Address" class="form-input">
-        <button class="btn btn-primary btn-full" onclick="confirmDelivery()">
-          <i class="fa-solid fa-check"></i> Confirm Order
-        </button>
+        <input type="text" id="deliveryAddress" placeholder="Delivery Address (street, city)" class="form-input">
+        <textarea id="deliveryNotes" placeholder="Notes for the courier (optional)" class="form-input" rows="2" style="resize:vertical"></textarea>
+        <div class="checkout-nav">
+          <button class="btn btn-ghost" onclick="goToCheckoutStep('pay-step-summary')">
+            <i class="fa-solid fa-arrow-left"></i> Back
+          </button>
+          <button class="btn btn-primary" onclick="deliveryContinue()">
+            Continue to Payment <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2.5: Shop payment method picker -->
+      <div id="pay-step-shop-pay" style="display:none" class="modal-inner">
+        <div class="modal-brand">
+          <div class="modal-brand-icon icon-blue"><i class="fa-solid fa-credit-card"></i></div>
+          <h2 class="modal-title">Payment Method</h2>
+          <p class="modal-subtitle" id="shopPayTotal">Total: $0.00</p>
+        </div>
+        <div class="checkout-stepper">
+          <span class="step done">1. Summary</span>
+          <span class="step done">2. Delivery</span>
+          <span class="step active">3. Payment</span>
+        </div>
+        <div class="payment-options">
+          <button class="payment-option-btn" onclick="selectShopPayment('cash')">
+            <i class="fa-solid fa-money-bill-wave"></i>
+            <div>
+              <strong>Cash on Delivery</strong>
+              <small>Pay the courier when your order arrives</small>
+            </div>
+          </button>
+          <button class="payment-option-btn" onclick="selectShopPayment('visa')">
+            <i class="fa-brands fa-cc-visa"></i>
+            <div>
+              <strong>Pay by Card</strong>
+              <small>Secure online payment</small>
+            </div>
+          </button>
+        </div>
+        <div class="checkout-nav">
+          <button class="btn btn-ghost" onclick="goToCheckoutStep('pay-step-delivery')">
+            <i class="fa-solid fa-arrow-left"></i> Back
+          </button>
+        </div>
       </div>
 
       <!-- Step 3: Card payment -->

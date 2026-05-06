@@ -1905,3 +1905,95 @@ p  { color: var(--text-secondary); }
   .assessment-actions { flex-direction: column-reverse; }
   .assessment-actions .btn { width: 100%; justify-content: center; }
 }
+
+/* ── Multi-step Checkout ─────────────────────────────────────── */
+.checkout-stepper {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.checkout-stepper .step {
+  flex: 1;
+  text-align: center;
+  padding: 8px 6px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  position: relative;
+}
+
+.checkout-stepper .step.done {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.checkout-stepper .step.active {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  color: white;
+  box-shadow: 0 4px 12px -4px rgba(59,130,246,.5);
+}
+
+.order-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.order-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border-radius: 10px;
+}
+
+.osr-main { display: flex; flex-direction: column; gap: 2px; }
+.osr-main strong { font-size: 0.92rem; color: #0f172a; }
+.osr-main span { font-size: 0.78rem; color: #64748b; }
+.osr-price { font-weight: 700; color: #0f172a; }
+
+.order-summary-totals {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 14px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.order-summary-totals > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.order-summary-totals .grand {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed #e2e8f0;
+  font-size: 1.05rem;
+}
+
+.order-summary-totals .grand strong { color: #0f172a; font-size: 1.15rem; }
+
+.checkout-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.checkout-nav .btn { flex: 0 0 auto; }
+.checkout-nav .btn-primary { margin-left: auto; }

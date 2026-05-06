@@ -171,7 +171,26 @@ module.exports = async function handler(req, res) {
     }
 
     const chat = model.startChat({ history, safetySettings: SAFETY_SETTINGS });
-    const result = await chat.sendMessage(last.parts[0].text);
+
+    // Free-tier gemini-2.5-flash is ~10 RPM. Auto-retry on 429 with backoff so
+    // the user does not see "busy" on the first hiccup.
+    let result;
+    let lastErr;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        result = await chat.sendMessage(last.parts[0].text);
+        lastErr = null;
+        break;
+      } catch (e) {
+        lastErr = e;
+        const status = e?.status || e?.statusCode;
+        const msg = String(e?.message || '');
+        const isRetryable = status === 429 || status === 503 || /quota|rate|overloaded|unavailable/i.test(msg);
+        if (!isRetryable || attempt === 2) throw e;
+        await new Promise(r => setTimeout(r, 600 * Math.pow(2, attempt))); // 600ms, 1.2s
+      }
+    }
+    if (lastErr) throw lastErr;
 
     // Defensive: response.text() throws if the response was blocked or empty.
     // Pull text manually so we can give a useful error.
