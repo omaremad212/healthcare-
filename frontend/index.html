@@ -755,6 +755,18 @@
           </div>
         </div>
 
+        <!-- Specialist referral banner — only shown when AI flags this beyond OTC scope -->
+        <div class="assessment-referral" id="assessmentReferral" style="display:none">
+          <div class="referral-icon"><i class="fa-solid fa-user-doctor"></i></div>
+          <div class="referral-body">
+            <strong>This needs a specialist</strong>
+            <p id="assessmentReferralText"></p>
+          </div>
+          <button class="btn btn-primary" onclick="bookFromAssessment()">
+            <i class="fa-solid fa-calendar-plus"></i> Book Now
+          </button>
+        </div>
+
         <!-- Overview -->
         <div class="assessment-overview" id="assessmentOverview"></div>
 
@@ -795,7 +807,7 @@
         <!-- Actions -->
         <div class="assessment-actions">
           <button class="btn btn-ghost" onclick="closeAssessmentModal()">Close</button>
-          <button class="btn btn-secondary" onclick="closeAssessmentModal(); showBookDoctor()">
+          <button class="btn btn-secondary" onclick="bookFromAssessment()">
             <i class="fa-solid fa-user-doctor"></i> Book a Doctor
           </button>
           <button class="btn btn-primary" onclick="closeAssessmentModal(); handleDashboardNav()">

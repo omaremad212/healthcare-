@@ -482,6 +482,27 @@ function openAssessmentModal(assessment) {
   document.getElementById('assessmentTitle').textContent = assessment.condition || 'Health Assessment';
   document.getElementById('assessmentOverview').textContent = assessment.overview || '';
 
+  // Specialist referral — show a prominent banner + change copy when AI flagged
+  // this as beyond what OTC self-care can handle.
+  const referralBanner = document.getElementById('assessmentReferral');
+  const referralText   = document.getElementById('assessmentReferralText');
+  const medsHeading    = document.querySelector('#assessmentMedsSection h3');
+  const needsSpecialist = !!assessment.specialistNeeded
+    || (assessment.severity || '').toLowerCase() === 'severe'
+    || (assessment.urgency || '').toLowerCase() === 'immediate';
+
+  if (needsSpecialist) {
+    const specialty = assessment.specialistNeeded || 'General Medicine';
+    pendingReferralSpecialty = specialty;
+    referralBanner.style.display = 'flex';
+    referralText.textContent = `Based on what you've described, you should see a ${specialty} specialist in person. We'll route you straight to available doctors.`;
+    if (medsHeading) medsHeading.innerHTML = '<i class="fa-solid fa-pills"></i> Symptomatic Relief Until You See a Doctor';
+  } else {
+    pendingReferralSpecialty = null;
+    referralBanner.style.display = 'none';
+    if (medsHeading) medsHeading.innerHTML = '<i class="fa-solid fa-pills"></i> Prescribed Medications';
+  }
+
   const severityEl = document.getElementById('assessmentSeverity');
   const sev = (assessment.severity || 'mild').toLowerCase();
   severityEl.textContent = `Severity: ${sev.charAt(0).toUpperCase() + sev.slice(1)}`;
@@ -909,6 +930,20 @@ function updateCartDisplay() {
 
 // Holds delivery info between steps so we only POST /orders at the very end.
 let pendingDelivery = null;
+// Specialty the AI assessment referred us to, consumed by bookFromAssessment().
+let pendingReferralSpecialty = null;
+
+function bookFromAssessment() {
+  closeAssessmentModal();
+  showBookDoctor();
+  if (pendingReferralSpecialty) {
+    // Wait for spec grid to render, then jump straight into the right specialty.
+    setTimeout(() => {
+      const match = SPECIALIZATIONS.find(s => s.name === pendingReferralSpecialty);
+      if (match) selectSpec(match.name);
+    }, 50);
+  }
+}
 
 function openCheckout() {
   if (cart.length === 0) return;
