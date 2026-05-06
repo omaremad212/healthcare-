@@ -1,8 +1,8 @@
 // api/plans.js - Vercel Serverless API for Plans
 
+const jwt = require('jsonwebtoken');
 const { supabase } = require('../lib/supabase');
 
-// Helper to normalize Supabase snake_case to camelCase
 function normalizePlan(plan) {
   if (!plan) return null;
   return {
@@ -21,15 +21,13 @@ function normalizePlan(plan) {
     lifestyleTips: plan.lifestyle_tips,
     workoutLocation: plan.workout_location,
     goal: plan.goal,
-    createdAt: plan.created_at
+    createdAt: plan.created_at,
   };
 }
 
-// Helper to get user ID from token
 function getUserIdFromToken(authHeader) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   try {
-    const jwt = require('jsonwebtoken');
     const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'secret123');
     return decoded.id;
   } catch (e) {
@@ -37,7 +35,7 @@ function getUserIdFromToken(authHeader) {
   }
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
 
   try {
@@ -47,16 +45,15 @@ export default async function handler(req, res) {
 
     const authHeader = req.headers.authorization;
     const userId = getUserIdFromToken(authHeader);
-    
+
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Not authorized' });
     }
-    // GET /api/plans?type=latest|history
+
     if (req.method === 'GET') {
       const type = req.query.type || 'latest';
-      
+
       if (type === 'latest') {
-        // Get latest plan (treatment or fitness based on query param)
         const planType = req.query.planType;
         let query = supabase
           .from('plans')
@@ -64,47 +61,47 @@ export default async function handler(req, res) {
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(1);
-        
+
         if (planType) {
           query = query.eq('type', planType);
         }
-        
+
         const { data: plans, error } = await query;
-        
+
         if (error) {
           console.error('[plans] Supabase fetch error:', error.message);
           return res.status(500).json({ success: false, message: error.message || 'Failed to fetch plan' });
         }
-        
+
         if (!plans || plans.length === 0) {
           return res.status(200).json({ success: true, data: null, message: 'No plan generated yet.' });
         }
-        
+
         return res.status(200).json({ success: true, data: normalizePlan(plans[0]) });
-      } 
-      else if (type === 'history') {
+      }
+
+      if (type === 'history') {
         const { data: plans, error } = await supabase
           .from('plans')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(20);
-        
+
         if (error) {
           console.error('[plans] Supabase history error:', error.message);
           return res.status(500).json({ success: false, message: error.message || 'Failed to fetch history' });
         }
-        
+
         return res.status(200).json({ success: true, count: plans.length, data: plans.map(normalizePlan) });
       }
     }
-    
-    // POST /api/plans - Create new plan
+
     if (req.method === 'POST') {
-      const { 
-        type, title, patientName, summary, exercises, dietPlan, 
+      const {
+        type, title, patientName, summary, exercises, dietPlan,
         supplements, medicines, instructions, followUp, lifestyleTips,
-        workoutLocation, goal
+        workoutLocation, goal,
       } = req.body;
 
       if (!type || !title) {
@@ -116,46 +113,42 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'Type must be either "treatment" or "fitness"' });
       }
 
-      const insertPayload = {
-        user_id: userId,
-        type: type,
-        title: title,
-        patient_name: patientName || null,
-        summary: summary || null,
-        exercises: exercises ? JSON.stringify(exercises) : null,
-        diet_plan: dietPlan || null,
-        supplements: supplements || null,
-        medicines: medicines || null,
-        instructions: instructions || null,
-        follow_up: followUp || null,
-        lifestyle_tips: lifestyleTips || null,
-        workout_location: workoutLocation || null,
-        goal: goal || null,
-        created_at: new Date().toISOString()
-      };
-
-      console.log('[plans] Insert payload:', JSON.stringify(insertPayload, null, 2));
-
       const { data: plan, error } = await supabase
         .from('plans')
-        .insert(insertPayload)
+        .insert({
+          user_id: userId,
+          type,
+          title,
+          patient_name: patientName || null,
+          summary: summary || null,
+          exercises: exercises ? JSON.stringify(exercises) : null,
+          diet_plan: dietPlan || null,
+          supplements: supplements || null,
+          medicines: medicines || null,
+          instructions: instructions || null,
+          follow_up: followUp || null,
+          lifestyle_tips: lifestyleTips || null,
+          workout_location: workoutLocation || null,
+          goal: goal || null,
+          created_at: new Date().toISOString(),
+        })
         .select()
         .single();
 
       if (error) {
-        console.error('[plans] Supabase insert error:', error.message, error.details, error.hint);
-        return res.status(500).json({ 
-          success: false, 
+        console.error('[plans] Supabase insert error:', error.message);
+        return res.status(500).json({
+          success: false,
           message: error.message || 'Database error',
           details: error.details || null,
-          hint: error.hint || null
+          hint: error.hint || null,
         });
       }
 
       res.status(201).json({ success: true, data: plan });
     }
   } catch (err) {
-    console.error('[plans] Unexpected error:', err.message, err.stack);
+    console.error('[plans] Unexpected error:', err.message);
     res.status(500).json({ success: false, message: err.message || 'Internal server error' });
   }
-}
+};

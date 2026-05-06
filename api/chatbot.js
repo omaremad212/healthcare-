@@ -1,5 +1,6 @@
 // api/chatbot.js - Vercel Serverless API with Supabase
 
+const jwt = require('jsonwebtoken');
 const { supabase } = require('../lib/supabase');
 
 function calculateHealthScore(ans) {
@@ -29,7 +30,7 @@ function calcBMI(weight, height) {
 
 function determineRecommendation(answers, score, bmi) {
   if (!answers) return 'none';
-  
+
   let needsDoctor = false;
   let needsCoach = false;
 
@@ -54,14 +55,14 @@ function determineRecommendation(answers, score, bmi) {
 
 function buildAdviceSummary(answers, status) {
   if (!answers) return 'No advice available';
-  
+
   const tips = [];
   if (Number(answers.sleep) < 5) tips.push('Improve your sleep — aim for 7-8 hours.');
   if (answers.water === 'no') tips.push('Drink at least 2 litres of water daily.');
   if (answers.headache === 'yes') tips.push('Monitor headache and reduce stress.');
   if (answers.temperature === 'yes') tips.push('You may have a fever — seek medical care.');
   if (answers.breathShort === 'yes') tips.push('Shortness of breath is serious — see a doctor promptly.');
-  if (answers.duration === 'more3') tips.push('Symptoms lasting 3+ days need a doctor\'s assessment.');
+  if (answers.duration === 'more3') tips.push("Symptoms lasting 3+ days need a doctor's assessment.");
   if (answers.diet === 'poor') tips.push('Improve your diet — nutrition is 70% of the result.');
   if (answers.injury === 'yes') tips.push('Consult a physiotherapist about your injury.');
   if (status === 'Critical') tips.unshift('⚠️ Immediate medical consultation is strongly recommended.');
@@ -72,7 +73,6 @@ function buildAdviceSummary(answers, status) {
 function getUserIdFromToken(authHeader) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   try {
-    const jwt = require('jsonwebtoken');
     const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'secret123');
     return decoded.id;
   } catch (e) {
@@ -80,33 +80,26 @@ function getUserIdFromToken(authHeader) {
   }
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   try {
-    // GET - return health/status response
     if (req.method === 'GET') {
-      return res.status(200).json({ 
-        success: true, 
+      return res.status(200).json({
+        success: true,
         message: 'Chatbot API is running',
-        endpoints: {
-          GET: 'Returns this status message',
-          POST: 'Submit health/fitness assessment answers'
-        }
       });
     }
 
-    // POST - handle assessment
     if (req.method !== 'POST') {
       return res.status(405).json({ success: false, message: 'Method not allowed' });
     }
 
     const authHeader = req.headers.authorization;
     const userId = getUserIdFromToken(authHeader);
-    
+
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Not authorized - no valid token' });
     }
 
-    // Validate request body
     const answers = req.body;
     if (!answers || typeof answers !== 'object') {
       return res.status(400).json({ success: false, message: 'Invalid request body - expected object' });
@@ -133,7 +126,6 @@ export default async function handler(req, res) {
     const recommendation = determineRecommendation(answers, healthScore, bmi);
     const adviceSummary = buildAdviceSummary(answers, status);
 
-    // Insert into Supabase - match exact column names from schema
     const { data: result, error } = await supabase
       .from('chatbot_results')
       .insert({
@@ -162,7 +154,7 @@ export default async function handler(req, res) {
         bmi: bmi,
         recommendation: recommendation,
         advice_summary: adviceSummary,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -184,9 +176,8 @@ export default async function handler(req, res) {
         resultId: result.id,
       },
     });
-
   } catch (err) {
     console.error('Chatbot error:', err);
     return res.status(500).json({ success: false, message: err.message || 'Internal server error' });
   }
-}
+};
