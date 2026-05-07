@@ -2,9 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HealthCare — Your Complete Health &amp; Wellness Platform</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2563eb">
+  <title>Healthcare — Your Complete Health &amp; Wellness Platform</title>
   <meta name="description" content="AI-powered health assessments, specialist bookings, fitness coaching, and emergency support — all in one platform.">
+  <meta property="og:title" content="Healthcare — Your Complete Health & Wellness Platform">
+  <meta property="og:description" content="AI-powered health assessments, specialist bookings, fitness coaching, and emergency support — all in one platform.">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Cpath d='M32 16v32M16 32h32' stroke='white' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1164,7 +1169,7 @@
           <span class="step">3. Payment</span>
         </div>
         <input type="text" id="deliveryName" placeholder="Full Name" class="form-input">
-        <input type="tel" id="deliveryPhone" placeholder="Phone Number" class="form-input">
+        <input type="tel" id="deliveryPhone" placeholder="Phone Number (11 digits)" class="form-input" maxlength="11" inputmode="numeric" pattern="[0-9]{11}" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,11)">
         <input type="text" id="deliveryAddress" placeholder="Delivery Address (street, city)" class="form-input">
         <textarea id="deliveryNotes" placeholder="Notes for the courier (optional)" class="form-input" rows="2" style="resize:vertical"></textarea>
         <div class="checkout-nav">
@@ -1221,7 +1226,7 @@
         <input type="text" id="visaCard" placeholder="Card Number (1234 5678 9012 3456)" maxlength="19" class="form-input" oninput="formatCardNumber(this)">
         <div class="form-row">
           <input type="text" id="visaExpiry" placeholder="MM/YY" maxlength="5" class="form-input" oninput="formatExpiry(this)">
-          <input type="password" id="visaCvv" placeholder="CVV" maxlength="4" class="form-input">
+          <input type="password" id="visaCvv" placeholder="CVV" maxlength="4" class="form-input" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)">
         </div>
         <input type="text" id="visaName" placeholder="Name on Card" class="form-input">
         <button class="btn btn-primary btn-full" onclick="processVisaPayment()">
@@ -1391,6 +1396,35 @@
         <button class="btn btn-primary btn-full" onclick="submitFeedback()">
           <span id="fbSubmitTxt">Submit Review</span>
           <i class="fa-solid fa-spinner fa-spin" id="fbSubmitSpinner" style="display:none"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Chat-with-Professional Modal ──────────────────────── -->
+  <div class="modal-overlay" id="proChatModal" style="display:none" onclick="handleOverlayClick(event,'proChatModal')">
+    <div class="modal-content pro-chat-modal" onclick="event.stopPropagation()">
+      <div class="pro-chat-header">
+        <div class="pro-chat-info">
+          <div class="pro-chat-avatar"><i class="fa-solid fa-user-doctor"></i></div>
+          <div>
+            <strong id="proChatName">Doctor</strong>
+            <small id="proChatRole">Doctor</small>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeProChat()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="pro-chat-body" id="proChatBody" aria-live="polite">
+        <div class="pro-chat-empty">Start a conversation. Ask about your medications, plan, or follow-up questions.</div>
+      </div>
+      <div class="pro-chat-input">
+        <textarea id="proChatInput" rows="1" class="form-input"
+          placeholder="Type your message…"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendProChatMessage()}"
+          oninput="autoResizeTextarea(this)"
+          maxlength="2000"></textarea>
+        <button class="btn btn-primary" onclick="sendProChatMessage()" aria-label="Send">
+          <i class="fa-solid fa-paper-plane"></i>
         </button>
       </div>
     </div>

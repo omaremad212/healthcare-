@@ -37,6 +37,22 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'Date is required' });
       }
 
+      // Validate date is not in the past (allow today)
+      const bookingDate = new Date(date);
+      if (isNaN(bookingDate.getTime())) {
+        return res.status(400).json({ success: false, message: 'Invalid date format' });
+      }
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (bookingDate < today) {
+        return res.status(400).json({ success: false, message: 'Booking date cannot be in the past' });
+      }
+      if (payment_method && !['cash', 'visa', 'card'].includes(payment_method)) {
+        return res.status(400).json({ success: false, message: 'Invalid payment method' });
+      }
+      if (professional_role && !['doctor', 'coach'].includes(professional_role)) {
+        return res.status(400).json({ success: false, message: 'Invalid professional role' });
+      }
+
       // Determine fee: if not provided, look up doctor's rates
       let resolvedFee = fee;
       if (resolvedFee === undefined || resolvedFee === null) {
@@ -50,18 +66,23 @@ module.exports = async function handler(req, res) {
         resolvedFee = resolvedFee || (is_emergency ? 400 : 200);
       }
 
+      const bookingType = is_emergency ? 'emergency' : 'regular';
+
       const { data: booking, error } = await supabase
         .from('bookings')
         .insert({
           user_id: userId,
           doctor_id: doctor_id || null,
           doctor_name: doctor_name || 'Doctor',
+          professional_role: professional_role || 'doctor',
           date: date,
           time_slot: time_slot || null,
           payment_method: payment_method || 'cash',
           payment_status: payment_method === 'visa' ? 'paid' : 'pending',
           fee: resolvedFee,
-          notes: is_emergency ? `[EMERGENCY] ${notes || ''}`.trim() : (notes || null),
+          is_emergency: !!is_emergency,
+          booking_type: bookingType,
+          notes: notes || null,
           status: 'confirmed',
           created_at: new Date().toISOString(),
         })
