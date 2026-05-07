@@ -596,8 +596,15 @@
           <p class="sidebar-tip"><i class="fa-solid fa-file-medical"></i> Personalized assessment</p>
           <p class="sidebar-tip"><i class="fa-solid fa-pills"></i> Medication or fitness guidance</p>
         </div>
+        <div class="sidebar-history-wrap" id="sidebarHistoryWrap" style="display:none">
+          <div class="sidebar-history-header">
+            <span><i class="fa-solid fa-clock-rotate-left"></i> Recent Chats</span>
+            <button class="link-btn" onclick="clearAllChatSessions()" title="Clear all">Clear</button>
+          </div>
+          <div class="sidebar-history-list" id="chatHistoryList"></div>
+        </div>
         <div class="sidebar-actions">
-          <button class="btn btn-outline btn-sm btn-full" onclick="resetChat()">
+          <button class="btn btn-outline btn-sm btn-full" onclick="startNewChatSession()">
             <i class="fa-solid fa-plus"></i> New Conversation
           </button>
         </div>
