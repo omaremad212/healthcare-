@@ -47,14 +47,14 @@ function onDOMReady() {
 // ── Chat Sessions (history) ────────────────────────────────────
 function loadChatSessions() {
   try {
-    chatSessions = JSON.parse(localStorage.getItem('hc_chat_sessions') || '[]');
+    chatSessions = JSON.parse(localStorage.getItem(userKey('chat_sessions')) || '[]');
   } catch (e) { chatSessions = []; }
 }
 
 function saveChatSessions() {
-  // Keep the most recent 30
+  // Keep the most recent 30, scoped to the logged-in user
   const trimmed = chatSessions.slice(0, 30);
-  localStorage.setItem('hc_chat_sessions', JSON.stringify(trimmed));
+  localStorage.setItem(userKey('chat_sessions'), JSON.stringify(trimmed));
 }
 
 function createNewChatSession(mode) {
@@ -455,6 +455,11 @@ async function handleAuth(event) {
   localStorage.setItem('hc_user', JSON.stringify({ ...user, auth: true }));
   currentUser = { ...user, auth: true };
 
+  // Reload per-user storage now that we know who's logged in.
+  // (sessions/results were potentially loaded under "anon" namespace at boot)
+  loadChatSessions();
+  renderChatHistorySidebar();
+
   closeAuthModal();
   applyLoggedInUI();
 
@@ -522,14 +527,44 @@ function applyLoggedInUI() {
 }
 
 function logout() {
-  localStorage.removeItem('hc_token');
-  localStorage.removeItem('hc_user');
-  localStorage.removeItem('hc_chatbot_results');
+  // Wipe ALL user-scoped state before navigating away.
+  // Anything prefixed with hc_ is treated as our app's data and cleared.
+  try {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('hc_')) localStorage.removeItem(k);
+    });
+    Object.keys(sessionStorage).forEach(k => {
+      if (k.startsWith('hc_')) sessionStorage.removeItem(k);
+    });
+  } catch (e) { /* ignore quota errors */ }
+
+  // Reset all in-memory state
   currentUser = null;
   conversationMessages = [];
   currentAssessment = null;
   chatMode = null;
+  cart = [];
+  chatSessions = [];
+  currentSessionId = null;
+  selectedSlots = {};
+  pendingDelivery = null;
+  pendingReferralSpecialty = null;
+  currentPayDoc = '';
+  currentPayPrice = 0;
+  currentPaySlot = '';
+  currentPayDocId = null;
+  currentPayIsEmergency = false;
+
+  // Force a hard reload to drop any cached DOM state and route home
+  location.hash = '';
   window.location.reload();
+}
+
+// Per-user storage helpers — keyed by user id so different users on the
+// same browser cannot see each other's chats, history, or carts.
+function userKey(suffix) {
+  const uid = currentUser?.id || 'anon';
+  return `hc_${suffix}_${uid}`;
 }
 
 // ── User Dropdown ──────────────────────────────────────────────
@@ -812,9 +847,9 @@ async function sendChatMessage() {
   if (isComplete && assessment) {
     currentAssessment = { ...assessment, type: assessmentType };
     updateCurrentSession({ assessment, assessmentType });
-    const results = JSON.parse(localStorage.getItem('hc_chatbot_results') || '[]');
+    const results = JSON.parse(localStorage.getItem(userKey('chatbot_results')) || '[]');
     results.unshift({ assessment: currentAssessment, savedAt: new Date().toISOString() });
-    localStorage.setItem('hc_chatbot_results', JSON.stringify(results.slice(0, 20)));
+    localStorage.setItem(userKey('chatbot_results'), JSON.stringify(results.slice(0, 20)));
     setTimeout(() => {
       // Auto-popup the assessment modal for medical results, plus banner so user can reopen
       if (assessmentType === 'medical') openAssessmentModal(currentAssessment);
@@ -1407,7 +1442,7 @@ function buildTipList(items, iconBg, iconClass) {
 }
 
 function loadLocalHistory() {
-  const stored = JSON.parse(localStorage.getItem('hc_chatbot_results') || '[]');
+  const stored = JSON.parse(localStorage.getItem(userKey('chatbot_results')) || '[]');
   if (!stored.length) return;
   const section = document.getElementById('historySection');
   const list    = document.getElementById('historyList');
@@ -1432,7 +1467,7 @@ function loadLocalHistory() {
 }
 
 function openHistoryAssessment(idx) {
-  const stored = JSON.parse(localStorage.getItem('hc_chatbot_results') || '[]');
+  const stored = JSON.parse(localStorage.getItem(userKey('chatbot_results')) || '[]');
   const r = stored[idx];
   if (!r || !r.assessment) return;
   currentAssessment = r.assessment;
