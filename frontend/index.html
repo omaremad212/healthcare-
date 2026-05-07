@@ -742,10 +742,15 @@
           <h1>Health Shop</h1>
           <p class="page-subtitle">Quality supplements and medical devices</p>
         </div>
-        <div class="cart-indicator" id="cartIndicator" style="display:none" onclick="openCheckout()">
-          <i class="fa-solid fa-cart-shopping"></i>
-          <span id="cartCount">0</span> items · <strong id="cartTotalDisplay">$0.00</strong>
-          <button class="btn btn-primary btn-sm">Checkout</button>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" id="addProductBtn" onclick="openAddProductModal()" style="display:none">
+            <i class="fa-solid fa-plus"></i> Add Product
+          </button>
+          <div class="cart-indicator" id="cartIndicator" style="display:none" onclick="openCheckout()">
+            <i class="fa-solid fa-cart-shopping"></i>
+            <span id="cartCount">0</span> items · <strong id="cartTotalDisplay">$0.00</strong>
+            <button class="btn btn-primary btn-sm">Checkout</button>
+          </div>
         </div>
       </div>
       <div class="shop-grid" id="shopGrid">
@@ -1398,6 +1403,58 @@
           <i class="fa-solid fa-spinner fa-spin" id="fbSubmitSpinner" style="display:none"></i>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Add Product Modal ──────────────────────────────────── -->
+  <div class="modal-overlay" id="addProductModal" style="display:none" onclick="handleOverlayClick(event,'addProductModal')">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width:480px">
+      <button class="modal-close" onclick="closeAddProductModal()" aria-label="Close">&times;</button>
+      <h2 style="margin-bottom:6px"><i class="fa-solid fa-plus" style="color:var(--primary)"></i> Add Product</h2>
+      <p class="page-subtitle" style="margin-bottom:18px">Add a new item to the shop catalog.</p>
+      <form id="addProductForm" onsubmit="submitNewProduct(event)">
+        <div class="form-group">
+          <label class="form-label">Product Name *</label>
+          <input type="text" class="form-input" id="newProdName" maxlength="100" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea class="form-input" id="newProdDesc" maxlength="500" rows="2"></textarea>
+        </div>
+        <div class="form-row" style="display:flex;gap:10px">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Price (USD) *</label>
+            <input type="number" class="form-input" id="newProdPrice" min="0.01" step="0.01" required>
+          </div>
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Category</label>
+            <select class="form-input" id="newProdCategory">
+              <option value="supplement">Supplement</option>
+              <option value="device">Device</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Icon</label>
+          <select class="form-input" id="newProdIcon">
+            <option value="fa-capsules">💊 Capsules</option>
+            <option value="fa-pills">💊 Pills</option>
+            <option value="fa-vial-circle-check">🧪 Vial</option>
+            <option value="fa-stethoscope">🩺 Stethoscope</option>
+            <option value="fa-bottle-water">🍶 Bottle</option>
+            <option value="fa-heart-pulse">❤️ Heart</option>
+            <option value="fa-dumbbell">🏋️ Dumbbell</option>
+            <option value="fa-leaf">🌿 Leaf</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <button type="submit" class="btn btn-primary" style="flex:1">
+            <i class="fa-solid fa-check"></i> Add to Shop
+          </button>
+          <button type="button" class="btn btn-outline" onclick="closeAddProductModal()">Cancel</button>
+        </div>
+      </form>
     </div>
   </div>
 
