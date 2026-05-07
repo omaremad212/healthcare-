@@ -1506,10 +1506,17 @@ const GYMS_DATA = [
 ];
 
 function renderGymPickerSection() {
-  const cards = GYMS_DATA.map(g => {
+  const today = new Date().toISOString().split('T')[0];
+  const maxDateStr = (() => {
+    const d = new Date(); d.setDate(d.getDate() + 60);
+    return d.toISOString().split('T')[0];
+  })();
+  const cards = GYMS_DATA.map((g, idx) => {
     const stars = '★'.repeat(Math.floor(g.rating)) + '☆'.repeat(5 - Math.floor(g.rating));
+    const cardId = 'gym-' + idx;
+    const labelName = 'Gym: ' + g.name;
     return `
-      <div class="gym-card">
+      <div class="gym-card" id="${cardId}">
         <div class="gym-card-header">
           <div class="gym-icon"><i class="fa-solid fa-dumbbell"></i></div>
           <div>
@@ -1521,9 +1528,32 @@ function renderGymPickerSection() {
           <span>${stars} ${g.rating}</span>
           <span class="gym-price">EGP ${g.monthly}/mo</span>
         </div>
+
+        <div class="booking-step-label">
+          <span class="booking-step-num">1</span>
+          <i class="fa-regular fa-calendar"></i> Choose a start date
+        </div>
+        <input type="date" class="form-input booking-date-input"
+          id="date-${cardId}"
+          min="${today}" max="${maxDateStr}"
+          onchange="onBookingDateChange('${cardId}', this.value)">
+
+        <div class="booking-step-label">
+          <span class="booking-step-num">2</span>
+          <i class="fa-regular fa-clock"></i> Choose a time
+        </div>
+        <div class="slots-row" id="slots-${cardId}">
+          ${DOCTOR_SLOTS.map(s => `<button class="slot-btn" disabled onclick="selectSlot(this,'${cardId}')">${s}</button>`).join('')}
+        </div>
+        <div class="slot-selected-text" id="slot-${cardId}"></div>
+
         <div class="gym-actions">
-          <button class="btn btn-primary btn-sm" onclick="window.open('tel:${escHtml(g.phone)}')">
-            <i class="fa-solid fa-phone"></i> Call to Join
+          <button class="btn btn-primary" id="bookBtn-${cardId}" disabled
+            onclick="openPayment('${escHtml(labelName)}',${g.monthly},'${cardId}','gym')">
+            <i class="fa-solid fa-calendar-check"></i> Book Membership
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="window.open('tel:${escHtml(g.phone)}')">
+            <i class="fa-solid fa-phone"></i> Call
           </button>
         </div>
       </div>`;
@@ -1700,11 +1730,32 @@ async function loadProChatMessages(scrollToEnd) {
     const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     return `
       <div class="pro-msg ${mine ? 'mine' : 'theirs'}">
-        <div class="pro-msg-bubble">${escHtml(m.body)}</div>
+        <div class="pro-msg-bubble">${renderChatBody(m.body)}</div>
         <div class="pro-msg-time">${time}</div>
       </div>`;
   }).join('');
   if (scrollToEnd || true) body.scrollTop = body.scrollHeight;
+}
+
+// Light markdown for chat bubbles: bold, bullet lists, line breaks. Escapes first.
+function renderChatBody(raw) {
+  let s = escHtml(String(raw || ''));
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  const lines = s.split('\n');
+  let html = '';
+  let inList = false;
+  for (const line of lines) {
+    const m = line.match(/^\s*[-•]\s+(.*)$/);
+    if (m) {
+      if (!inList) { html += '<ul class="pro-msg-list">'; inList = true; }
+      html += `<li>${m[1]}</li>`;
+    } else {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += line + '<br>';
+    }
+  }
+  if (inList) html += '</ul>';
+  return html.replace(/(<br>)+$/, '');
 }
 
 async function sendProChatMessage() {
@@ -2259,6 +2310,9 @@ function openPayment(docName, price, cardId, profRole) {
     return;
   }
   if (!currentUser) { openModal('login'); return; }
+
+  // Gym memberships are never emergency bookings.
+  if (profRole === 'gym') currentPayIsEmergency = false;
 
   currentPayDoc    = docName;
   currentPayPrice  = price;

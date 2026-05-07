@@ -1,6 +1,7 @@
 // api/messages.js — Patient ↔ professional chat tied to a booking
 
 const jwt = require('jsonwebtoken');
+const Groq = require('groq-sdk');
 const { supabase } = require('../lib/supabase');
 
 function getUserIdFromToken(authHeader) {
@@ -9,6 +10,123 @@ function getUserIdFromToken(authHeader) {
     const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'secret123');
     return decoded.id;
   } catch (e) { return null; }
+}
+
+function isGymBooking(booking) {
+  const name = String(booking.doctor_name || '');
+  return /^gym\s*[:\-]/i.test(name);
+}
+
+function inferRole(booking) {
+  const name = String(booking.doctor_name || '').toLowerCase();
+  if (name.startsWith('coach ')) return 'coach';
+  return 'doctor';
+}
+
+function buildAISystemPrompt(role, professionalName, patientTurns) {
+  const shouldDeliverPlan = patientTurns >= 4;
+  if (role === 'coach') {
+    return `You are ${professionalName}, a fitness coach following up with your client via secure chat after they booked a session with you.
+
+Style:
+- Warm, motivating, knowledgeable but concise (2-4 sentences per reply).
+- Reference what the client tells you (goals, level, equipment, injuries).
+- Ask ONE focused question at a time. Do not interrogate.
+- Never break character. You ARE ${professionalName}, not an AI.
+
+${shouldDeliverPlan ? `IMPORTANT: You have enough information now. In THIS reply, deliver the full personalized training plan in this exact markdown format and nothing else after it:
+
+**Training Plan**
+
+**Goal:** <client's goal>
+**Level:** <beginner|intermediate|advanced>
+
+**Weekly Schedule:**
+- Monday — <focus>: <2-4 exercises with sets x reps>
+- Tuesday — <focus>: ...
+- Wednesday — <focus>: ...
+- Thursday — <focus>: ...
+- Friday — <focus>: ...
+
+**Nutrition Tips:**
+- <tip 1>
+- <tip 2>
+- <tip 3>
+
+**Recovery:** <rest, sleep, hydration guidance>
+
+**Warnings:** <safety / injury cautions>
+
+Close with a one-line motivating note signed "- ${professionalName}".` : `Continue gathering: goal, current level, location/equipment, days/week, injuries. After 4-5 exchanges, deliver a full plan.`}`;
+  }
+  const cleanName = professionalName.replace(/^Dr\.?\s*/i, '');
+  return `You are Dr. ${cleanName}, a licensed physician following up with your patient via secure chat after their booked consultation.
+
+Style:
+- Warm, professional, decisive. 2-4 sentences per reply.
+- Ask ONE focused clinical question at a time.
+- Use plain language; briefly explain medical terms when needed.
+- Never break character. You ARE the doctor, not an AI.
+- If the patient describes a true emergency (chest pain with sweating, stroke signs, severe bleeding, suicidal intent, anaphylaxis), tell them to call emergency services immediately.
+
+${shouldDeliverPlan ? `IMPORTANT: You have enough information now. In THIS reply, deliver the complete treatment plan in this exact markdown format and nothing else after it:
+
+**Treatment Plan**
+
+**Working Diagnosis:** <condition>
+**Severity:** <mild|moderate|severe>
+
+**Medications:**
+- <generic name (brand)> - <dose> <frequency> for <duration>. <key caution>
+- <next med if needed>
+
+**Home Care:**
+- <remedy 1>
+- <remedy 2>
+
+**Lifestyle:**
+- <tip 1>
+- <tip 2>
+
+**Red Flags - seek urgent care if:**
+- <warning 1>
+- <warning 2>
+
+**Follow-up:** <when to check back, e.g. "Message me in 5 days if no improvement.">
+
+Close with a reassuring one-line note signed "- Dr. ${cleanName}".` : `Continue gathering: primary symptom + onset, severity, associated symptoms, relevant history, allergies. After 4-5 exchanges, deliver the full plan.`}`;
+}
+
+async function generateAIReply(booking, role, conversation) {
+  const apiKey = process.env.GROQ_API_KEY || process.env.GroqAPIKey;
+  if (!apiKey) return null;
+
+  const patientTurns = conversation.filter(m => m.sender_role === 'patient').length;
+  const profName = booking.doctor_name || (role === 'coach' ? 'Coach' : 'Doctor');
+  const systemPrompt = buildAISystemPrompt(role, profName, patientTurns);
+
+  const chatMessages = [
+    { role: 'system', content: systemPrompt },
+    ...conversation.slice(-12).map(m => ({
+      role: m.sender_role === 'patient' ? 'user' : 'assistant',
+      content: String(m.body || ''),
+    })),
+  ];
+
+  try {
+    const groq = new Groq({ apiKey });
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: chatMessages,
+      max_tokens: 900,
+      temperature: 0.7,
+    });
+    const reply = response?.choices?.[0]?.message?.content?.trim();
+    return reply || null;
+  } catch (e) {
+    console.error('[messages] AI reply failed:', e?.message || e);
+    return null;
+  }
 }
 
 module.exports = async function handler(req, res) {
@@ -136,6 +254,31 @@ module.exports = async function handler(req, res) {
         .select()
         .single();
       if (error) return res.status(500).json({ success: false, message: error.message });
+
+      // If a patient sent the message, generate an AI reply playing the role of
+      // the booked professional. Skip for gym bookings (no professional to roleplay).
+      if (senderRole === 'patient' && !isGymBooking(booking)) {
+        const role = inferRole(booking);
+        const { data: history } = await supabase
+          .from('messages')
+          .select('sender_role, body, created_at')
+          .eq('booking_id', booking_id)
+          .order('created_at', { ascending: true })
+          .limit(40);
+        const aiBody = await generateAIReply(booking, role, history || []);
+        if (aiBody) {
+          await supabase.from('messages').insert({
+            booking_id,
+            patient_id: booking.user_id,
+            professional_id: booking.doctor_id || null,
+            professional_name: booking.doctor_name,
+            sender_role: 'professional',
+            body: aiBody,
+            read_by_patient: false,
+            read_by_professional: true,
+          });
+        }
+      }
 
       return res.status(201).json({ success: true, data: msg });
     } catch (err) {
