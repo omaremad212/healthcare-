@@ -169,6 +169,24 @@ CREATE TABLE IF NOT EXISTS plans (
 );
 
 -- ─────────────────────────────────────────────────────────────────
+-- MESSAGES — patient ↔ professional chat (post-booking)
+-- ─────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE,
+  patient_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  professional_id UUID,                    -- nullable for the seeded sample doctors
+  professional_name TEXT,
+  sender_role TEXT NOT NULL CHECK (sender_role IN ('patient', 'professional')),
+  body TEXT NOT NULL,
+  read_by_patient BOOLEAN DEFAULT false,
+  read_by_professional BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS messages_booking_idx ON messages(booking_id, created_at);
+CREATE INDEX IF NOT EXISTS messages_patient_idx ON messages(patient_id, created_at);
+
+-- ─────────────────────────────────────────────────────────────────
 -- RLS — using service role key from API, RLS is bypassed
 -- ─────────────────────────────────────────────────────────────────
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -178,6 +196,7 @@ ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE plans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
 -- ─────────────────────────────────────────────────────────────────
 -- Default products

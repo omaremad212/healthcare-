@@ -1396,6 +1396,35 @@
     </div>
   </div>
 
+  <!-- ── Chat-with-Professional Modal ──────────────────────── -->
+  <div class="modal-overlay" id="proChatModal" style="display:none" onclick="handleOverlayClick(event,'proChatModal')">
+    <div class="modal-content pro-chat-modal" onclick="event.stopPropagation()">
+      <div class="pro-chat-header">
+        <div class="pro-chat-info">
+          <div class="pro-chat-avatar"><i class="fa-solid fa-user-doctor"></i></div>
+          <div>
+            <strong id="proChatName">Doctor</strong>
+            <small id="proChatRole">Doctor</small>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeProChat()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="pro-chat-body" id="proChatBody" aria-live="polite">
+        <div class="pro-chat-empty">Start a conversation. Ask about your medications, plan, or follow-up questions.</div>
+      </div>
+      <div class="pro-chat-input">
+        <textarea id="proChatInput" rows="1" class="form-input"
+          placeholder="Type your message…"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendProChatMessage()}"
+          oninput="autoResizeTextarea(this)"
+          maxlength="2000"></textarea>
+        <button class="btn btn-primary" onclick="sendProChatMessage()" aria-label="Send">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>

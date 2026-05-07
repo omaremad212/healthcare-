@@ -22,6 +22,7 @@
     { "src": "/api/profile",       "dest": "/api/profile.js"       },
     { "src": "/api/feedback",      "dest": "/api/feedback.js"      },
     { "src": "/api/emergency",     "dest": "/api/emergency.js"     },
+    { "src": "/api/messages",      "dest": "/api/messages.js"      },
     { "src": "/(.*)",              "dest": "/frontend/$1"          }
   ]
 }

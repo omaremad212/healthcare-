@@ -15,7 +15,8 @@ let currentPayPrice  = 0;
 let currentPaySlot   = '';
 let currentPayDocId  = null;
 let currentPayIsEmergency = false;
-let selectedSlots    = {};
+let selectedSlots    = {};   // cardId -> { date, time }
+let currentPayDate   = '';
 let authMode         = 'login';
 let currentFeedbackRating = 0;
 let usernameCheckTimer = null;
@@ -1641,11 +1642,90 @@ function buildBookingCardHTML(b) {
       <div class="booking-right">
         <span class="booking-status ${statusCls}">${ucFirst(b.status || 'pending')}</span>
         <div class="booking-actions">
+          ${b.status !== 'cancelled' ? `<button class="btn btn-primary btn-sm" onclick="openProChat('${b.id}','${escHtml(b.doctor_name || 'Doctor')}','${b.professional_role || 'doctor'}')"><i class="fa-solid fa-comments"></i> Chat with your ${(b.professional_role === 'coach') ? 'Coach' : 'Doctor'}</button>` : ''}
           ${canCancel ? `<button class="btn btn-outline btn-sm" onclick="cancelBooking('${b.id}')"><i class="fa-solid fa-xmark"></i> Cancel</button>` : ''}
-          ${canReview ? `<button class="btn btn-primary btn-sm" onclick="openFeedbackModal('${b.id}','${escHtml(b.doctor_name || '')}','${b.doctor_id || ''}')"><i class="fa-solid fa-star"></i> Review</button>` : ''}
+          ${canReview ? `<button class="btn btn-outline btn-sm" onclick="openFeedbackModal('${b.id}','${escHtml(b.doctor_name || '')}','${b.doctor_id || ''}')"><i class="fa-solid fa-star"></i> Review</button>` : ''}
         </div>
       </div>
     </div>`;
+}
+
+// ── Chat with your Doctor / Coach ─────────────────────────────
+let _proChatBookingId = null;
+let _proChatPollTimer = null;
+let _proChatLastCount = 0;
+
+async function openProChat(bookingId, professionalName, role) {
+  if (!currentUser) { openModal('login'); return; }
+  _proChatBookingId = bookingId;
+  setEl('proChatName', professionalName || 'Professional');
+  setEl('proChatRole', role === 'coach' ? 'Coach' : 'Doctor');
+  document.getElementById('proChatBody').innerHTML = '<div class="pro-chat-empty"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+  document.getElementById('proChatModal').style.display = 'flex';
+  document.getElementById('proChatInput').value = '';
+  await loadProChatMessages(true);
+  // Poll every 5s while modal is open
+  if (_proChatPollTimer) clearInterval(_proChatPollTimer);
+  _proChatPollTimer = setInterval(loadProChatMessages, 5000);
+}
+
+function closeProChat() {
+  document.getElementById('proChatModal').style.display = 'none';
+  if (_proChatPollTimer) { clearInterval(_proChatPollTimer); _proChatPollTimer = null; }
+  _proChatBookingId = null;
+  _proChatLastCount = 0;
+}
+
+async function loadProChatMessages(scrollToEnd) {
+  if (!_proChatBookingId) return;
+  const result = await apiCall('GET', `/messages?booking_id=${encodeURIComponent(_proChatBookingId)}`);
+  if (!result.ok) {
+    document.getElementById('proChatBody').innerHTML = `<div class="pro-chat-empty">${escHtml(result.data?.message || 'Failed to load messages')}</div>`;
+    return;
+  }
+  const msgs = result.data?.data || [];
+  const body = document.getElementById('proChatBody');
+  if (!msgs.length) {
+    body.innerHTML = '<div class="pro-chat-empty">Start a conversation. Ask about your medications, plan, or follow-up questions.</div>';
+    return;
+  }
+  // Only re-render if message count changed
+  if (msgs.length === _proChatLastCount) return;
+  _proChatLastCount = msgs.length;
+
+  body.innerHTML = msgs.map(m => {
+    const mine = (currentUser?.role === 'doctor' || currentUser?.role === 'coach')
+      ? m.sender_role === 'professional'
+      : m.sender_role === 'patient';
+    const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `
+      <div class="pro-msg ${mine ? 'mine' : 'theirs'}">
+        <div class="pro-msg-bubble">${escHtml(m.body)}</div>
+        <div class="pro-msg-time">${time}</div>
+      </div>`;
+  }).join('');
+  if (scrollToEnd || true) body.scrollTop = body.scrollHeight;
+}
+
+async function sendProChatMessage() {
+  const input = document.getElementById('proChatInput');
+  if (!input || !_proChatBookingId) return;
+  const text = input.value.trim();
+  if (!text) return;
+  if (text.length > 2000) { showToast('Message too long', 'warning'); return; }
+
+  input.value = '';
+  autoResizeTextarea(input);
+
+  const result = await apiCall('POST', '/messages', { booking_id: _proChatBookingId, body: text });
+  if (!result.ok) {
+    showToast(result.data?.message || 'Failed to send', 'error');
+    input.value = text;
+    return;
+  }
+  // Force a refresh
+  _proChatLastCount = 0;
+  await loadProChatMessages(true);
 }
 
 async function cancelBooking(id) {
@@ -2074,9 +2154,11 @@ function buildDoctorCardHTML(doc) {
   const cardId = 'doc-' + doc.name.replace(/[\s.']/g, '');
   const stars  = '★'.repeat(Math.floor(doc.rating)) + '☆'.repeat(5 - Math.floor(doc.rating));
   const price  = currentPayIsEmergency ? Math.round(doc.price * 1.75) : doc.price;
-  const slots  = DOCTOR_SLOTS.map(s =>
-    `<button class="slot-btn" onclick="selectSlot(this,'${cardId}')">${s}</button>`
-  ).join('');
+  const today  = new Date().toISOString().split('T')[0];
+  const maxDateStr = (() => {
+    const d = new Date(); d.setDate(d.getDate() + 60);
+    return d.toISOString().split('T')[0];
+  })();
 
   return `
     <div class="doctor-card" id="${cardId}">
@@ -2095,13 +2177,28 @@ function buildDoctorCardHTML(doc) {
         </span>
       </div>
       <div class="doctor-rating">${stars} <span>${doc.rating} / 5</span></div>
-      <div style="font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:8px">
-        <i class="fa-regular fa-clock" style="margin-right:4px"></i>Available Slots
+
+      <div class="booking-step-label">
+        <span class="booking-step-num">1</span>
+        <i class="fa-regular fa-calendar"></i> Choose a date
       </div>
-      <div class="slots-row">${slots}</div>
+      <input type="date" class="form-input booking-date-input"
+        id="date-${cardId}"
+        min="${today}" max="${maxDateStr}"
+        onchange="onBookingDateChange('${cardId}', this.value)">
+
+      <div class="booking-step-label">
+        <span class="booking-step-num">2</span>
+        <i class="fa-regular fa-clock"></i> Choose a time
+      </div>
+      <div class="slots-row" id="slots-${cardId}">
+        ${DOCTOR_SLOTS.map(s => `<button class="slot-btn" disabled onclick="selectSlot(this,'${cardId}')">${s}</button>`).join('')}
+      </div>
       <div class="slot-selected-text" id="slot-${cardId}"></div>
+
       <div class="doctor-actions">
-        <button class="btn ${currentPayIsEmergency ? 'btn-emergency' : 'btn-primary'}" onclick="openPayment('${escHtml(doc.name)}',${price},'${cardId}','${doc.role || 'doctor'}')">
+        <button class="btn ${currentPayIsEmergency ? 'btn-emergency' : 'btn-primary'}" id="bookBtn-${cardId}" disabled
+          onclick="openPayment('${escHtml(doc.name)}',${price},'${cardId}','${doc.role || 'doctor'}')">
           <i class="fa-solid fa-calendar-check"></i>
           ${currentPayIsEmergency ? 'Emergency Book' : 'Book Now'}
         </button>
@@ -2112,12 +2209,41 @@ function buildDoctorCardHTML(doc) {
     </div>`;
 }
 
+function onBookingDateChange(cardId, date) {
+  if (!date) return;
+  // Validate: not in the past
+  const d = new Date(date);
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (d < today) {
+    showToast('Date cannot be in the past', 'warning');
+    document.getElementById('date-' + cardId).value = '';
+    return;
+  }
+  selectedSlots[cardId] = { date, time: selectedSlots[cardId]?.time || '' };
+  // Enable slot buttons now that a date is chosen
+  document.querySelectorAll(`#slots-${cardId} .slot-btn`).forEach(b => b.disabled = false);
+  updateBookingButton(cardId);
+}
+
 function selectSlot(btn, cardId) {
-  document.querySelectorAll(`#${cardId} .slot-btn`).forEach(b => b.classList.remove('selected'));
+  if (btn.disabled) return;
+  document.querySelectorAll(`#slots-${cardId} .slot-btn`).forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
-  selectedSlots[cardId] = btn.textContent.trim();
+  const time = btn.textContent.trim();
+  selectedSlots[cardId] = { date: selectedSlots[cardId]?.date || '', time };
   const label = document.getElementById('slot-' + cardId);
-  if (label) label.textContent = '✓ ' + selectedSlots[cardId];
+  const dateStr = selectedSlots[cardId].date
+    ? new Date(selectedSlots[cardId].date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+    : '';
+  if (label) label.textContent = dateStr ? `✓ ${dateStr} at ${time}` : `✓ ${time}`;
+  updateBookingButton(cardId);
+}
+
+function updateBookingButton(cardId) {
+  const sel = selectedSlots[cardId];
+  const btn = document.getElementById('bookBtn-' + cardId);
+  if (!btn) return;
+  btn.disabled = !(sel && sel.date && sel.time);
 }
 
 function resetSpecSelection() {
@@ -2127,18 +2253,23 @@ function resetSpecSelection() {
 
 // ── Payment ────────────────────────────────────────────────────
 function openPayment(docName, price, cardId, profRole) {
-  const slot = selectedSlots[cardId];
-  if (!slot) { showToast('Please select a time slot first.', 'warning'); return; }
+  const sel = selectedSlots[cardId];
+  if (!sel || !sel.date || !sel.time) {
+    showToast('Please select both a date and a time first.', 'warning');
+    return;
+  }
   if (!currentUser) { openModal('login'); return; }
 
   currentPayDoc    = docName;
   currentPayPrice  = price;
-  currentPaySlot   = slot;
+  currentPaySlot   = sel.time;
+  currentPayDate   = sel.date;
   currentPayDocId  = null;
 
   resetPaymentModal();
   document.getElementById('payDocInfo').textContent  = `${docName} · EGP ${price}`;
-  document.getElementById('paySlotInfo').textContent = `📅 Today at ${slot}`;
+  const dateStr = new Date(sel.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  document.getElementById('paySlotInfo').textContent = `📅 ${dateStr} at ${sel.time}`;
 
   const emgBadge = document.getElementById('payEmergencyBadge');
   if (emgBadge) emgBadge.style.display = currentPayIsEmergency ? 'inline-flex' : 'none';
@@ -2164,7 +2295,7 @@ async function selectPayment(method) {
   if (!isShop) {
     const bookingData = {
       doctor_name:       currentPayDoc,
-      date:              new Date().toISOString().split('T')[0],
+      date:              currentPayDate || new Date().toISOString().split('T')[0],
       time_slot:         currentPaySlot,
       payment_method:    method,
       fee:               parseInt(currentPayPrice) || 0,
@@ -2185,7 +2316,7 @@ async function selectPayment(method) {
   if (method === 'cash') {
     document.getElementById('cashConfirmText').textContent = isShop
       ? `Your order is confirmed. Total: $${currentPayPrice}.`
-      : `Appointment with ${currentPayDoc} confirmed for today at ${currentPaySlot}. Total: EGP ${currentPayPrice}.`;
+      : `Appointment with ${currentPayDoc} confirmed for ${currentPayDate ? new Date(currentPayDate).toLocaleDateString() : 'today'} at ${currentPaySlot}. Total: EGP ${currentPayPrice}.`;
     setDisplay('pay-step-cash', 'block');
     if (isShop) { cart = []; updateCartDisplay(); }
   } else {
