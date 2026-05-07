@@ -1,5 +1,5 @@
 /* ============================================================
-   MediAI — Design System & Styles
+   Healthcare — Design System & Styles
    ============================================================ */
 
 /* ── Design Tokens ─────────────────────────────────────────── */
@@ -3205,4 +3205,100 @@ p  { color: var(--text-secondary); }
 @media (max-width: 600px) {
   .dash-item-card { flex-wrap: wrap; }
   .dash-item-tags { width: 100%; justify-content: flex-end; margin-top: 4px; }
+}
+
+/* ============================================================
+   Phase 5 — Mobile Responsiveness & Polish
+   ============================================================ */
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Better focus rings everywhere */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Touch targets — min 44px on touch devices */
+@media (pointer: coarse) {
+  .btn, .nav-link, .slot-btn, .chat-mode-btn, .sidebar-history-item {
+    min-height: 44px;
+  }
+}
+
+/* Tablet & below */
+@media (max-width: 900px) {
+  .chat-layout { flex-direction: column; }
+  .chat-sidebar {
+    width: 100% !important;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 40vh;
+  }
+  .chat-sidebar.collapsed { display: none; }
+  .container { padding-left: 16px; padding-right: 16px; }
+  .doctor-card { padding: 16px; }
+  .gym-grid { grid-template-columns: 1fr; }
+  .pro-chat-modal { width: 100%; max-height: 100vh; height: 100vh; border-radius: 0; }
+}
+
+/* Phone */
+@media (max-width: 600px) {
+  body { font-size: 14.5px; }
+  h1 { font-size: 1.6rem !important; }
+  h2 { font-size: 1.35rem !important; }
+  .page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .page-header-actions { width: 100%; flex-wrap: wrap; }
+  .page-header-actions .btn { flex: 1; min-width: 140px; }
+  .booking-card { flex-direction: column; align-items: stretch; }
+  .booking-right { align-items: flex-start; }
+  .booking-actions { flex-wrap: wrap; }
+  .booking-actions .btn { flex: 1; min-width: 130px; }
+  .doctor-actions { flex-wrap: wrap; }
+  .doctor-actions .btn { flex: 1; min-width: 130px; }
+  .form-row { flex-direction: column; gap: 12px; }
+  .modal-content { width: calc(100% - 24px); margin: 12px; max-height: 90vh; overflow-y: auto; }
+  .pay-method-row { flex-direction: column; gap: 10px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .features-grid { grid-template-columns: 1fr; }
+  .testimonial-card { width: 100%; }
+  .checkout-stepper { flex-wrap: wrap; gap: 6px; }
+  .nav-links { display: none; }
+  .nav-actions { gap: 6px; }
+  .nav-actions .btn { padding: 6px 10px; font-size: 0.82rem; }
+  .pro-chat-modal { padding: 0; }
+  .pro-msg { max-width: 86%; }
+  .sidebar-history-list { max-height: 240px; }
+  .gym-card { padding: 14px; }
+  .booking-step-label { font-size: 0.78rem; }
+}
+
+/* Improve form inputs on iOS (prevent zoom) */
+@media (max-width: 600px) {
+  input, textarea, select { font-size: 16px !important; }
+}
+
+/* Loading skeleton helper */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg) 25%, rgba(0,0,0,0.04) 50%, var(--bg) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s infinite;
+  border-radius: 8px;
+}
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
