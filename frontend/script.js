@@ -1618,7 +1618,7 @@ async function loadMyBookings() {
 }
 
 function buildBookingCardHTML(b) {
-  const isEmg    = b.is_emergency || b.booking_type === 'emergency';
+  const isEmg    = b.booking_type === 'emergency';
   const statusCls = { confirmed:'status-confirmed', pending:'status-pending', completed:'status-completed', cancelled:'status-cancelled' }[b.status] || 'status-pending';
   const date     = b.date ? new Date(b.date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }) : b.date;
   const canCancel = b.status === 'confirmed' || b.status === 'pending';
@@ -2299,8 +2299,7 @@ async function selectPayment(method) {
       time_slot:         currentPaySlot,
       payment_method:    method,
       fee:               parseInt(currentPayPrice) || 0,
-      is_emergency:      currentPayIsEmergency,
-      professional_role: 'doctor',
+      booking_type:      currentPayIsEmergency ? 'emergency' : 'regular',
     };
     if (currentPayDocId) bookingData.doctor_id = currentPayDocId;
 
