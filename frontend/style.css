@@ -1419,6 +1419,16 @@ p  { color: var(--text-secondary); }
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
+  transition: var(--t-fast);
+}
+.history-item:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  transform: translateY(-1px);
+}
+.history-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 .bookings-list { display: flex; flex-direction: column; gap: 10px; }
 .booking-item {
