@@ -30,7 +30,7 @@ module.exports = async function handler(req, res) {
       const {
         doctor_id, doctor_name, date, time_slot,
         payment_method, fee, notes,
-        is_emergency, professional_role,
+        booking_type,
       } = req.body;
 
       if (!date) {
@@ -49,9 +49,11 @@ module.exports = async function handler(req, res) {
       if (payment_method && !['cash', 'visa', 'card'].includes(payment_method)) {
         return res.status(400).json({ success: false, message: 'Invalid payment method' });
       }
-      if (professional_role && !['doctor', 'coach'].includes(professional_role)) {
-        return res.status(400).json({ success: false, message: 'Invalid professional role' });
+      if (booking_type && !['regular', 'emergency'].includes(booking_type)) {
+        return res.status(400).json({ success: false, message: 'Invalid booking type' });
       }
+
+      const isEmergency = booking_type === 'emergency';
 
       // Determine fee: if not provided, look up doctor's rates
       let resolvedFee = fee;
@@ -60,13 +62,11 @@ module.exports = async function handler(req, res) {
           const { data: doc } = await supabase
             .from('users').select('regular_rate, emergency_rate').eq('id', doctor_id).single();
           if (doc) {
-            resolvedFee = is_emergency ? (doc.emergency_rate || 400) : (doc.regular_rate || 200);
+            resolvedFee = isEmergency ? (doc.emergency_rate || 400) : (doc.regular_rate || 200);
           }
         }
-        resolvedFee = resolvedFee || (is_emergency ? 400 : 200);
+        resolvedFee = resolvedFee || (isEmergency ? 400 : 200);
       }
-
-      const bookingType = is_emergency ? 'emergency' : 'regular';
 
       const { data: booking, error } = await supabase
         .from('bookings')
@@ -74,14 +74,12 @@ module.exports = async function handler(req, res) {
           user_id: userId,
           doctor_id: doctor_id || null,
           doctor_name: doctor_name || 'Doctor',
-          professional_role: professional_role || 'doctor',
           date: date,
           time_slot: time_slot || null,
           payment_method: payment_method || 'cash',
           payment_status: payment_method === 'visa' ? 'paid' : 'pending',
           fee: resolvedFee,
-          is_emergency: !!is_emergency,
-          booking_type: bookingType,
+          booking_type: booking_type || 'regular',
           notes: notes || null,
           status: 'confirmed',
           created_at: new Date().toISOString(),

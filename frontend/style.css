@@ -823,6 +823,9 @@ p  { color: var(--text-secondary); }
   border-bottom-left-radius: 4px;
 }
 .pro-msg-time { font-size: 0.7rem; color: var(--text-muted); margin-top: 3px; }
+.pro-msg-bubble .pro-msg-list { margin: 4px 0 4px 18px; padding: 0; }
+.pro-msg-bubble .pro-msg-list li { margin: 2px 0; }
+.pro-msg-bubble strong { font-weight: 700; }
 .pro-chat-input {
   display: flex;
   gap: 10px;
