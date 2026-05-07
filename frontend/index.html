@@ -1164,7 +1164,7 @@
           <span class="step">3. Payment</span>
         </div>
         <input type="text" id="deliveryName" placeholder="Full Name" class="form-input">
-        <input type="tel" id="deliveryPhone" placeholder="Phone Number" class="form-input">
+        <input type="tel" id="deliveryPhone" placeholder="Phone Number (11 digits)" class="form-input" maxlength="11" inputmode="numeric" pattern="[0-9]{11}" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,11)">
         <input type="text" id="deliveryAddress" placeholder="Delivery Address (street, city)" class="form-input">
         <textarea id="deliveryNotes" placeholder="Notes for the courier (optional)" class="form-input" rows="2" style="resize:vertical"></textarea>
         <div class="checkout-nav">
@@ -1221,7 +1221,7 @@
         <input type="text" id="visaCard" placeholder="Card Number (1234 5678 9012 3456)" maxlength="19" class="form-input" oninput="formatCardNumber(this)">
         <div class="form-row">
           <input type="text" id="visaExpiry" placeholder="MM/YY" maxlength="5" class="form-input" oninput="formatExpiry(this)">
-          <input type="password" id="visaCvv" placeholder="CVV" maxlength="4" class="form-input">
+          <input type="password" id="visaCvv" placeholder="CVV" maxlength="4" class="form-input" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)">
         </div>
         <input type="text" id="visaName" placeholder="Name on Card" class="form-input">
         <button class="btn btn-primary btn-full" onclick="processVisaPayment()">

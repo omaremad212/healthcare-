@@ -233,6 +233,105 @@ function syncHashFor(viewId) {
   history.replaceState(null, '', desired || location.pathname + location.search);
 }
 
+// ── Validators ─────────────────────────────────────────────────
+// Shared rules. Mirror the same checks server-side.
+const Validators = {
+  required: v => (v && String(v).trim().length > 0) || 'This field is required',
+  email: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim()) || 'Enter a valid email address',
+  // Phone: exactly 11 digits (Egyptian format), digits only
+  phone: v => /^[0-9]{11}$/.test(String(v).replace(/\s+/g, '')) || 'Phone must be exactly 11 digits',
+  // Password: min 8, must include letter and digit
+  password: v => {
+    const s = String(v);
+    if (s.length < 8) return 'Password must be at least 8 characters';
+    if (!/[A-Za-z]/.test(s) || !/[0-9]/.test(s)) return 'Password must include letters and numbers';
+    return true;
+  },
+  // Name: 2-80 letters and spaces (supports Latin, Arabic)
+  name: v => /^[A-Za-zÀ-ɏء-ي\s]{2,80}$/.test(String(v).trim()) || 'Name must be 2–80 letters only',
+  username: v => /^[a-zA-Z0-9_]{3,20}$/.test(String(v).trim()) || 'Username must be 3–20 letters, numbers, or underscores',
+  // Address: ≥ 15 chars and not all whitespace/repeated
+  address: v => {
+    const s = String(v).trim();
+    if (s.length < 15) return 'Address must be at least 15 characters';
+    if (/^(.)\1+$/.test(s.replace(/\s/g, ''))) return 'Please enter a real address';
+    return true;
+  },
+  positiveInt: (min, max) => v => {
+    const n = parseInt(v, 10);
+    if (isNaN(n)) return 'Enter a valid number';
+    if (n < min) return `Must be at least ${min}`;
+    if (n > max) return `Must be at most ${max}`;
+    return true;
+  },
+  cardNumber: v => /^[0-9]{13,19}$/.test(String(v).replace(/\s+/g, '')) || 'Card number must be 13–19 digits',
+  cardExpiry: v => {
+    const s = String(v).trim();
+    if (!/^(0[1-9]|1[0-2])\/[0-9]{2}$/.test(s)) return 'Expiry must be MM/YY';
+    const [mm, yy] = s.split('/').map(Number);
+    const now = new Date();
+    const expDate = new Date(2000 + yy, mm - 1, 1);
+    expDate.setMonth(expDate.getMonth() + 1);
+    if (expDate <= now) return 'Card has expired';
+    return true;
+  },
+  cardCvv: v => /^[0-9]{3,4}$/.test(String(v).trim()) || 'CVV must be 3 or 4 digits',
+  futureDate: v => {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return 'Pick a valid date';
+    const today = new Date(); today.setHours(0,0,0,0);
+    if (d < today) return 'Date cannot be in the past';
+    return true;
+  },
+  rating: v => {
+    const n = Number(v);
+    return (n >= 1 && n <= 5) || 'Pick a rating from 1 to 5';
+  },
+};
+
+function showFieldError(inputEl, msg) {
+  if (!inputEl) return;
+  let err = inputEl.nextElementSibling;
+  if (!err || !err.classList.contains('field-error-msg')) {
+    err = document.createElement('div');
+    err.className = 'field-error-msg';
+    inputEl.parentNode.insertBefore(err, inputEl.nextSibling);
+  }
+  err.textContent = msg || '';
+  err.style.display = msg ? 'block' : 'none';
+  inputEl.classList.toggle('field-invalid', !!msg);
+  inputEl.classList.toggle('field-valid',   !msg);
+}
+
+function clearFieldError(inputEl) { showFieldError(inputEl, ''); inputEl.classList.remove('field-valid', 'field-invalid'); }
+
+// Validate a single field. spec: { id, rules: [fn], optional: bool }
+function validateField(spec) {
+  const el = document.getElementById(spec.id);
+  if (!el) return true;
+  const v = (el.value || '').trim();
+  if (!v) {
+    if (spec.optional) { clearFieldError(el); return true; }
+    showFieldError(el, 'This field is required');
+    return false;
+  }
+  for (const rule of (spec.rules || [])) {
+    const result = rule(v);
+    if (result !== true) { showFieldError(el, result); return false; }
+  }
+  showFieldError(el, '');
+  return true;
+}
+
+// Validate a list of specs; returns true if all pass.
+function validateAll(specs) {
+  let ok = true;
+  for (const s of specs) {
+    if (!validateField(s)) ok = false;
+  }
+  return ok;
+}
+
 // ── API Helper ─────────────────────────────────────────────────
 async function apiCall(method, path, body = null) {
   const headers = { 'Content-Type': 'application/json' };
@@ -404,40 +503,49 @@ function setAuthLoading(loading) {
 async function handleAuth(event) {
   event.preventDefault();
   hideAuthError();
-  setAuthLoading(true);
 
-  const email   = document.getElementById('authEmail').value.trim();
-  const pass    = document.getElementById('authPass').value;
   const isLogin = authMode === 'login';
+  const role    = document.getElementById('authRole')?.value || 'patient';
 
-  if (!email || !pass) {
-    showAuthError('Please fill in all required fields.');
-    setAuthLoading(false);
-    return;
+  // Build a strict spec for the active form.
+  const specs = [
+    { id: 'authEmail', rules: [Validators.email] },
+    { id: 'authPass',  rules: [Validators.password] },
+  ];
+  if (!isLogin) {
+    specs.push({ id: 'authName', rules: [Validators.name] });
+    if (role === 'patient') {
+      specs.push({ id: 'patientAge', optional: true, rules: [Validators.positiveInt(1, 120)] });
+    } else if (role === 'doctor') {
+      specs.push({ id: 'docSpec',   rules: [v => v.length >= 2 || 'Specialization is required'] });
+      specs.push({ id: 'docExp',    rules: [Validators.positiveInt(0, 80)] });
+      specs.push({ id: 'docClinic', rules: [Validators.address] });
+    } else if (role === 'coach') {
+      specs.push({ id: 'coachType', rules: [v => v.length >= 2 || 'Training type is required'] });
+      specs.push({ id: 'coachExp',  rules: [Validators.positiveInt(0, 80)] });
+    }
   }
-  if (pass.length < 6) {
-    showAuthError('Password must be at least 6 characters.');
-    setAuthLoading(false);
-    return;
-  }
+  if (!validateAll(specs)) { showAuthError('Please correct the highlighted fields.'); return; }
+
+  setAuthLoading(true);
+  const email = document.getElementById('authEmail').value.trim();
+  const pass  = document.getElementById('authPass').value;
 
   let result;
   if (isLogin) {
     result = await apiCall('POST', '/auth/login', { email, password: pass });
   } else {
     const name = document.getElementById('authName').value.trim();
-    const role = document.getElementById('authRole')?.value || 'patient';
-    if (!name) { showAuthError('Please enter your name.'); setAuthLoading(false); return; }
     const extra = {};
     if (role === 'patient') {
       extra.age    = document.getElementById('patientAge')?.value || null;
       extra.gender = document.getElementById('patientGender')?.value || null;
     } else if (role === 'doctor') {
-      extra.specialization  = document.getElementById('docSpec')?.value || null;
+      extra.specialization  = document.getElementById('docSpec')?.value.trim();
       extra.yearsExperience = document.getElementById('docExp')?.value || null;
-      extra.clinicAddress   = document.getElementById('docClinic')?.value || null;
+      extra.clinicAddress   = document.getElementById('docClinic')?.value.trim();
     } else if (role === 'coach') {
-      extra.trainingType    = document.getElementById('coachType')?.value || null;
+      extra.trainingType    = document.getElementById('coachType')?.value.trim();
       extra.yearsExperience = document.getElementById('coachExp')?.value || null;
     }
     result = await apiCall('POST', '/auth/register', { name, email, password: pass, role, ...extra });
@@ -1680,6 +1788,25 @@ async function loadProfileData() {
 }
 
 async function saveProfile() {
+  // Validate
+  const specs = [
+    { id: 'profileDisplayName', optional: true, rules: [v => v.length >= 2 || 'Display name must be at least 2 characters'] },
+    { id: 'profileName',        optional: true, rules: [Validators.name] },
+    { id: 'profileUsername',    optional: true, rules: [Validators.username] },
+    { id: 'profileEmail',       optional: true, rules: [Validators.email] },
+    { id: 'profileAge',         optional: true, rules: [Validators.positiveInt(1, 120)] },
+  ];
+  if (currentUser?.role === 'doctor' || currentUser?.role === 'coach') {
+    specs.push({ id: 'profYearsExp', optional: true, rules: [Validators.positiveInt(0, 80)] });
+    specs.push({ id: 'profRegRate',  optional: true, rules: [Validators.positiveInt(0, 100000)] });
+    specs.push({ id: 'profEmgRate',  optional: true, rules: [Validators.positiveInt(0, 200000)] });
+  }
+  if (!validateAll(specs)) {
+    const errEl = document.getElementById('profileErr');
+    if (errEl) { errEl.textContent = 'Please correct the highlighted fields.'; errEl.style.display = 'block'; }
+    return;
+  }
+
   const updates = {};
   const dName = getVal('profileDisplayName').trim();
   const name  = getVal('profileName').trim();
@@ -1752,7 +1879,8 @@ async function changePassword() {
   setDisplay('securityMsg', 'none');
 
   if (!cur || !nw || !conf) { errEl.textContent = 'Please fill in all fields.'; errEl.style.display = 'block'; return; }
-  if (nw.length < 6)        { errEl.textContent = 'New password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
+  const pwdResult = Validators.password(nw);
+  if (pwdResult !== true) { errEl.textContent = pwdResult; errEl.style.display = 'block'; return; }
   if (nw !== conf)          { errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; return; }
 
   setEl('pwdSaveTxt', '');
@@ -2067,15 +2195,13 @@ async function selectPayment(method) {
 }
 
 async function processVisaPayment() {
-  const card   = getVal('visaCard').replace(/\s/g,'');
-  const expiry = getVal('visaExpiry');
-  const cvv    = getVal('visaCvv');
-  const name   = getVal('visaName').trim();
-
-  if (!card || card.length < 13 || !expiry || !cvv || !name) {
-    showToast('Please fill in all card details.', 'warning');
-    return;
-  }
+  const ok = validateAll([
+    { id: 'visaCard',   rules: [Validators.cardNumber] },
+    { id: 'visaExpiry', rules: [Validators.cardExpiry] },
+    { id: 'visaCvv',    rules: [Validators.cardCvv] },
+    { id: 'visaName',   rules: [Validators.name] },
+  ]);
+  if (!ok) { showToast('Please correct the card details.', 'warning'); return; }
 
   // For shop orders, place the order now (after card details).
   if (currentPayDoc === 'Shop Order') {
@@ -2337,11 +2463,17 @@ function summaryContinue() {
 }
 
 function deliveryContinue() {
+  const ok = validateAll([
+    { id: 'deliveryName',    rules: [Validators.name] },
+    { id: 'deliveryPhone',   rules: [Validators.phone] },
+    { id: 'deliveryAddress', rules: [Validators.address] },
+  ]);
+  if (!ok) { showToast('Please correct the highlighted fields.', 'warning'); return; }
+
   const name    = getVal('deliveryName').trim();
   const phone   = getVal('deliveryPhone').trim();
   const address = getVal('deliveryAddress').trim();
   const notes   = getVal('deliveryNotes').trim();
-  if (!name || !phone || !address) { showToast('Please fill in all delivery fields.', 'warning'); return; }
   pendingDelivery = { name, phone, address, notes };
   setEl('shopPayTotal', `Total: $${(parseFloat(currentPayPrice) || 0).toFixed(2)}`);
   goToCheckoutStep('pay-step-shop-pay');

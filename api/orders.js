@@ -51,6 +51,32 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'Order must have at least one item' });
       }
 
+      // Strict delivery validation
+      const phone = String(deliveryPhone || '').replace(/\s+/g, '');
+      const addr  = String(deliveryAddress || '').trim();
+      const dname = String(deliveryName || '').trim();
+      if (!/^[A-Za-zÀ-ɏء-ي\s]{2,80}$/.test(dname)) {
+        return res.status(400).json({ success: false, message: 'Invalid delivery name' });
+      }
+      if (!/^[0-9]{11}$/.test(phone)) {
+        return res.status(400).json({ success: false, message: 'Phone must be exactly 11 digits' });
+      }
+      if (addr.length < 15) {
+        return res.status(400).json({ success: false, message: 'Address must be at least 15 characters' });
+      }
+      if (!['cash', 'visa', 'card'].includes(paymentMethod)) {
+        return res.status(400).json({ success: false, message: 'Invalid payment method' });
+      }
+      // Validate each item
+      for (const it of items) {
+        if (!it || typeof it.price !== 'number' || it.price < 0) {
+          return res.status(400).json({ success: false, message: 'Invalid item price' });
+        }
+        if (it.quantity !== undefined && (typeof it.quantity !== 'number' || it.quantity < 1 || it.quantity > 999)) {
+          return res.status(400).json({ success: false, message: 'Invalid item quantity' });
+        }
+      }
+
       const totalAmount = items.reduce((sum, i) => sum + (i.price * (i.quantity || 1)), 0);
 
       const { data: order, error } = await supabase

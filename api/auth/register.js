@@ -22,10 +22,29 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ success: false, message: 'Name, email, and password are required' });
     }
 
+    // Strict validation (mirrors frontend Validators)
+    const trimmedName  = String(name).trim();
+    const trimmedEmail = String(email).trim().toLowerCase();
+    if (!/^[A-Za-zÀ-ɏء-ي\s]{2,80}$/.test(trimmedName)) {
+      return res.status(400).json({ success: false, message: 'Name must be 2-80 letters only' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      return res.status(400).json({ success: false, message: 'Invalid email format' });
+    }
+    if (String(password).length < 8) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+    }
+    if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ success: false, message: 'Password must include letters and numbers' });
+    }
+    if (role && !['patient', 'doctor', 'coach'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role' });
+    }
+
     const { data: existingUsers } = await supabase
       .from('users')
       .select('id')
-      .eq('email', email)
+      .eq('email', trimmedEmail)
       .limit(1);
 
     if (existingUsers && existingUsers.length > 0) {
@@ -38,8 +57,8 @@ module.exports = async function handler(req, res) {
     const { data: newUser, error } = await supabase
       .from('users')
       .insert({
-        name,
-        email,
+        name: trimmedName,
+        email: trimmedEmail,
         password: hashedPassword,
         role: role || 'patient',
         age: role === 'patient' ? age : null,

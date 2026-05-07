@@ -37,6 +37,22 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'Date is required' });
       }
 
+      // Validate date is not in the past (allow today)
+      const bookingDate = new Date(date);
+      if (isNaN(bookingDate.getTime())) {
+        return res.status(400).json({ success: false, message: 'Invalid date format' });
+      }
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (bookingDate < today) {
+        return res.status(400).json({ success: false, message: 'Booking date cannot be in the past' });
+      }
+      if (payment_method && !['cash', 'visa', 'card'].includes(payment_method)) {
+        return res.status(400).json({ success: false, message: 'Invalid payment method' });
+      }
+      if (professional_role && !['doctor', 'coach'].includes(professional_role)) {
+        return res.status(400).json({ success: false, message: 'Invalid professional role' });
+      }
+
       // Determine fee: if not provided, look up doctor's rates
       let resolvedFee = fee;
       if (resolvedFee === undefined || resolvedFee === null) {
