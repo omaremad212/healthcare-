@@ -2826,3 +2826,66 @@ p  { color: var(--text-secondary); }
   .checkout-stepper .step { font-size: 0.7rem; padding: 5px 6px; }
 }
 
+
+/* ── Dashboard Booking + Order Cards ─────────────────────────── */
+.bookings-list, .orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+#bookingsSection, #ordersSection { margin-top: 32px; }
+
+.dash-item-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.dash-item-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 14px -8px rgba(15,23,42,.15);
+}
+
+.dash-item-icon {
+  flex: 0 0 auto;
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  color: white;
+}
+.dash-item-icon.icon-blue  { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.dash-item-icon.icon-green { background: linear-gradient(135deg, #10b981, #059669); }
+
+.dash-item-body { flex: 1; min-width: 0; }
+.dash-item-body strong {
+  display: block;
+  font-size: 0.92rem;
+  color: #0f172a;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash-item-meta {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.dash-item-tags {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .dash-item-card { flex-wrap: wrap; }
+  .dash-item-tags { width: 100%; justify-content: flex-end; margin-top: 4px; }
+}
