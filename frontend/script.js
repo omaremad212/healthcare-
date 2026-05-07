@@ -2079,14 +2079,22 @@ function previewAvatar(url) {
 async function loadProducts() {
   const grid = document.getElementById('shopGrid');
   if (!grid) return;
+
+  // Show "Add Product" only to logged-in users
+  const addBtn = document.getElementById('addProductBtn');
+  if (addBtn) addBtn.style.display = currentUser ? 'inline-flex' : 'none';
+
   grid.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading products…</p></div>';
   const result = await apiCall('GET', '/products');
   if (!result.ok || !result.data?.data) {
     grid.innerHTML = '<div class="loading-state"><i class="fa-solid fa-box-open"></i><p>Unable to load products.</p></div>';
     return;
   }
-  grid.innerHTML = result.data.data.map(p => `
+  grid.innerHTML = result.data.data.map(p => {
+    const canDelete = !!(currentUser && p.id);
+    return `
     <div class="product-card">
+      ${canDelete ? `<button class="product-delete-btn" title="Remove product" onclick="deleteProduct('${escHtml(p.id)}','${escHtml(p.name)}')"><i class="fa-solid fa-trash"></i></button>` : ''}
       <div class="product-icon"><i class="fa-solid ${p.icon || 'fa-capsules'}"></i></div>
       <div class="product-name">${escHtml(p.name)}</div>
       <div class="product-desc">${escHtml(p.description || '')}</div>
@@ -2094,7 +2102,51 @@ async function loadProducts() {
       <button class="btn btn-primary" onclick="addToCart('${escHtml(p.id || p.name)}','${escHtml(p.name)}',${p.price})">
         <i class="fa-solid fa-cart-plus"></i> Add to Cart
       </button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+function openAddProductModal() {
+  if (!currentUser) { openModal('login'); return; }
+  document.getElementById('addProductForm')?.reset();
+  document.getElementById('addProductModal').style.display = 'flex';
+}
+
+function closeAddProductModal() {
+  document.getElementById('addProductModal').style.display = 'none';
+}
+
+async function submitNewProduct(event) {
+  event.preventDefault();
+  const name = document.getElementById('newProdName').value.trim();
+  const description = document.getElementById('newProdDesc').value.trim();
+  const price = parseFloat(document.getElementById('newProdPrice').value);
+  const category = document.getElementById('newProdCategory').value;
+  const icon = document.getElementById('newProdIcon').value;
+
+  if (name.length < 2) { showToast('Name must be at least 2 characters', 'warning'); return; }
+  if (!Number.isFinite(price) || price <= 0) { showToast('Price must be greater than 0', 'warning'); return; }
+
+  const result = await apiCall('POST', '/products', { name, description, price, category, icon });
+  if (!result.ok) {
+    showToast(result.data?.message || 'Failed to add product', 'error');
+    return;
+  }
+  showToast(`${name} added to the shop`, 'success');
+  closeAddProductModal();
+  loadProducts();
+}
+
+async function deleteProduct(id, name) {
+  if (!currentUser) { openModal('login'); return; }
+  if (!confirm(`Remove "${name}" from the shop?`)) return;
+  const result = await apiCall('DELETE', `/products?id=${encodeURIComponent(id)}`);
+  if (!result.ok) {
+    showToast(result.data?.message || 'Failed to remove product', 'error');
+    return;
+  }
+  showToast(`${name} removed`, 'success');
+  loadProducts();
 }
 
 function addToCart(productId, name, price) {

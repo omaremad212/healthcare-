@@ -22,7 +22,7 @@ const defaultProducts = [
 ];
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'GET' && req.method !== 'POST') {
+  if (req.method !== 'GET' && req.method !== 'POST' && req.method !== 'DELETE') {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   }
 
@@ -61,6 +61,20 @@ module.exports = async function handler(req, res) {
       }
 
       res.status(200).json({ success: true, count: products.length, data: products });
+    } else if (req.method === 'DELETE') {
+      const userId = getUserIdFromToken(req.headers.authorization);
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Not authorized' });
+      }
+      const { id } = req.query;
+      if (!id) {
+        return res.status(400).json({ success: false, message: 'Product id is required' });
+      }
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) {
+        return res.status(500).json({ success: false, message: error.message });
+      }
+      return res.status(200).json({ success: true });
     } else if (req.method === 'POST') {
       const authHeader = req.headers.authorization;
       const userId = getUserIdFromToken(authHeader);
@@ -69,7 +83,47 @@ module.exports = async function handler(req, res) {
         return res.status(401).json({ success: false, message: 'Not authorized - invalid token' });
       }
 
-      const { items, payment_method, delivery_name, delivery_phone, delivery_address, card_name, card_number, card_expiry, card_cvv } = req.body;
+      const body = req.body || {};
+
+      // Distinguish "add product" from "place order" by the presence of items[].
+      if (!body.items && body.name) {
+        const name = String(body.name || '').trim();
+        const description = String(body.description || '').trim();
+        const priceNum = Number(body.price);
+        const category = String(body.category || 'supplement').trim();
+        const icon = String(body.icon || 'fa-capsules').trim();
+
+        if (name.length < 2 || name.length > 100) {
+          return res.status(400).json({ success: false, message: 'Name must be 2–100 characters' });
+        }
+        if (description.length > 500) {
+          return res.status(400).json({ success: false, message: 'Description too long (max 500 chars)' });
+        }
+        if (!Number.isFinite(priceNum) || priceNum <= 0 || priceNum > 100000) {
+          return res.status(400).json({ success: false, message: 'Price must be a positive number' });
+        }
+
+        const { data: product, error } = await supabase
+          .from('products')
+          .insert({
+            name,
+            description: description || null,
+            price: priceNum,
+            category,
+            icon,
+            in_stock: true,
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (error) {
+          return res.status(500).json({ success: false, message: error.message });
+        }
+        return res.status(201).json({ success: true, data: product });
+      }
+
+      const { items, payment_method, delivery_name, delivery_phone, delivery_address, card_name, card_number, card_expiry, card_cvv } = body;
 
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ success: false, message: 'Order must have at least one item' });

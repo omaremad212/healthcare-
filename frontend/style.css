@@ -1590,6 +1590,7 @@ p  { color: var(--text-secondary); }
   gap: 20px;
 }
 .product-card {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
@@ -1618,6 +1619,28 @@ p  { color: var(--text-secondary); }
 .product-desc { font-size: 0.83rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
 .product-price { font-size: 1.35rem; font-weight: 800; color: var(--primary); margin-bottom: 16px; }
 .product-card .btn { width: 100%; justify-content: center; }
+.product-delete-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  transition: var(--t-fast);
+}
+.product-delete-btn:hover {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
 
 .cart-indicator {
   display: flex;
