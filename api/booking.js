@@ -50,23 +50,18 @@ module.exports = async function handler(req, res) {
         resolvedFee = resolvedFee || (is_emergency ? 400 : 200);
       }
 
-      const bookingType = is_emergency ? 'emergency' : 'regular';
-
       const { data: booking, error } = await supabase
         .from('bookings')
         .insert({
           user_id: userId,
           doctor_id: doctor_id || null,
           doctor_name: doctor_name || 'Doctor',
-          professional_role: professional_role || 'doctor',
           date: date,
           time_slot: time_slot || null,
           payment_method: payment_method || 'cash',
           payment_status: payment_method === 'visa' ? 'paid' : 'pending',
           fee: resolvedFee,
-          is_emergency: !!is_emergency,
-          booking_type: bookingType,
-          notes: notes || null,
+          notes: is_emergency ? `[EMERGENCY] ${notes || ''}`.trim() : (notes || null),
           status: 'confirmed',
           created_at: new Date().toISOString(),
         })

@@ -22,6 +22,8 @@ let usernameCheckTimer = null;
 let emergencyDataLoaded = false;
 let pendingDelivery = null;             // multi-step shop checkout
 let pendingReferralSpecialty = null;    // assessment-modal → book-doctor handoff
+let chatSessions = [];                  // [{id, title, mode, messages, assessment, assessmentType, createdAt, updatedAt}]
+let currentSessionId = null;
 
 (function init() {
   const stored = localStorage.getItem('hc_user');
@@ -35,9 +37,159 @@ let pendingReferralSpecialty = null;    // assessment-modal → book-doctor hand
 function onDOMReady() {
   if (currentUser) applyLoggedInUI();
   initStatsCounter();
+  loadChatSessions();
+  renderChatHistorySidebar();
   // Restore the view from the URL hash so refresh keeps you where you were.
   routeFromHash();
   window.addEventListener('hashchange', routeFromHash);
+}
+
+// ── Chat Sessions (history) ────────────────────────────────────
+function loadChatSessions() {
+  try {
+    chatSessions = JSON.parse(localStorage.getItem('hc_chat_sessions') || '[]');
+  } catch (e) { chatSessions = []; }
+}
+
+function saveChatSessions() {
+  // Keep the most recent 30
+  const trimmed = chatSessions.slice(0, 30);
+  localStorage.setItem('hc_chat_sessions', JSON.stringify(trimmed));
+}
+
+function createNewChatSession(mode) {
+  const id = 'cs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  const session = {
+    id,
+    title: mode === 'fitness' ? 'New Fitness Chat' : 'New Medical Chat',
+    mode,
+    messages: [],
+    assessment: null,
+    assessmentType: null,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  chatSessions.unshift(session);
+  currentSessionId = id;
+  saveChatSessions();
+  renderChatHistorySidebar();
+  return session;
+}
+
+function getCurrentSession() {
+  return chatSessions.find(s => s.id === currentSessionId) || null;
+}
+
+function updateCurrentSession(patch) {
+  const s = getCurrentSession();
+  if (!s) return;
+  Object.assign(s, patch, { updatedAt: Date.now() });
+  saveChatSessions();
+  renderChatHistorySidebar();
+}
+
+function appendMessageToSession(role, content) {
+  const s = getCurrentSession();
+  if (!s) return;
+  s.messages.push({ role, content });
+  // Auto-title from first user message
+  if (role === 'user' && (s.title.startsWith('New ') || !s.title)) {
+    s.title = content.slice(0, 48) + (content.length > 48 ? '…' : '');
+  }
+  s.updatedAt = Date.now();
+  saveChatSessions();
+  renderChatHistorySidebar();
+}
+
+function renderChatHistorySidebar() {
+  const wrap = document.getElementById('sidebarHistoryWrap');
+  const list = document.getElementById('chatHistoryList');
+  if (!wrap || !list) return;
+  if (!chatSessions.length) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'flex';
+  list.innerHTML = chatSessions.map(s => {
+    const active = s.id === currentSessionId ? 'active' : '';
+    const isFit = s.mode === 'fitness';
+    const icon  = isFit ? 'fa-dumbbell' : 'fa-stethoscope';
+    const date  = new Date(s.updatedAt).toLocaleDateString();
+    const meta  = `${ucFirst(s.mode || 'chat')} · ${date}`;
+    return `
+      <button class="sidebar-history-item ${active}" onclick="loadChatSession('${s.id}')">
+        <div class="shi-icon ${isFit ? 'fitness' : ''}"><i class="fa-solid ${icon}"></i></div>
+        <div class="shi-body">
+          <div class="shi-title">${escHtml(s.title || 'Untitled chat')}</div>
+          <div class="shi-meta">${escHtml(meta)}</div>
+        </div>
+        <span class="shi-delete" onclick="event.stopPropagation();deleteChatSession('${s.id}')" title="Delete">
+          <i class="fa-solid fa-trash"></i>
+        </span>
+      </button>`;
+  }).join('');
+}
+
+function loadChatSession(id) {
+  const s = chatSessions.find(x => x.id === id);
+  if (!s) return;
+  currentSessionId = id;
+  chatMode = s.mode;
+  conversationMessages = s.messages.map(m => ({ ...m }));
+  currentAssessment = s.assessment ? { ...s.assessment, type: s.assessmentType } : null;
+
+  showView('chat');
+
+  // Hide welcome, show input area
+  const welcome = document.getElementById('chatWelcome');
+  if (welcome) welcome.style.display = 'none';
+  const inputArea = document.getElementById('chatInputArea');
+  if (inputArea) inputArea.style.display = 'block';
+
+  // Update sidebar label
+  const label = document.getElementById('sidebarModeLabel');
+  if (label) label.textContent = s.mode === 'fitness' ? 'Fitness Coach AI' : 'Medical AI';
+
+  // Render messages
+  const container = document.getElementById('chatMessages');
+  if (container) {
+    container.innerHTML = '';
+    s.messages.forEach(m => appendChatMessage(m.role === 'assistant' ? 'bot' : m.role, m.content));
+    if (s.assessment) showAssessmentReadyBanner(s.assessmentType);
+  }
+
+  renderChatHistorySidebar();
+}
+
+function deleteChatSession(id) {
+  chatSessions = chatSessions.filter(s => s.id !== id);
+  if (currentSessionId === id) {
+    currentSessionId = null;
+    conversationMessages = [];
+    chatMode = null;
+    currentAssessment = null;
+    resetChatUI();
+  }
+  saveChatSessions();
+  renderChatHistorySidebar();
+}
+
+function clearAllChatSessions() {
+  if (!confirm('Delete all saved chats? This cannot be undone.')) return;
+  chatSessions = [];
+  currentSessionId = null;
+  saveChatSessions();
+  renderChatHistorySidebar();
+  resetChatUI();
+}
+
+function startNewChatSession() {
+  currentSessionId = null;
+  conversationMessages = [];
+  chatMode = null;
+  currentAssessment = null;
+  resetChatUI();
+  renderChatHistorySidebar();
 }
 
 // ── Hash Routing ───────────────────────────────────────────────
@@ -138,6 +290,23 @@ function startChat() {
 function showShop() {
   showView('shop');
   loadProducts();
+}
+
+function showBookCoach() {
+  if (!currentUser) { openModal('login'); return; }
+  const role = currentUser?.role;
+  if (role === 'doctor' || role === 'coach') {
+    showToast('Booking is for patients only.', 'info');
+    return;
+  }
+  showView('book-doctor');
+  const titleEl = document.getElementById('bookViewTitle');
+  const subEl   = document.getElementById('bookViewSubtitle');
+  if (titleEl) titleEl.textContent = 'Book a Fitness Coach';
+  if (subEl)   subEl.textContent   = 'Choose a certified coach for 1-on-1 sessions';
+  currentPayIsEmergency = false;
+  buildSpecGrid();
+  setTimeout(() => selectSpec('Fitness Coaching'), 30);
 }
 
 function showBookDoctor(isEmergency) {
@@ -546,6 +715,9 @@ function selectChatMode(mode) {
   chatMode = mode;
   conversationMessages = [];
 
+  // Create a new chat session for history
+  createNewChatSession(mode);
+
   // Hide welcome
   const welcome = document.getElementById('chatWelcome');
   if (welcome) welcome.style.display = 'none';
@@ -585,6 +757,7 @@ function selectChatMode(mode) {
 
   appendChatMessage('bot', greeting);
   conversationMessages.push({ role: 'assistant', content: greeting });
+  appendMessageToSession('assistant', greeting);
 
   const input = document.getElementById('chatInput');
   if (input) input.focus();
@@ -607,6 +780,7 @@ async function sendChatMessage() {
 
   appendChatMessage('user', text);
   conversationMessages.push({ role: 'user', content: text });
+  appendMessageToSession('user', text);
 
   const sendBtn = document.getElementById('chatSendBtn');
   if (input)   input.disabled   = true;
@@ -632,10 +806,12 @@ async function sendChatMessage() {
   if (message) {
     appendChatMessage('bot', message);
     conversationMessages.push({ role: 'assistant', content: message });
+    appendMessageToSession('assistant', message);
   }
 
   if (isComplete && assessment) {
     currentAssessment = { ...assessment, type: assessmentType };
+    updateCurrentSession({ assessment, assessmentType });
     const results = JSON.parse(localStorage.getItem('hc_chatbot_results') || '[]');
     results.unshift({ assessment: currentAssessment, savedAt: new Date().toISOString() });
     localStorage.setItem('hc_chatbot_results', JSON.stringify(results.slice(0, 20)));
@@ -708,6 +884,10 @@ function showTypingIndicator(show) {
 }
 
 function resetChat() {
+  startNewChatSession();
+}
+
+function resetChatUI() {
   conversationMessages = [];
   currentAssessment    = null;
   chatMode             = null;
@@ -870,6 +1050,7 @@ function renderAssessmentDashboard(a) {
       <p class="condition-overview">${escHtml(a.overview || '')}</p>
     </div>
     <div class="dashboard-sections">
+      ${renderTreatmentPlanSection(a)}
       <div class="dash-section">
         <div class="dash-section-header">
           <div class="dash-section-icon icon-blue"><i class="fa-solid fa-pills"></i></div>
@@ -902,6 +1083,94 @@ function renderAssessmentDashboard(a) {
           <i class="fa-solid fa-calendar-plus"></i> Book an Appointment
         </button>
       </div>
+    </div>`;
+}
+
+function renderTreatmentPlanSection(a) {
+  const steps = [];
+
+  // Step 1: Medications (if any)
+  if (a.medications && a.medications.length) {
+    const medList = a.medications.map(m =>
+      `<li><strong>${escHtml(m.name)}</strong> — ${escHtml(m.dosage || '')} ${escHtml(m.frequency || '')}${m.duration ? ' for ' + escHtml(m.duration) : ''}</li>`
+    ).join('');
+    steps.push({
+      icon: 'fa-pills',
+      title: 'Start Medication',
+      desc: 'Begin the recommended medications as soon as possible.',
+      list: medList,
+      timing: 'Today',
+    });
+  }
+
+  // Step 2: Home remedies & rest
+  if (a.homeRemedies && a.homeRemedies.length) {
+    const remList = a.homeRemedies.map(r => `<li>${escHtml(r)}</li>`).join('');
+    steps.push({
+      icon: 'fa-leaf',
+      title: 'Apply Home Remedies & Rest',
+      desc: 'Support your recovery with these self-care steps.',
+      list: remList,
+      timing: 'Daily, throughout recovery',
+    });
+  }
+
+  // Step 3: Lifestyle adjustments
+  if (a.lifestyle && a.lifestyle.length) {
+    const lsList = a.lifestyle.map(l => `<li>${escHtml(l)}</li>`).join('');
+    steps.push({
+      icon: 'fa-heart',
+      title: 'Lifestyle Adjustments',
+      desc: 'Make these changes to speed up recovery and prevent recurrence.',
+      list: lsList,
+      timing: 'Ongoing',
+    });
+  }
+
+  // Step 4: Monitor for warning signs
+  if (a.warnings && a.warnings.length) {
+    const wList = a.warnings.map(w => `<li>${escHtml(w)}</li>`).join('');
+    steps.push({
+      icon: 'fa-triangle-exclamation',
+      title: 'Monitor & Watch For Warning Signs',
+      desc: 'Seek medical care immediately if any of these occur.',
+      list: wList,
+      timing: 'Throughout recovery',
+    });
+  }
+
+  // Step 5: Follow-up
+  steps.push({
+    icon: 'fa-calendar-check',
+    title: 'Follow-Up',
+    desc: a.followUp || 'If symptoms persist beyond a week or worsen, book an in-person consultation with a specialist.',
+    list: '',
+    timing: a.urgency === 'immediate' ? 'Today' : a.urgency === 'soon' ? 'Within 2–3 days' : 'Within 1 week if no improvement',
+  });
+
+  if (!steps.length) return '';
+
+  const stepsHTML = steps.map((s, i) => `
+    <div class="treatment-step">
+      <div class="treatment-step-num">${i + 1}</div>
+      <div class="treatment-step-body">
+        <div class="treatment-step-title"><i class="fa-solid ${s.icon}"></i> ${escHtml(s.title)}</div>
+        <div class="treatment-step-desc">${escHtml(s.desc)}</div>
+        ${s.list ? `<ul class="treatment-step-list">${s.list}</ul>` : ''}
+        <div class="treatment-step-desc" style="margin-top:6px"><strong>When:</strong> ${escHtml(s.timing)}</div>
+      </div>
+    </div>`).join('');
+
+  return `
+    <div class="dash-section">
+      <div class="dash-section-header">
+        <div class="dash-section-icon icon-blue"><i class="fa-solid fa-clipboard-list"></i></div>
+        <h3>Your Treatment Plan</h3>
+      </div>
+      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:14px">
+        Follow these steps in order for the best recovery.
+      </p>
+      <div class="treatment-plan">${stepsHTML}</div>
     </div>`;
 }
 
@@ -1071,13 +1340,60 @@ function renderFitnessAssessment(a) {
       </div>` : ''}
       ${warningsHTML}
       ${a.coachNote ? `<div class="followup-card"><i class="fa-solid fa-person-running"></i><span>${escHtml(a.coachNote)}</span></div>` : ''}
+      ${a.location === 'gym' ? renderGymPickerSection() : ''}
       <div class="book-cta-card">
         <h3>Want to work with a real fitness coach?</h3>
         <p>Our certified coaches are available for 1-on-1 training sessions.</p>
-        <button class="btn btn-white btn-lg" onclick="showBookDoctor()">
+        <button class="btn btn-white btn-lg" onclick="showBookCoach()">
           <i class="fa-solid fa-calendar-plus"></i> Book a Coach
         </button>
       </div>
+    </div>`;
+}
+
+// ── Gyms ────────────────────────────────────────────────────────
+const GYMS_DATA = [
+  { name: 'Gold\'s Gym',         location: 'New Cairo',          phone: '+20 100 111 2222', monthly: 1200, rating: 4.7 },
+  { name: 'Fitness First',       location: 'Maadi, Cairo',       phone: '+20 122 333 4444', monthly: 1500, rating: 4.8 },
+  { name: 'Smart Gym',           location: 'Heliopolis, Cairo',  phone: '+20 111 555 6666', monthly: 800,  rating: 4.5 },
+  { name: 'PowerHouse Gym',      location: 'Nasr City, Cairo',   phone: '+20 100 777 8888', monthly: 950,  rating: 4.6 },
+  { name: 'California Gym',      location: 'Zamalek, Cairo',     phone: '+20 122 999 0000', monthly: 1100, rating: 4.7 },
+  { name: 'Oxygen Fitness Club', location: '6th October City',   phone: '+20 111 222 3333', monthly: 700,  rating: 4.4 },
+];
+
+function renderGymPickerSection() {
+  const cards = GYMS_DATA.map(g => {
+    const stars = '★'.repeat(Math.floor(g.rating)) + '☆'.repeat(5 - Math.floor(g.rating));
+    return `
+      <div class="gym-card">
+        <div class="gym-card-header">
+          <div class="gym-icon"><i class="fa-solid fa-dumbbell"></i></div>
+          <div>
+            <div class="gym-name">${escHtml(g.name)}</div>
+            <div class="gym-loc"><i class="fa-solid fa-location-dot"></i> ${escHtml(g.location)}</div>
+          </div>
+        </div>
+        <div class="gym-meta">
+          <span>${stars} ${g.rating}</span>
+          <span class="gym-price">EGP ${g.monthly}/mo</span>
+        </div>
+        <div class="gym-actions">
+          <button class="btn btn-primary btn-sm" onclick="window.open('tel:${escHtml(g.phone)}')">
+            <i class="fa-solid fa-phone"></i> Call to Join
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+  return `
+    <div class="dash-section">
+      <div class="dash-section-header">
+        <div class="dash-section-icon icon-orange"><i class="fa-solid fa-dumbbell"></i></div>
+        <h3>Pick a Gym Near You</h3>
+      </div>
+      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:14px">
+        Since you chose to train at a gym, here are recommended gyms in your area.
+      </p>
+      <div class="gym-grid">${cards}</div>
     </div>`;
 }
 

@@ -753,6 +753,176 @@ p  { color: var(--text-secondary); }
 
 .sidebar-actions { padding: 16px 20px; border-bottom: 1px solid var(--border); }
 
+.sidebar-history-wrap {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  max-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-history-header {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sidebar-history-header i { margin-right: 6px; color: var(--primary); }
+.sidebar-history-list {
+  overflow-y: auto;
+  padding: 4px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sidebar-history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: var(--t-fast);
+  background: transparent;
+  border: 1px solid transparent;
+  text-align: left;
+  width: 100%;
+}
+.sidebar-history-item:hover { background: var(--bg); border-color: var(--border); }
+.sidebar-history-item.active { background: var(--primary-light); border-color: var(--primary); }
+.sidebar-history-item .shi-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+.sidebar-history-item .shi-icon.fitness { background: #f97316; }
+.sidebar-history-item .shi-body { flex: 1; min-width: 0; }
+.sidebar-history-item .shi-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-history-item .shi-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.sidebar-history-item .shi-delete {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  font-size: 0.78rem;
+  border-radius: 4px;
+}
+.sidebar-history-item:hover .shi-delete { opacity: 1; }
+.sidebar-history-item .shi-delete:hover { background: var(--danger-light); color: var(--danger); }
+.sidebar-history-empty {
+  padding: 12px 16px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Treatment Plan timeline */
+.treatment-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.treatment-step {
+  display: flex;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  position: relative;
+}
+.treatment-step-num {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.treatment-step-body { flex: 1; }
+.treatment-step-title {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.treatment-step-title i { color: var(--primary); }
+.treatment-step-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; }
+.treatment-step-list { margin: 8px 0 0 0; padding-left: 18px; color: var(--text-secondary); font-size: 0.88rem; }
+.treatment-step-list li { margin-bottom: 4px; }
+
+/* Gym picker */
+.gym-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.gym-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: var(--t-fast);
+}
+.gym-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.gym-card-header { display: flex; align-items: center; gap: 12px; }
+.gym-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.gym-name { font-weight: 700; color: var(--text-primary); }
+.gym-loc { font-size: 0.82rem; color: var(--text-muted); }
+.gym-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.gym-price { font-weight: 700; color: var(--primary); }
+.gym-actions { display: flex; gap: 8px; }
+.gym-actions .btn { flex: 1; }
+
 .sidebar-warning {
   padding: 16px 20px;
   font-size: 0.78rem;
