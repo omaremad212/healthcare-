@@ -1412,7 +1412,7 @@ function loadLocalHistory() {
   const section = document.getElementById('historySection');
   const list    = document.getElementById('historyList');
   if (!section || !list) return;
-  list.innerHTML = stored.slice(0, 5).map(r => {
+  list.innerHTML = stored.slice(0, 5).map((r, i) => {
     const a    = r.assessment;
     if (!a) return '';
     const date = r.savedAt ? new Date(r.savedAt).toLocaleDateString() : 'Unknown date';
@@ -1420,7 +1420,7 @@ function loadLocalHistory() {
     const type = a.type || 'medical';
     const bc   = { mild:'badge-green', moderate:'badge-yellow', severe:'badge-red' }[sev] || 'badge-gray';
     return `
-      <div class="history-item">
+      <div class="history-item" role="button" tabindex="0" onclick="openHistoryAssessment(${i})" onkeydown="if(event.key==='Enter')openHistoryAssessment(${i})" style="cursor:pointer">
         <div>
           <strong>${escHtml(a.condition || a.goal || 'Assessment')}</strong>
           <div style="font-size:0.8rem;color:var(--text-muted);margin-top:3px;">${date} · ${type}</div>
@@ -1429,6 +1429,20 @@ function loadLocalHistory() {
       </div>`;
   }).join('');
   if (list.innerHTML.trim()) section.style.display = 'block';
+}
+
+function openHistoryAssessment(idx) {
+  const stored = JSON.parse(localStorage.getItem('hc_chatbot_results') || '[]');
+  const r = stored[idx];
+  if (!r || !r.assessment) return;
+  currentAssessment = r.assessment;
+  showView('dashboard');
+  if (currentAssessment.type === 'fitness') {
+    renderFitnessAssessment(currentAssessment);
+  } else {
+    renderAssessmentDashboard(currentAssessment);
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ── My Bookings ────────────────────────────────────────────────
