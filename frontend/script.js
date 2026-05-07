@@ -965,6 +965,8 @@ function renderDashboardPage() {
       </div>`;
   }
   loadLocalHistory();
+  loadDashboardBookings();
+  loadDashboardOrders();
 }
 
 function renderAssessmentDashboard(a) {
@@ -973,6 +975,24 @@ function renderAssessmentDashboard(a) {
 
   setEl('dashTitle',    'Your Health Assessment');
   setEl('dashSubtitle', 'Based on your conversation with HealthCare AI');
+
+  const needsSpecialist = !!a.specialistNeeded
+    || (a.severity || '').toLowerCase() === 'severe'
+    || (a.urgency || '').toLowerCase() === 'immediate';
+  const referralSpec = a.specialistNeeded || (needsSpecialist ? 'General Medicine' : null);
+  if (referralSpec) pendingReferralSpecialty = referralSpec;
+  const medsHeading = needsSpecialist ? 'Symptomatic Relief Until You See a Doctor' : 'Recommended Medications';
+  const referralHTML = needsSpecialist ? `
+    <div class="assessment-referral" style="margin-bottom:20px">
+      <div class="referral-icon"><i class="fa-solid fa-user-doctor"></i></div>
+      <div class="referral-body">
+        <strong>This needs a specialist</strong>
+        <p>Based on your assessment, see a ${escHtml(referralSpec)} specialist in person. The medications below are for symptom relief only.</p>
+      </div>
+      <button class="btn btn-primary" onclick="bookFromAssessment()">
+        <i class="fa-solid fa-calendar-plus"></i> Book Now
+      </button>
+    </div>` : '';
 
   const severityBadge = { mild: '<span class="badge badge-green"><i class="fa-solid fa-circle-check"></i> Mild</span>', moderate: '<span class="badge badge-yellow"><i class="fa-solid fa-circle-exclamation"></i> Moderate</span>', severe: '<span class="badge badge-red"><i class="fa-solid fa-triangle-exclamation"></i> Severe</span>' }[a.severity] || '<span class="badge badge-gray">Unknown</span>';
   const urgencyClass = { routine: 'urgency-routine', soon: 'urgency-soon', immediate: 'urgency-immediate' }[a.urgency] || 'urgency-routine';
@@ -1016,6 +1036,7 @@ function renderAssessmentDashboard(a) {
   }
 
   content.innerHTML = `
+    ${referralHTML}
     <div class="condition-card">
       <div class="condition-header">
         <div class="condition-name-row">
@@ -1033,7 +1054,7 @@ function renderAssessmentDashboard(a) {
       <div class="dash-section">
         <div class="dash-section-header">
           <div class="dash-section-icon icon-blue"><i class="fa-solid fa-pills"></i></div>
-          <h3>Recommended Medications</h3>
+          <h3>${medsHeading}</h3>
         </div>
         <div class="medications-grid">${medsHTML}</div>
       </div>
@@ -1056,9 +1077,9 @@ function renderAssessmentDashboard(a) {
       ${warningsHTML}
       ${a.followUp ? `<div class="followup-card"><i class="fa-solid fa-calendar-check"></i><span>${escHtml(a.followUp)}</span></div>` : ''}
       <div class="book-cta-card">
-        <h3>Want to speak with a real doctor?</h3>
-        <p>Our specialists are available for consultation across 10+ fields.</p>
-        <button class="btn btn-white btn-lg" onclick="showBookDoctor()">
+        <h3>${needsSpecialist ? `See a ${escHtml(referralSpec)} specialist` : 'Want to speak with a real doctor?'}</h3>
+        <p>${needsSpecialist ? 'Skip the search — go straight to vetted specialists in this field.' : 'Our specialists are available for consultation across 10+ fields.'}</p>
+        <button class="btn btn-white btn-lg" onclick="${needsSpecialist ? 'bookFromAssessment()' : 'showBookDoctor()'}">
           <i class="fa-solid fa-calendar-plus"></i> Book an Appointment
         </button>
       </div>
@@ -1151,6 +1172,80 @@ function renderTreatmentPlanSection(a) {
       </p>
       <div class="treatment-plan">${stepsHTML}</div>
     </div>`;
+}
+
+async function loadDashboardBookings() {
+  const section = document.getElementById('bookingsSection');
+  const list    = document.getElementById('bookingsList');
+  if (!section || !list) return;
+
+  const result = await apiCall('GET', '/booking');
+  if (!result.ok || !Array.isArray(result.data?.data) || result.data.data.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  list.innerHTML = result.data.data.slice(0, 10).map(b => {
+    const date = b.date ? new Date(b.date).toLocaleDateString() : 'TBD';
+    const slot = b.time_slot ? ` · ${escHtml(b.time_slot)}` : '';
+    const status = (b.status || 'confirmed').toLowerCase();
+    const statusBadge = { confirmed: 'badge-green', cancelled: 'badge-red', completed: 'badge-gray' }[status] || 'badge-gray';
+    const payTag = b.payment_status === 'paid'
+      ? '<span class="badge badge-green">Paid</span>'
+      : `<span class="badge badge-gray">${escHtml(b.payment_method || 'Cash')}</span>`;
+    return `
+      <div class="dash-item-card">
+        <div class="dash-item-icon icon-blue"><i class="fa-solid fa-user-doctor"></i></div>
+        <div class="dash-item-body">
+          <strong>${escHtml(b.doctor_name || 'Doctor Appointment')}</strong>
+          <div class="dash-item-meta">${date}${slot}${b.fee ? ` · EGP ${b.fee}` : ''}</div>
+        </div>
+        <div class="dash-item-tags">
+          <span class="badge ${statusBadge}">${ucFirst(status)}</span>
+          ${payTag}
+        </div>
+      </div>`;
+  }).join('');
+  section.style.display = 'block';
+}
+
+async function loadDashboardOrders() {
+  const section = document.getElementById('ordersSection');
+  const list    = document.getElementById('ordersList');
+  if (!section || !list) return;
+
+  const result = await apiCall('GET', '/orders');
+  if (!result.ok || !Array.isArray(result.data?.data) || result.data.data.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  list.innerHTML = result.data.data.slice(0, 10).map(o => {
+    const date = o.created_at ? new Date(o.created_at).toLocaleDateString() : '';
+    const items = Array.isArray(o.items) ? o.items : [];
+    const itemNames = items.length
+      ? items.map(i => `${escHtml(i.product_name || i.name || 'Item')} ×${i.quantity || 1}`).join(', ')
+      : (o.product_name ? escHtml(o.product_name) : 'Order');
+    const total = o.total_amount || o.total_price || o.total || 0;
+    const status = (o.status || 'processing').toLowerCase();
+    const statusBadge = { processing: 'badge-yellow', shipped: 'badge-blue', delivered: 'badge-green', cancelled: 'badge-red' }[status] || 'badge-gray';
+    const payTag = o.payment_status === 'paid'
+      ? '<span class="badge badge-green">Paid</span>'
+      : `<span class="badge badge-gray">${escHtml(o.payment_method || 'Cash')}</span>`;
+    return `
+      <div class="dash-item-card">
+        <div class="dash-item-icon icon-green"><i class="fa-solid fa-bag-shopping"></i></div>
+        <div class="dash-item-body">
+          <strong>${itemNames}</strong>
+          <div class="dash-item-meta">${date} · $${Number(total).toFixed(2)}</div>
+        </div>
+        <div class="dash-item-tags">
+          <span class="badge ${statusBadge}">${ucFirst(status)}</span>
+          ${payTag}
+        </div>
+      </div>`;
+  }).join('');
+  section.style.display = 'block';
 }
 
 function renderFitnessAssessment(a) {
