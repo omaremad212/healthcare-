@@ -73,6 +73,9 @@
             <button class="dropdown-item" onclick="showProfilePage(); closeUserDropdown();" id="menuProfileItem" style="display:none" role="menuitem">
               <i class="fa-solid fa-user-pen"></i> Edit Profile
             </button>
+            <button class="dropdown-item" onclick="showAdminDashboard(); closeUserDropdown();" id="menuAdminItem" role="menuitem">
+              <i class="fa-solid fa-gauge-high"></i> Admin Dashboard
+            </button>
             <div class="dropdown-divider"></div>
             <button class="dropdown-item dropdown-item-danger" onclick="logout()" role="menuitem">
               <i class="fa-solid fa-right-from-bracket"></i> Sign Out
@@ -743,9 +746,6 @@
           <p class="page-subtitle">Quality supplements and medical devices</p>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-outline btn-sm" id="addProductBtn" onclick="openAddProductModal()" style="display:none">
-            <i class="fa-solid fa-plus"></i> Add Product
-          </button>
           <div class="cart-indicator" id="cartIndicator" style="display:none" onclick="openCheckout()">
             <i class="fa-solid fa-cart-shopping"></i>
             <span id="cartCount">0</span> items · <strong id="cartTotalDisplay">$0.00</strong>
@@ -983,6 +983,120 @@
       <div id="coach-panel" style="display:none">
         <h2 class="section-title-sm">Client Overview</h2>
         <div class="clients-grid" id="coachClientsGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Admin Dashboard View ──────────────────────────────── -->
+  <div id="admin-view" class="view" style="display:none">
+    <div class="container page-container">
+      <div class="page-header">
+        <div>
+          <h1 style="display:flex;align-items:center;gap:10px">
+            <i class="fa-solid fa-gauge-high" style="color:var(--primary)"></i>
+            Admin Dashboard
+          </h1>
+          <p class="page-subtitle">Platform-wide activity and statistics</p>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadAdminData()">
+          <i class="fa-solid fa-rotate"></i> Refresh
+        </button>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="admin-kpi-grid" id="adminKpiGrid">
+        <div class="admin-kpi-card">
+          <div class="admin-kpi-icon" style="background:rgba(37,99,235,0.1);color:#2563eb"><i class="fa-solid fa-users"></i></div>
+          <div class="admin-kpi-body">
+            <div class="admin-kpi-label">Total Users</div>
+            <div class="admin-kpi-value" id="kpiUsers">—</div>
+          </div>
+        </div>
+        <div class="admin-kpi-card">
+          <div class="admin-kpi-icon" style="background:rgba(16,185,129,0.1);color:#10b981"><i class="fa-solid fa-calendar-check"></i></div>
+          <div class="admin-kpi-body">
+            <div class="admin-kpi-label">Total Bookings</div>
+            <div class="admin-kpi-value" id="kpiBookings">—</div>
+          </div>
+        </div>
+        <div class="admin-kpi-card">
+          <div class="admin-kpi-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b"><i class="fa-solid fa-bag-shopping"></i></div>
+          <div class="admin-kpi-body">
+            <div class="admin-kpi-label">Total Orders</div>
+            <div class="admin-kpi-value" id="kpiOrders">—</div>
+          </div>
+        </div>
+        <div class="admin-kpi-card">
+          <div class="admin-kpi-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6"><i class="fa-solid fa-dollar-sign"></i></div>
+          <div class="admin-kpi-body">
+            <div class="admin-kpi-label">Total Revenue</div>
+            <div class="admin-kpi-value" id="kpiRevenue">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-panels-grid">
+
+        <!-- User Role Breakdown -->
+        <div class="admin-panel">
+          <div class="admin-panel-header">
+            <i class="fa-solid fa-chart-pie" style="color:var(--primary)"></i>
+            <h3>User Roles</h3>
+          </div>
+          <div id="adminRoleBreakdown" class="admin-role-list"></div>
+        </div>
+
+        <!-- Booking Status Breakdown -->
+        <div class="admin-panel">
+          <div class="admin-panel-header">
+            <i class="fa-solid fa-chart-bar" style="color:var(--secondary)"></i>
+            <h3>Booking Status</h3>
+          </div>
+          <div id="adminStatusBreakdown" class="admin-role-list"></div>
+        </div>
+
+        <!-- Recent Users -->
+        <div class="admin-panel admin-panel-wide">
+          <div class="admin-panel-header">
+            <i class="fa-solid fa-user-plus" style="color:var(--primary)"></i>
+            <h3>Recent Users</h3>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th></tr></thead>
+              <tbody id="adminUsersTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Recent Bookings -->
+        <div class="admin-panel admin-panel-wide">
+          <div class="admin-panel-header">
+            <i class="fa-solid fa-calendar-days" style="color:var(--secondary)"></i>
+            <h3>Recent Bookings</h3>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead><tr><th>Doctor</th><th>Date</th><th>Slot</th><th>Status</th><th>Fee</th></tr></thead>
+              <tbody id="adminBookingsTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Recent Orders -->
+        <div class="admin-panel admin-panel-wide">
+          <div class="admin-panel-header">
+            <i class="fa-solid fa-cart-shopping" style="color:#f59e0b"></i>
+            <h3>Recent Orders</h3>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead><tr><th>Order ID</th><th>Amount</th><th>Payment</th><th>Status</th><th>Date</th></tr></thead>
+              <tbody id="adminOrdersTable"></tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1471,8 +1585,12 @@
         </div>
         <button class="modal-close" onclick="closeProChat()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
       </div>
+      <div class="pro-chat-advice-note">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>Your doctor can share <strong>advice and guidance</strong> here. For prescriptions or treatment, please visit in person.</span>
+      </div>
       <div class="pro-chat-body" id="proChatBody" aria-live="polite">
-        <div class="pro-chat-empty">Start a conversation. Ask about your medications, plan, or follow-up questions.</div>
+        <div class="pro-chat-empty">Ask your doctor for advice or follow-up guidance about your visit.</div>
       </div>
       <div class="pro-chat-input">
         <textarea id="proChatInput" rows="1" class="form-input"

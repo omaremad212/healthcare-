@@ -1748,6 +1748,7 @@ p  { color: var(--text-secondary); }
 }
 .slot-btn:hover { border-color: var(--primary-border); color: var(--primary); background: var(--primary-light); }
 .slot-btn.selected { background: var(--primary); color: white; border-color: var(--primary); }
+.slot-btn.slot-booked { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; cursor: not-allowed; text-decoration: line-through; opacity: 0.7; }
 .slot-selected-text { font-size: 0.8rem; color: var(--primary); font-weight: 600; min-height: 20px; margin-bottom: 6px; }
 .doctor-actions { display: flex; gap: 10px; }
 .doctor-actions .btn { flex: 1; justify-content: center; font-size: 0.85rem; }
@@ -3327,4 +3328,166 @@ button:focus-visible, a:focus-visible {
 @keyframes skeleton-shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ── Admin Dashboard ───────────────────────────────────────────── */
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.admin-kpi-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.admin-kpi-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+.admin-kpi-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.admin-kpi-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.admin-panels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+.admin-panel {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.admin-panel-wide {
+  grid-column: 1 / -1;
+}
+.admin-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.admin-panel-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+.admin-role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.admin-role-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.admin-role-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.admin-role-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.admin-role-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 60px;
+}
+.admin-role-count {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 28px;
+  text-align: right;
+}
+.admin-table-wrap {
+  overflow-x: auto;
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.admin-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+}
+.admin-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+  color: var(--text-primary);
+}
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: var(--bg); }
+.admin-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.admin-badge-confirmed, .admin-badge-paid     { background:#dcfce7; color:#15803d; }
+.admin-badge-pending                          { background:#fef9c3; color:#a16207; }
+.admin-badge-cancelled                        { background:#fee2e2; color:#b91c1c; }
+.admin-badge-completed, .admin-badge-processing { background:#dbeafe; color:#1d4ed8; }
+.admin-badge-patient  { background:#ede9fe; color:#6d28d9; }
+.admin-badge-doctor   { background:#dbeafe; color:#1d4ed8; }
+.admin-badge-coach    { background:#dcfce7; color:#15803d; }
+
+/* Advice-only disclaimer in pro chat */
+.pro-chat-advice-note {
+  background: #eff6ff;
+  border-left: 3px solid #2563eb;
+  border-radius: 0 8px 8px 0;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  color: #1e40af;
+  margin: 0 0 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.pro-chat-advice-note i { margin-top: 1px; flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .admin-kpi-grid { grid-template-columns: 1fr 1fr; }
+  .admin-kpi-value { font-size: 1.3rem; }
 }
