@@ -194,7 +194,7 @@ function startNewChatSession() {
 }
 
 // ── Hash Routing ───────────────────────────────────────────────
-const PROTECTED_ROUTES = ['chat','dashboard','bookings','profile'];
+const PROTECTED_ROUTES = ['chat','dashboard','bookings','profile','admin'];
 
 function routeFromHash() {
   const raw = (location.hash || '').replace(/^#\/?/, '').trim();
@@ -212,6 +212,7 @@ function routeFromHash() {
     case 'book':         showBookDoctor(); break;
     case 'bookings':     showMyBookings(); break;
     case 'profile':      showProfilePage(); break;
+    case 'admin':        showAdminDashboard(); break;
     case 'home':
     default:             goHome();
   }
@@ -227,6 +228,7 @@ function syncHashFor(viewId) {
     'book-doctor': '#book-doctor',
     'bookings': '#bookings',
     'profile': '#profile',
+    'admin': '#admin',
   };
   const desired = map[viewId];
   if (desired === undefined) return;
@@ -354,7 +356,8 @@ async function apiCall(method, path, body = null) {
 // ── View Routing ───────────────────────────────────────────────
 const ALL_VIEWS = [
   'landing-view','chat-view','dashboard-view','shop-view',
-  'book-doctor-view','bookings-view','profile-view','professional-dashboard'
+  'book-doctor-view','bookings-view','profile-view','professional-dashboard',
+  'admin-view'
 ];
 
 function showView(id) {
@@ -1716,7 +1719,7 @@ async function loadProChatMessages(scrollToEnd) {
   const msgs = result.data?.data || [];
   const body = document.getElementById('proChatBody');
   if (!msgs.length) {
-    body.innerHTML = '<div class="pro-chat-empty">Start a conversation. Ask about your medications, plan, or follow-up questions.</div>';
+    body.innerHTML = '<div class="pro-chat-empty">Ask your doctor for advice or follow-up guidance about your visit.</div>';
     return;
   }
   // Only re-render if message count changed
@@ -2080,10 +2083,6 @@ async function loadProducts() {
   const grid = document.getElementById('shopGrid');
   if (!grid) return;
 
-  // Show "Add Product" only to logged-in users
-  const addBtn = document.getElementById('addProductBtn');
-  if (addBtn) addBtn.style.display = currentUser ? 'inline-flex' : 'none';
-
   grid.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading products…</p></div>';
   const result = await apiCall('GET', '/products');
   if (!result.ok || !result.data?.data) {
@@ -2312,9 +2311,8 @@ function buildDoctorCardHTML(doc) {
     </div>`;
 }
 
-function onBookingDateChange(cardId, date) {
+async function onBookingDateChange(cardId, date) {
   if (!date) return;
-  // Validate: not in the past
   const d = new Date(date);
   const today = new Date(); today.setHours(0,0,0,0);
   if (d < today) {
@@ -2323,8 +2321,37 @@ function onBookingDateChange(cardId, date) {
     return;
   }
   selectedSlots[cardId] = { date, time: selectedSlots[cardId]?.time || '' };
-  // Enable slot buttons now that a date is chosen
-  document.querySelectorAll(`#slots-${cardId} .slot-btn`).forEach(b => b.disabled = false);
+
+  // Clear previous slot selection
+  document.querySelectorAll(`#slots-${cardId} .slot-btn`).forEach(b => {
+    b.disabled = true;
+    b.classList.remove('selected', 'slot-booked');
+    b.title = '';
+  });
+
+  // Find the doctor name from this card's heading
+  const card = document.getElementById(cardId);
+  const docName = card?.querySelector('.doctor-name')?.textContent?.trim() || '';
+
+  // Fetch booked slots for this doctor+date
+  let bookedSlots = [];
+  if (docName) {
+    const res = await apiCall('GET', `/available-slots?doctor_name=${encodeURIComponent(docName)}&date=${encodeURIComponent(date)}`);
+    if (res.ok) bookedSlots = res.data?.bookedSlots || [];
+  }
+
+  // Enable available slots, mark booked ones
+  document.querySelectorAll(`#slots-${cardId} .slot-btn`).forEach(b => {
+    const slotTime = b.textContent.trim();
+    if (bookedSlots.includes(slotTime)) {
+      b.disabled = true;
+      b.classList.add('slot-booked');
+      b.title = 'Already booked';
+    } else {
+      b.disabled = false;
+    }
+  });
+
   updateBookingButton(cardId);
 }
 
@@ -2519,6 +2546,104 @@ function buildCoachClients() {
       <div class="client-detail"><span>BMI</span><span style="color:${c.bmiColor};font-weight:700">${c.bmi} — ${escHtml(c.bmiLabel)}</span></div>
       <div class="client-detail"><span>Location</span><span>${escHtml(c.location)}</span></div>
     </div>`).join('');
+}
+
+// ── Admin Dashboard ───────────────────────────────────────────
+function showAdminDashboard() {
+  if (!currentUser) { openModal('login'); return; }
+  showView('admin');
+  loadAdminData();
+}
+
+async function loadAdminData() {
+  const setKpi = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setKpi('kpiUsers',    '…');
+  setKpi('kpiBookings', '…');
+  setKpi('kpiOrders',   '…');
+  setKpi('kpiRevenue',  '…');
+
+  const result = await apiCall('GET', '/admin');
+  if (!result.ok) {
+    showToast('Failed to load admin data', 'error');
+    return;
+  }
+  const d = result.data?.data;
+  if (!d) return;
+
+  const { stats, roleBreakdown, statusBreakdown, recentUsers, recentBookings, recentOrders } = d;
+
+  setKpi('kpiUsers',    stats.totalUsers);
+  setKpi('kpiBookings', stats.totalBookings);
+  setKpi('kpiOrders',   stats.totalOrders);
+  setKpi('kpiRevenue',  '$' + Number(stats.totalRevenue || 0).toFixed(2));
+
+  // Role breakdown bars
+  const roleEl = document.getElementById('adminRoleBreakdown');
+  if (roleEl) {
+    const total = Math.max(stats.totalUsers, 1);
+    const roleColors = { patient: '#8b5cf6', doctor: '#2563eb', coach: '#10b981' };
+    roleEl.innerHTML = Object.entries(roleBreakdown || {}).map(([role, count]) => `
+      <div class="admin-role-row">
+        <span class="admin-role-label">${ucFirst(role)}</span>
+        <div class="admin-role-bar-wrap">
+          <div class="admin-role-bar" style="width:${Math.round((count/total)*100)}%;background:${roleColors[role]||'#94a3b8'}"></div>
+        </div>
+        <span class="admin-role-count">${count}</span>
+      </div>`).join('');
+  }
+
+  // Status breakdown bars
+  const statusEl = document.getElementById('adminStatusBreakdown');
+  if (statusEl) {
+    const total = Math.max(stats.totalBookings, 1);
+    const statusColors = { confirmed:'#10b981', pending:'#f59e0b', cancelled:'#ef4444', completed:'#2563eb' };
+    statusEl.innerHTML = Object.entries(statusBreakdown || {}).map(([status, count]) => `
+      <div class="admin-role-row">
+        <span class="admin-role-label">${ucFirst(status)}</span>
+        <div class="admin-role-bar-wrap">
+          <div class="admin-role-bar" style="width:${Math.round((count/total)*100)}%;background:${statusColors[status]||'#94a3b8'}"></div>
+        </div>
+        <span class="admin-role-count">${count}</span>
+      </div>`).join('');
+  }
+
+  // Recent users table
+  const usersTable = document.getElementById('adminUsersTable');
+  if (usersTable) {
+    usersTable.innerHTML = (recentUsers || []).map(u => `
+      <tr>
+        <td><strong>${escHtml(u.name || '—')}</strong></td>
+        <td style="color:var(--text-muted)">${escHtml(u.email || '—')}</td>
+        <td><span class="admin-badge admin-badge-${u.role || 'patient'}">${ucFirst(u.role || 'patient')}</span></td>
+        <td style="color:var(--text-muted)">${u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
+      </tr>`).join('') || '<tr><td colspan="4" style="color:var(--text-muted);text-align:center">No users yet</td></tr>';
+  }
+
+  // Recent bookings table
+  const bookingsTable = document.getElementById('adminBookingsTable');
+  if (bookingsTable) {
+    bookingsTable.innerHTML = (recentBookings || []).map(b => `
+      <tr>
+        <td><strong>${escHtml(b.doctor_name || '—')}</strong></td>
+        <td>${b.date ? new Date(b.date).toLocaleDateString() : '—'}</td>
+        <td style="color:var(--text-muted)">${escHtml(b.time_slot || '—')}</td>
+        <td><span class="admin-badge admin-badge-${b.status || 'pending'}">${ucFirst(b.status || 'pending')}</span></td>
+        <td>${b.fee ? 'EGP ' + b.fee : '—'}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="color:var(--text-muted);text-align:center">No bookings yet</td></tr>';
+  }
+
+  // Recent orders table
+  const ordersTable = document.getElementById('adminOrdersTable');
+  if (ordersTable) {
+    ordersTable.innerHTML = (recentOrders || []).map(o => `
+      <tr>
+        <td style="color:var(--text-muted);font-size:0.75rem">${escHtml((o.id || '').substring(0, 8))}…</td>
+        <td><strong>$${Number(o.total_amount || 0).toFixed(2)}</strong></td>
+        <td>${ucFirst(escHtml(o.payment_method || '—'))}</td>
+        <td><span class="admin-badge admin-badge-${o.payment_status || 'pending'}">${ucFirst(o.payment_status || 'pending')}</span></td>
+        <td style="color:var(--text-muted)">${o.created_at ? new Date(o.created_at).toLocaleDateString() : '—'}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="color:var(--text-muted);text-align:center">No orders yet</td></tr>';
+  }
 }
 
 // ── Toast Notifications ────────────────────────────────────────
