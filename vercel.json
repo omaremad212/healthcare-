@@ -1,26 +1,24 @@
 {
   "version": 2,
-  "functions": {
-    "api/**/*.js": {
-      "memory": 256,
-      "maxDuration": 10
-    }
-  },
-  "rewrites": [
-    { "source": "/api/auth/login",      "destination": "/api/auth.js?action=login"                   },
-    { "source": "/api/auth/register",   "destination": "/api/auth.js?action=register"                },
-    { "source": "/api/available-slots", "destination": "/api/booking.js?action=available-slots"      },
-    { "source": "/api/admin",           "destination": "/api/dashboard.js?action=admin"              },
-    { "source": "/api/chat",            "destination": "/api/chat.js"                                },
-    { "source": "/api/products",        "destination": "/api/products.js"                            },
-    { "source": "/api/booking",         "destination": "/api/booking.js"                             },
-    { "source": "/api/orders",          "destination": "/api/orders.js"                              },
-    { "source": "/api/dashboard",       "destination": "/api/dashboard.js"                           },
-    { "source": "/api/plans",           "destination": "/api/plans.js"                               },
-    { "source": "/api/profile",         "destination": "/api/profile.js"                             },
-    { "source": "/api/feedback",        "destination": "/api/feedback.js"                            },
-    { "source": "/api/emergency",       "destination": "/api/emergency.js"                           },
-    { "source": "/api/messages",        "destination": "/api/messages.js"                            },
-    { "source": "/(.*)",                "destination": "/frontend/$1"                                }
+  "builds": [
+    { "src": "frontend/**",  "use": "@vercel/static" },
+    { "src": "api/**/*.js",  "use": "@vercel/node"   }
+  ],
+  "routes": [
+    { "src": "/api/auth/login",      "dest": "/api/auth.js?action=login"              },
+    { "src": "/api/auth/register",   "dest": "/api/auth.js?action=register"           },
+    { "src": "/api/available-slots", "dest": "/api/booking.js?action=available-slots" },
+    { "src": "/api/admin",           "dest": "/api/dashboard.js?action=admin"         },
+    { "src": "/api/chat",            "dest": "/api/chat.js"                           },
+    { "src": "/api/products",        "dest": "/api/products.js"                       },
+    { "src": "/api/booking",         "dest": "/api/booking.js"                        },
+    { "src": "/api/orders",          "dest": "/api/orders.js"                         },
+    { "src": "/api/dashboard",       "dest": "/api/dashboard.js"                      },
+    { "src": "/api/plans",           "dest": "/api/plans.js"                          },
+    { "src": "/api/profile",         "dest": "/api/profile.js"                        },
+    { "src": "/api/feedback",        "dest": "/api/feedback.js"                       },
+    { "src": "/api/emergency",       "dest": "/api/emergency.js"                      },
+    { "src": "/api/messages",        "dest": "/api/messages.js"                       },
+    { "src": "/(.*)",                "dest": "/frontend/$1"                           }
   ]
 }
