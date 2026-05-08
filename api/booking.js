@@ -1,6 +1,4 @@
 // api/booking.js - Vercel Serverless API with Supabase
-// Routes: GET/POST/PATCH /api/booking
-//         GET /api/available-slots  →  rewritten to ?action=available-slots
 
 const jwt = require('jsonwebtoken');
 const { supabase } = require('../lib/supabase');
@@ -15,39 +13,14 @@ function getUserIdFromToken(authHeader) {
   }
 }
 
-async function handleAvailableSlots(req, res) {
-  const { doctor_name, date } = req.query;
-  if (!doctor_name || !date) {
-    return res.status(400).json({ success: false, message: 'doctor_name and date are required' });
-  }
-  const { data: bookings, error } = await supabase
-    .from('bookings')
-    .select('time_slot')
-    .ilike('doctor_name', doctor_name)
-    .eq('date', date)
-    .neq('status', 'cancelled');
-
-  if (error) return res.status(500).json({ success: false, message: error.message });
-
-  const bookedSlots = (bookings || []).map(b => b.time_slot).filter(Boolean);
-  return res.status(200).json({ success: true, bookedSlots });
-}
-
 module.exports = async function handler(req, res) {
-  res.setHeader('Content-Type', 'application/json');
-
-  // Available-slots sub-route (no auth required)
-  if (req.query.action === 'available-slots') {
-    if (req.method !== 'GET') return res.status(405).json({ success: false, message: 'Method not allowed' });
-    try { return await handleAvailableSlots(req, res); }
-    catch (err) { return res.status(500).json({ success: false, message: err.message }); }
-  }
-
   if (req.method !== 'GET' && req.method !== 'POST' && req.method !== 'PATCH') {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   }
 
-  const userId = getUserIdFromToken(req.headers.authorization);
+  const authHeader = req.headers.authorization;
+  const userId = getUserIdFromToken(authHeader);
+
   if (!userId) {
     return res.status(401).json({ success: false, message: 'Not authorized' });
   }
@@ -56,13 +29,15 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST') {
       const {
         doctor_id, doctor_name, date, time_slot,
-        payment_method, fee, notes, booking_type,
+        payment_method, fee, notes,
+        booking_type,
       } = req.body;
 
       if (!date) {
         return res.status(400).json({ success: false, message: 'Date is required' });
       }
 
+      // Validate date is not in the past (allow today)
       const bookingDate = new Date(date);
       if (isNaN(bookingDate.getTime())) {
         return res.status(400).json({ success: false, message: 'Invalid date format' });
@@ -79,12 +54,16 @@ module.exports = async function handler(req, res) {
       }
 
       const isEmergency = booking_type === 'emergency';
+
+      // Determine fee: if not provided, look up doctor's rates
       let resolvedFee = fee;
       if (resolvedFee === undefined || resolvedFee === null) {
         if (doctor_id) {
           const { data: doc } = await supabase
             .from('users').select('regular_rate, emergency_rate').eq('id', doctor_id).single();
-          if (doc) resolvedFee = isEmergency ? (doc.emergency_rate || 400) : (doc.regular_rate || 200);
+          if (doc) {
+            resolvedFee = isEmergency ? (doc.emergency_rate || 400) : (doc.regular_rate || 200);
+          }
         }
         resolvedFee = resolvedFee || (isEmergency ? 400 : 200);
       }
@@ -95,7 +74,7 @@ module.exports = async function handler(req, res) {
           user_id: userId,
           doctor_id: doctor_id || null,
           doctor_name: doctor_name || 'Doctor',
-          date,
+          date: date,
           time_slot: time_slot || null,
           payment_method: payment_method || 'cash',
           payment_status: payment_method === 'visa' ? 'paid' : 'pending',
@@ -109,7 +88,7 @@ module.exports = async function handler(req, res) {
         .single();
 
       if (error) {
-        console.error('[booking] insert error:', error.message);
+        console.error('[booking] Supabase insert error:', error.message);
         return res.status(500).json({
           success: false,
           message: error.message || 'Database insert failed',
@@ -118,8 +97,7 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      return res.status(201).json({ success: true, data: booking });
-
+      res.status(201).json({ success: true, data: booking });
     } else if (req.method === 'GET') {
       const { data: bookings, error } = await supabase
         .from('bookings')
@@ -129,14 +107,14 @@ module.exports = async function handler(req, res) {
         .limit(20);
 
       if (error) {
-        console.error('[booking] query error:', error);
+        console.error('Supabase query error:', error);
         return res.status(500).json({ success: false, message: 'Failed to fetch bookings' });
       }
 
-      return res.status(200).json({ success: true, count: bookings.length, data: bookings });
-
+      res.status(200).json({ success: true, count: bookings.length, data: bookings });
     } else if (req.method === 'PATCH') {
       const { id } = req.query;
+
       const { data: booking, error } = await supabase
         .from('bookings')
         .update({ status: 'cancelled' })
@@ -146,14 +124,14 @@ module.exports = async function handler(req, res) {
         .single();
 
       if (error) {
-        console.error('[booking] update error:', error);
+        console.error('Supabase update error:', error);
         return res.status(404).json({ success: false, message: 'Booking not found' });
       }
 
-      return res.status(200).json({ success: true, data: booking });
+      res.status(200).json({ success: true, data: booking });
     }
   } catch (err) {
-    console.error('[booking] error:', err);
-    return res.status(500).json({ success: false, message: err.message });
+    console.error('Booking error:', err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
