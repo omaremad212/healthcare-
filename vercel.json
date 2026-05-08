@@ -1,30 +1,26 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "frontend/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
+  "functions": {
+    "api/**/*.js": {
+      "memory": 256,
+      "maxDuration": 10
     }
-  ],
-  "routes": [
-    { "src": "/api/auth/register", "dest": "/api/auth/register.js" },
-    { "src": "/api/auth/login",    "dest": "/api/auth/login.js"    },
-    { "src": "/api/chat",          "dest": "/api/chat.js"          },
-    { "src": "/api/products",      "dest": "/api/products.js"      },
-    { "src": "/api/booking",       "dest": "/api/booking.js"       },
-    { "src": "/api/orders",        "dest": "/api/orders.js"        },
-    { "src": "/api/dashboard",     "dest": "/api/dashboard.js"     },
-    { "src": "/api/plans",         "dest": "/api/plans.js"         },
-    { "src": "/api/profile",       "dest": "/api/profile.js"       },
-    { "src": "/api/feedback",      "dest": "/api/feedback.js"      },
-    { "src": "/api/emergency",     "dest": "/api/emergency.js"     },
-    { "src": "/api/messages",      "dest": "/api/messages.js"      },
-    { "src": "/api/admin",         "dest": "/api/admin.js"         },
-    { "src": "/api/available-slots", "dest": "/api/available-slots.js" },
-    { "src": "/(.*)",              "dest": "/frontend/$1"          }
+  },
+  "rewrites": [
+    { "source": "/api/auth/register",   "destination": "/api/auth/register.js"   },
+    { "source": "/api/auth/login",      "destination": "/api/auth/login.js"      },
+    { "source": "/api/chat",            "destination": "/api/chat.js"            },
+    { "source": "/api/products",        "destination": "/api/products.js"        },
+    { "source": "/api/booking",         "destination": "/api/booking.js"         },
+    { "source": "/api/orders",          "destination": "/api/orders.js"          },
+    { "source": "/api/dashboard",       "destination": "/api/dashboard.js"       },
+    { "source": "/api/plans",           "destination": "/api/plans.js"           },
+    { "source": "/api/profile",         "destination": "/api/profile.js"         },
+    { "source": "/api/feedback",        "destination": "/api/feedback.js"        },
+    { "source": "/api/emergency",       "destination": "/api/emergency.js"       },
+    { "source": "/api/messages",        "destination": "/api/messages.js"        },
+    { "source": "/api/admin",           "destination": "/api/admin.js"           },
+    { "source": "/api/available-slots", "destination": "/api/available-slots.js" },
+    { "source": "/(.*)",                "destination": "/frontend/$1"            }
   ]
 }
