@@ -2090,17 +2090,21 @@ async function loadProducts() {
     return;
   }
   grid.innerHTML = result.data.data.map(p => {
+    const pid = escHtml(p.id || p.name);
     const canDelete = !!(currentUser && p.id);
+    const safeCardId = 'pcard-' + (p.id || p.name).replace(/[^a-zA-Z0-9]/g, '_');
     return `
-    <div class="product-card">
-      ${canDelete ? `<button class="product-delete-btn" title="Remove product" onclick="deleteProduct('${escHtml(p.id)}','${escHtml(p.name)}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+    <div class="product-card" id="${safeCardId}">
+      ${canDelete ? `<button class="product-delete-btn" title="Remove product" onclick="deleteProduct('${pid}','${escHtml(p.name)}')"><i class="fa-solid fa-trash"></i></button>` : ''}
       <div class="product-icon"><i class="fa-solid ${p.icon || 'fa-capsules'}"></i></div>
       <div class="product-name">${escHtml(p.name)}</div>
       <div class="product-desc">${escHtml(p.description || '')}</div>
       <div class="product-price">$${Number(p.price).toFixed(2)}</div>
-      <button class="btn btn-primary" onclick="addToCart('${escHtml(p.id || p.name)}','${escHtml(p.name)}',${p.price})">
-        <i class="fa-solid fa-cart-plus"></i> Add to Cart
-      </button>
+      <div class="product-cart-area" id="cart-area-${safeCardId}">
+        <button class="btn btn-primary product-add-btn" onclick="addToCartQty('${pid}','${escHtml(p.name)}',${p.price},'${safeCardId}')">
+          <i class="fa-solid fa-cart-plus"></i> Add to Cart
+        </button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -2153,7 +2157,54 @@ function addToCart(productId, name, price) {
   if (existing) existing.qty++;
   else cart.push({ productId, name, price: Number(price), qty: 1 });
   updateCartDisplay();
+}
+
+function addToCartQty(productId, name, price, cardId) {
+  const existing = cart.find(i => i.productId === productId);
+  if (!existing) {
+    cart.push({ productId, name, price: Number(price), qty: 1, cardId });
+  } else {
+    existing.qty++;
+  }
+  updateCartDisplay();
+  renderProductCartArea(productId, name, price, cardId);
   showToast(`${name} added to cart`);
+}
+
+function changeProductQty(productId, delta, name, price, cardId) {
+  const item = cart.find(i => i.productId === productId);
+  if (!item) return;
+  item.qty += delta;
+  if (item.qty <= 0) {
+    cart = cart.filter(i => i.productId !== productId);
+    renderProductCartArea(productId, name, price, cardId, 0);
+  } else {
+    renderProductCartArea(productId, name, price, cardId, item.qty);
+  }
+  updateCartDisplay();
+}
+
+function renderProductCartArea(productId, name, price, cardId, qty) {
+  const area = document.getElementById('cart-area-' + cardId);
+  if (!area) return;
+  const currentQty = qty !== undefined ? qty : (cart.find(i => i.productId === productId)?.qty || 0);
+  if (currentQty === 0) {
+    area.innerHTML = `
+      <button class="btn btn-primary product-add-btn" onclick="addToCartQty('${escHtml(productId)}','${escHtml(name)}',${price},'${cardId}')">
+        <i class="fa-solid fa-cart-plus"></i> Add to Cart
+      </button>`;
+  } else {
+    area.innerHTML = `
+      <div class="product-qty-control">
+        <button class="qty-btn qty-minus" onclick="changeProductQty('${escHtml(productId)}',-1,'${escHtml(name)}',${price},'${cardId}')">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+        <span class="qty-value">${currentQty}</span>
+        <button class="qty-btn qty-plus" onclick="changeProductQty('${escHtml(productId)}',1,'${escHtml(name)}',${price},'${cardId}')">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+      </div>`;
+  }
 }
 
 function updateCartDisplay() {
