@@ -7,20 +7,20 @@
     }
   },
   "rewrites": [
-    { "source": "/api/auth/register",   "destination": "/api/auth/register.js"   },
-    { "source": "/api/auth/login",      "destination": "/api/auth/login.js"      },
-    { "source": "/api/chat",            "destination": "/api/chat.js"            },
-    { "source": "/api/products",        "destination": "/api/products.js"        },
-    { "source": "/api/booking",         "destination": "/api/booking.js"         },
-    { "source": "/api/orders",          "destination": "/api/orders.js"          },
-    { "source": "/api/dashboard",       "destination": "/api/dashboard.js"       },
-    { "source": "/api/plans",           "destination": "/api/plans.js"           },
-    { "source": "/api/profile",         "destination": "/api/profile.js"         },
-    { "source": "/api/feedback",        "destination": "/api/feedback.js"        },
-    { "source": "/api/emergency",       "destination": "/api/emergency.js"       },
-    { "source": "/api/messages",        "destination": "/api/messages.js"        },
-    { "source": "/api/admin",           "destination": "/api/admin.js"           },
-    { "source": "/api/available-slots", "destination": "/api/available-slots.js" },
-    { "source": "/(.*)",                "destination": "/frontend/$1"            }
+    { "source": "/api/auth/login",      "destination": "/api/auth.js?action=login"                   },
+    { "source": "/api/auth/register",   "destination": "/api/auth.js?action=register"                },
+    { "source": "/api/available-slots", "destination": "/api/booking.js?action=available-slots"      },
+    { "source": "/api/admin",           "destination": "/api/dashboard.js?action=admin"              },
+    { "source": "/api/chat",            "destination": "/api/chat.js"                                },
+    { "source": "/api/products",        "destination": "/api/products.js"                            },
+    { "source": "/api/booking",         "destination": "/api/booking.js"                             },
+    { "source": "/api/orders",          "destination": "/api/orders.js"                              },
+    { "source": "/api/dashboard",       "destination": "/api/dashboard.js"                           },
+    { "source": "/api/plans",           "destination": "/api/plans.js"                               },
+    { "source": "/api/profile",         "destination": "/api/profile.js"                             },
+    { "source": "/api/feedback",        "destination": "/api/feedback.js"                            },
+    { "source": "/api/emergency",       "destination": "/api/emergency.js"                           },
+    { "source": "/api/messages",        "destination": "/api/messages.js"                            },
+    { "source": "/(.*)",                "destination": "/frontend/$1"                                }
   ]
 }
