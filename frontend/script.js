@@ -1632,18 +1632,24 @@ async function loadMyBookings() {
   if (!content) return;
   content.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading…</p></div>';
 
-  const result = await apiCall('GET', '/booking');
-  if (!result.ok) {
+  const [bookingRes, orderRes] = await Promise.all([
+    apiCall('GET', '/booking'),
+    apiCall('GET', '/orders'),
+  ]);
+
+  if (!bookingRes.ok) {
     content.innerHTML = '<div class="loading-state"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load bookings.</p></div>';
     return;
   }
 
-  const bookings = result.data?.data || [];
-  if (!bookings.length) {
+  const bookings = bookingRes.data?.data || [];
+  const orders   = orderRes.ok ? (orderRes.data?.data || []) : [];
+
+  if (!bookings.length && !orders.length) {
     content.innerHTML = `
       <div class="bookings-empty">
         <i class="fa-solid fa-calendar-xmark"></i>
-        <p>No bookings yet</p>
+        <p>No bookings or orders yet</p>
         <button class="btn btn-primary" onclick="showBookDoctor()">
           <i class="fa-solid fa-calendar-plus"></i> Book an Appointment
         </button>
@@ -1651,7 +1657,43 @@ async function loadMyBookings() {
     return;
   }
 
-  content.innerHTML = `<div style="display:flex;flex-direction:column;gap:16px">${bookings.map(b => buildBookingCardHTML(b)).join('')}</div>`;
+  let html = '';
+
+  if (bookings.length) {
+    html += `<h3 style="margin-bottom:8px;font-size:1rem;color:var(--text-muted)"><i class="fa-solid fa-calendar-check" style="margin-right:6px"></i>Appointments</h3>`;
+    html += `<div style="display:flex;flex-direction:column;gap:16px;margin-bottom:32px">${bookings.map(b => buildBookingCardHTML(b)).join('')}</div>`;
+  }
+
+  if (orders.length) {
+    html += `<h3 style="margin-bottom:8px;font-size:1rem;color:var(--text-muted)"><i class="fa-solid fa-bag-shopping" style="margin-right:6px"></i>Shop Orders</h3>`;
+    html += `<div style="display:flex;flex-direction:column;gap:12px">${orders.map(o => buildOrderCardHTML(o)).join('')}</div>`;
+  }
+
+  content.innerHTML = html;
+}
+
+function buildOrderCardHTML(o) {
+  const date = o.created_at ? new Date(o.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—';
+  const items = Array.isArray(o.items) ? o.items : [];
+  const statusCls = { processing: 'status-confirmed', shipped: 'status-pending', delivered: 'status-completed', cancelled: 'status-cancelled' }[o.status] || 'status-pending';
+  return `
+    <div class="booking-card">
+      <div class="booking-left">
+        <div class="booking-doctor">
+          <i class="fa-solid fa-bag-shopping" style="color:var(--warning);margin-right:6px"></i>
+          ${items.length ? escHtml(items.map(i => i.product_name || i.name).join(', ')) : 'Shop Order'}
+        </div>
+        <div class="booking-meta">
+          <span><i class="fa-solid fa-calendar"></i> ${date}</span>
+          <span><i class="fa-solid fa-money-bill"></i> $${Number(o.total_amount || 0).toFixed(2)}</span>
+          ${o.payment_method ? `<span><i class="fa-solid fa-wallet"></i> ${ucFirst(o.payment_method)}</span>` : ''}
+          ${o.delivery_address ? `<span><i class="fa-solid fa-location-dot"></i> ${escHtml(o.delivery_address)}</span>` : ''}
+        </div>
+      </div>
+      <div class="booking-right">
+        <span class="booking-status ${statusCls}">${ucFirst(o.status || 'processing')}</span>
+      </div>
+    </div>`;
 }
 
 function buildBookingCardHTML(b) {
@@ -1721,7 +1763,28 @@ async function loadProChatMessages(scrollToEnd) {
     return;
   }
   const msgs = result.data?.data || [];
+  const bookingMeta = result.data?.booking || {};
   const body = document.getElementById('proChatBody');
+
+  // Update the advice note based on whether appointment has passed
+  const noteEl = document.getElementById('proChatAdviceNote');
+  if (noteEl) {
+    if (bookingMeta.appointmentPassed === false) {
+      const apptDateStr = bookingMeta.date
+        ? new Date(bookingMeta.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+        : 'your appointment';
+      noteEl.innerHTML = `<i class="fa-solid fa-clock"></i> <strong>Pre-appointment advice only.</strong> Your appointment is on <strong>${apptDateStr}</strong>. Your doctor will give a full treatment plan at your visit.`;
+      noteEl.style.background = '#fff7ed';
+      noteEl.style.borderColor = '#fb923c';
+      noteEl.style.color = '#9a3412';
+    } else {
+      noteEl.innerHTML = `<i class="fa-solid fa-shield-halved"></i> <strong>Advice & Guidance.</strong> Your doctor can now provide full guidance based on your visit.`;
+      noteEl.style.background = '';
+      noteEl.style.borderColor = '';
+      noteEl.style.color = '';
+    }
+  }
+
   if (!msgs.length) {
     body.innerHTML = '<div class="pro-chat-empty">Ask your doctor for advice or follow-up guidance about your visit.</div>';
     return;
