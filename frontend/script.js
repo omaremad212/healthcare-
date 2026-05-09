@@ -2109,36 +2109,6 @@ async function loadProducts() {
   }).join('');
 }
 
-function openAddProductModal() {
-  if (!currentUser) { openModal('login'); return; }
-  document.getElementById('addProductForm')?.reset();
-  document.getElementById('addProductModal').style.display = 'flex';
-}
-
-function closeAddProductModal() {
-  document.getElementById('addProductModal').style.display = 'none';
-}
-
-async function submitNewProduct(event) {
-  event.preventDefault();
-  const name = document.getElementById('newProdName').value.trim();
-  const description = document.getElementById('newProdDesc').value.trim();
-  const price = parseFloat(document.getElementById('newProdPrice').value);
-  const category = document.getElementById('newProdCategory').value;
-  const icon = document.getElementById('newProdIcon').value;
-
-  if (name.length < 2) { showToast('Name must be at least 2 characters', 'warning'); return; }
-  if (!Number.isFinite(price) || price <= 0) { showToast('Price must be greater than 0', 'warning'); return; }
-
-  const result = await apiCall('POST', '/products', { name, description, price, category, icon });
-  if (!result.ok) {
-    showToast(result.data?.message || 'Failed to add product', 'error');
-    return;
-  }
-  showToast(`${name} added to the shop`, 'success');
-  closeAddProductModal();
-  loadProducts();
-}
 
 async function deleteProduct(id, name) {
   if (!currentUser) { openModal('login'); return; }
