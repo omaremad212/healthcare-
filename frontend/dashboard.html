@@ -860,8 +860,7 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// Auto-refresh every 60 seconds
-setInterval(loadData, 60000);
+// No auto-refresh — use the Refresh button to avoid burning Vercel invocation quota.
 </script>
 </body>
 </html>
