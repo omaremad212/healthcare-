@@ -11,20 +11,20 @@
     }
   ],
   "routes": [
-    { "src": "/api/auth/register", "dest": "/api/auth/register.js" },
-    { "src": "/api/auth/login",    "dest": "/api/auth/login.js"    },
-    { "src": "/api/chat",          "dest": "/api/chat.js"          },
-    { "src": "/api/products",      "dest": "/api/products.js"      },
-    { "src": "/api/booking",       "dest": "/api/booking.js"       },
-    { "src": "/api/orders",        "dest": "/api/orders.js"        },
-    { "src": "/api/dashboard",     "dest": "/api/dashboard.js"     },
-    { "src": "/api/plans",         "dest": "/api/plans.js"         },
-    { "src": "/api/profile",       "dest": "/api/profile.js"       },
-    { "src": "/api/feedback",      "dest": "/api/feedback.js"      },
-    { "src": "/api/emergency",     "dest": "/api/emergency.js"     },
-    { "src": "/api/messages",      "dest": "/api/messages.js"      },
-    { "src": "/api/admin",         "dest": "/api/admin.js"         },
-    { "src": "/api/available-slots", "dest": "/api/available-slots.js" },
-    { "src": "/(.*)",              "dest": "/frontend/$1"          }
+    { "src": "/api/auth/login",      "dest": "/api/auth.js?action=login"              },
+    { "src": "/api/auth/register",   "dest": "/api/auth.js?action=register"           },
+    { "src": "/api/available-slots", "dest": "/api/booking.js?action=available-slots" },
+    { "src": "/api/admin",           "dest": "/api/dashboard.js?action=admin"         },
+    { "src": "/api/chat",            "dest": "/api/chat.js"                           },
+    { "src": "/api/products",        "dest": "/api/products.js"                       },
+    { "src": "/api/booking",         "dest": "/api/booking.js"                        },
+    { "src": "/api/orders",          "dest": "/api/orders.js"                         },
+    { "src": "/api/dashboard",       "dest": "/api/dashboard.js"                      },
+    { "src": "/api/plans",           "dest": "/api/plans.js"                          },
+    { "src": "/api/profile",         "dest": "/api/profile.js"                        },
+    { "src": "/api/feedback",        "dest": "/api/feedback.js"                       },
+    { "src": "/api/emergency",       "dest": "/api/emergency.js"                      },
+    { "src": "/api/messages",        "dest": "/api/messages.js"                       },
+    { "src": "/(.*)",                "dest": "/frontend/$1"                           }
   ]
 }
