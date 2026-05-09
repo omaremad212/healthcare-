@@ -23,6 +23,7 @@ function containsProfanity(text) {
 
 module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
+  try {
 
   // GET — list feedback for a doctor (public)
   if (req.method === 'GET') {
@@ -140,4 +141,11 @@ module.exports = async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method not allowed' });
+
+  } catch (err) {
+    console.error('[feedback] Unhandled error:', err.message, '\n', err.stack);
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+    }
+  }
 };
