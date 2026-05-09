@@ -69,6 +69,30 @@ module.exports = async function handler(req, res) {
         resolvedFee = resolvedFee || (isEmergency ? 400 : 200);
       }
 
+      // Check if this slot is already taken for the same doctor+date+time
+      if (time_slot && (doctor_id || doctor_name)) {
+        let slotQuery = supabase
+          .from('bookings')
+          .select('id', { count: 'exact', head: true })
+          .eq('date', date)
+          .eq('time_slot', time_slot)
+          .neq('status', 'cancelled');
+
+        if (doctor_id) {
+          slotQuery = slotQuery.eq('doctor_id', doctor_id);
+        } else {
+          slotQuery = slotQuery.ilike('doctor_name', doctor_name);
+        }
+
+        const { count: slotCount } = await slotQuery;
+        if (slotCount > 0) {
+          return res.status(409).json({
+            success: false,
+            message: 'This time slot is already booked. Please choose a different time.',
+          });
+        }
+      }
+
       const { data: booking, error } = await supabase.from('bookings').insert({
         user_id: userId, doctor_id: doctor_id || null,
         doctor_name: doctor_name || 'Doctor', date,
