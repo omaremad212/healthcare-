@@ -413,8 +413,8 @@
       <div class="auth-gate-icon"><i class="fa-solid fa-shield-halved"></i></div>
       <h2 style="margin-bottom:8px">Dashboard Access</h2>
       <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px">You must be signed in to view the admin dashboard.</p>
-      <a href="/index.html" class="btn btn-primary" style="width:100%;justify-content:center">
-        <i class="fa-solid fa-right-to-bracket"></i> Go to Sign In
+      <a href="/admin" class="btn btn-primary" style="width:100%;justify-content:center">
+        <i class="fa-solid fa-right-to-bracket"></i> Go to Admin Login
       </a>
     </div>
   </div>
@@ -651,9 +651,8 @@ let currentUser = null;
 try { currentUser = userRaw ? JSON.parse(userRaw) : null; } catch(e) {}
 
 if (!token || !currentUser) {
-  document.getElementById('authGate').style.display = 'flex';
-  document.getElementById('sidebar').style.display = 'none';
-  document.getElementById('mainContent').style.display = 'none';
+  // Redirect to the new admin login page
+  window.location.replace('/admin');
 } else {
   document.getElementById('authGate').style.display = 'none';
   // Populate sidebar user info
