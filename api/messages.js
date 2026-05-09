@@ -131,6 +131,7 @@ async function generateAIReply(booking, role, conversation) {
 
 module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
+  try {
 
   const userId = getUserIdFromToken(req.headers.authorization);
   if (!userId) return res.status(401).json({ success: false, message: 'Not authorized' });
@@ -287,4 +288,11 @@ module.exports = async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method not allowed' });
+
+  } catch (err) {
+    console.error('[messages] Unhandled error:', err.message, '\n', err.stack);
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+    }
+  }
 };

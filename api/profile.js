@@ -22,6 +22,7 @@ const PROFILE_COLS = 'id, name, username, display_name, email, avatar_url, role,
 
 module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
+  try {
 
   const userId = getUserIdFromToken(req.headers.authorization);
 
@@ -170,4 +171,11 @@ module.exports = async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method not allowed' });
+
+  } catch (err) {
+    console.error('[profile] Unhandled error:', err.message, '\n', err.stack);
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+    }
+  }
 };
