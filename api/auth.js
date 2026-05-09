@@ -5,15 +5,21 @@ const jwt    = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { supabase } = require('../lib/supabase');
 
-const generateToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET || 'secret123', { expiresIn: '7d' });
+const generateToken = (id, role) =>
+  jwt.sign({ id, role }, process.env.JWT_SECRET || 'secret123', { expiresIn: '7d' });
 
 async function handleLogin(req, res) {
   const { email, password } = req.body;
   if (!email || !password)
     return res.status(400).json({ success: false, message: 'Email and password are required' });
 
-  const { data: users, error } = await supabase.from('users').select('*').eq('email', email).limit(1);
+  // Accept email OR username (for admin login with username 'admin')
+  let users, error;
+  if (String(email).includes('@')) {
+    ({ data: users, error } = await supabase.from('users').select('*').eq('email', email.trim().toLowerCase()).limit(1));
+  } else {
+    ({ data: users, error } = await supabase.from('users').select('*').eq('username', email.trim().toLowerCase()).limit(1));
+  }
   if (error) return res.status(500).json({ success: false, message: 'Database error' });
   if (!users || users.length === 0)
     return res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -24,7 +30,7 @@ async function handleLogin(req, res) {
 
   return res.status(200).json({
     success: true,
-    token: generateToken(user.id),
+    token: generateToken(user.id, user.role),
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
   });
 }
@@ -68,7 +74,7 @@ async function handleRegister(req, res) {
 
   return res.status(201).json({
     success: true,
-    token: generateToken(newUser.id),
+    token: generateToken(newUser.id, newUser.role),
     user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role },
   });
 }
