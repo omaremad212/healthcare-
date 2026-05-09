@@ -605,6 +605,10 @@ function applyLoggedInUI() {
   showEl('navBookings');
   showEl('mobileNavBookings');
 
+  if (role === 'admin') {
+    showEl('menuAdminItem');
+  }
+
   if (role === 'patient') {
     showEl('navShop');
     showEl('navChat');
@@ -2569,9 +2573,7 @@ function buildCoachClients() {
 
 // ── Admin Dashboard ───────────────────────────────────────────
 function showAdminDashboard() {
-  if (!currentUser) { openModal('login'); return; }
-  showView('admin');
-  loadAdminData();
+  window.location.href = '/admin';
 }
 
 async function loadAdminData() {
