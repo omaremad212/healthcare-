@@ -23,8 +23,8 @@ function inferRole(booking) {
   return 'doctor';
 }
 
-function buildAISystemPrompt(role, professionalName, patientTurns) {
-  const shouldDeliverPlan = patientTurns >= 4;
+function buildAISystemPrompt(role, professionalName, patientTurns, appointmentPassed) {
+  const shouldDeliverPlan = appointmentPassed && patientTurns >= 4;
   if (role === 'coach') {
     return `You are ${professionalName}, a fitness coach following up with your client via secure chat after they booked a session with you.
 
@@ -34,7 +34,10 @@ Style:
 - Ask ONE focused question at a time. Do not interrogate.
 - Never break character. You ARE ${professionalName}, not an AI.
 
-${shouldDeliverPlan ? `IMPORTANT: You have enough information now. In THIS reply, deliver the full personalized training plan in this exact markdown format and nothing else after it:
+${!appointmentPassed
+  ? `IMPORTANT — PRE-SESSION MODE: Your client's session has NOT happened yet. Give only brief, general encouragement and simple tips (hydration, warm-up reminders, what to bring). Do NOT deliver any full training plan yet. At the end of your reply, remind them: "I'll build your full personalized plan during our session together."`
+  : shouldDeliverPlan
+    ? `IMPORTANT: You have enough information now. In THIS reply, deliver the full personalized training plan in this exact markdown format and nothing else after it:
 
 **Training Plan**
 
@@ -57,10 +60,11 @@ ${shouldDeliverPlan ? `IMPORTANT: You have enough information now. In THIS reply
 
 **Warnings:** <safety / injury cautions>
 
-Close with a one-line motivating note signed "- ${professionalName}".` : `Continue gathering: goal, current level, location/equipment, days/week, injuries. After 4-5 exchanges, deliver a full plan.`}`;
+Close with a one-line motivating note signed "- ${professionalName}".`
+    : `Continue gathering: goal, current level, location/equipment, days/week, injuries. After 4-5 exchanges, deliver a full plan.`}`;
   }
   const cleanName = professionalName.replace(/^Dr\.?\s*/i, '');
-  return `You are Dr. ${cleanName}, a licensed physician following up with your patient via secure chat after their booked consultation.
+  return `You are Dr. ${cleanName}, a licensed physician following up with your patient via secure chat.
 
 Style:
 - Warm, professional, decisive. 2-4 sentences per reply.
@@ -69,7 +73,10 @@ Style:
 - Never break character. You ARE the doctor, not an AI.
 - If the patient describes a true emergency (chest pain with sweating, stroke signs, severe bleeding, suicidal intent, anaphylaxis), tell them to call emergency services immediately.
 
-${shouldDeliverPlan ? `IMPORTANT: You have enough information now. In THIS reply, deliver the complete treatment plan in this exact markdown format and nothing else after it:
+${!appointmentPassed
+  ? `IMPORTANT — PRE-APPOINTMENT MODE: The patient's in-person appointment has NOT happened yet. Give only simple, preliminary advice to manage symptoms until the visit (e.g. rest, fluids, OTC relief if safe). Do NOT diagnose or prescribe specific treatments. At the end of every reply remind them: "We'll do a full evaluation at your appointment and I'll give you a proper treatment plan then."`
+  : shouldDeliverPlan
+    ? `IMPORTANT: You have enough information now. In THIS reply, deliver the complete treatment plan in this exact markdown format and nothing else after it:
 
 **Treatment Plan**
 
@@ -94,7 +101,8 @@ ${shouldDeliverPlan ? `IMPORTANT: You have enough information now. In THIS reply
 
 **Follow-up:** <when to check back, e.g. "Message me in 5 days if no improvement.">
 
-Close with a reassuring one-line note signed "- Dr. ${cleanName}".` : `Continue gathering: primary symptom + onset, severity, associated symptoms, relevant history, allergies. After 4-5 exchanges, deliver the full plan.`}`;
+Close with a reassuring one-line note signed "- Dr. ${cleanName}".`
+    : `Continue gathering: primary symptom + onset, severity, associated symptoms, relevant history, allergies. After 4-5 exchanges, deliver the full plan.`}`;
 }
 
 async function generateAIReply(booking, role, conversation) {
@@ -103,7 +111,13 @@ async function generateAIReply(booking, role, conversation) {
 
   const patientTurns = conversation.filter(m => m.sender_role === 'patient').length;
   const profName = booking.doctor_name || (role === 'coach' ? 'Coach' : 'Doctor');
-  const systemPrompt = buildAISystemPrompt(role, profName, patientTurns);
+
+  // Appointment is considered "passed" if the booking date is today or earlier
+  const appointmentDate = booking.date ? new Date(booking.date) : null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const appointmentPassed = appointmentDate ? appointmentDate <= today : true;
+
+  const systemPrompt = buildAISystemPrompt(role, profName, patientTurns, appointmentPassed);
 
   const chatMessages = [
     { role: 'system', content: systemPrompt },
@@ -192,7 +206,7 @@ module.exports = async function handler(req, res) {
 
     // Verify the user is part of this booking
     const { data: booking } = await supabase
-      .from('bookings').select('id, user_id, doctor_id, doctor_name')
+      .from('bookings').select('id, user_id, doctor_id, doctor_name, date')
       .eq('id', bookingId).single();
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
     const isOwner = booking.user_id === userId;
@@ -209,12 +223,18 @@ module.exports = async function handler(req, res) {
       .limit(500);
     if (error) return res.status(500).json({ success: false, message: error.message });
 
+    const apptDate = booking.date ? new Date(booking.date) : null;
+    const today2 = new Date(); today2.setHours(0, 0, 0, 0);
+    const appointmentPassed = apptDate ? apptDate <= today2 : true;
+
     return res.status(200).json({
       success: true,
       data: messages || [],
       booking: {
         id: booking.id,
         doctor_name: booking.doctor_name,
+        date: booking.date,
+        appointmentPassed,
       },
     });
   }
@@ -229,7 +249,7 @@ module.exports = async function handler(req, res) {
       if (trimmed.length > 2000) return res.status(400).json({ success: false, message: 'Message too long (max 2000 chars)' });
 
       const { data: booking } = await supabase
-        .from('bookings').select('id, user_id, doctor_id, doctor_name')
+        .from('bookings').select('id, user_id, doctor_id, doctor_name, date')
         .eq('id', booking_id).single();
       if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
 
