@@ -174,6 +174,11 @@ module.exports = async function handler(req, res) {
     }
   } catch (err) {
     console.error('Products error:', err);
+    // For GET requests, return default products as fallback so the shop always works
+    if (req.method === 'GET' && !req.query.type) {
+      const fallback = defaultProducts.map(p => ({ ...p, created_at: new Date().toISOString() }));
+      return res.status(200).json({ success: true, count: fallback.length, data: fallback });
+    }
     res.status(500).json({ success: false, message: err.message });
   }
 };

@@ -2091,11 +2091,9 @@ async function loadProducts() {
   }
   grid.innerHTML = result.data.data.map(p => {
     const pid = escHtml(p.id || p.name);
-    const canDelete = !!(currentUser && p.id);
     const safeCardId = 'pcard-' + (p.id || p.name).replace(/[^a-zA-Z0-9]/g, '_');
     return `
     <div class="product-card" id="${safeCardId}">
-      ${canDelete ? `<button class="product-delete-btn" title="Remove product" onclick="deleteProduct('${pid}','${escHtml(p.name)}')"><i class="fa-solid fa-trash"></i></button>` : ''}
       <div class="product-icon"><i class="fa-solid ${p.icon || 'fa-capsules'}"></i></div>
       <div class="product-name">${escHtml(p.name)}</div>
       <div class="product-desc">${escHtml(p.description || '')}</div>

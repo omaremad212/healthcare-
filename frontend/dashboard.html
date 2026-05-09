@@ -669,7 +669,15 @@ async function apiGet(path) {
   const res = await fetch(API + path, {
     headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
   });
-  return res.json();
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // Server returned non-JSON (e.g. Vercel error page)
+    if (res.status === 401) throw new Error('Not authorized — please sign in again.');
+    if (res.status === 404) throw new Error('API endpoint not found (404).');
+    throw new Error(`Server error (${res.status}): ${text.substring(0, 120)}`);
+  }
 }
 
 // ── Load Data ─────────────────────────────────────────────────
