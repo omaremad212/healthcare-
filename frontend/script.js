@@ -2164,7 +2164,7 @@ async function loadProducts() {
       <div class="product-icon"><i class="fa-solid ${p.icon || 'fa-capsules'}"></i></div>
       <div class="product-name">${escHtml(p.name)}</div>
       <div class="product-desc">${escHtml(p.description || '')}</div>
-      <div class="product-price">$${Number(p.price).toFixed(2)}</div>
+      <div class="product-price">EGP ${Number(p.price).toFixed(2)}</div>
       <div class="product-cart-area" id="cart-area-${safeCardId}">
         <button class="btn btn-primary product-add-btn" onclick="addToCartQty('${pid}','${escHtml(p.name)}',${p.price},'${safeCardId}')">
           <i class="fa-solid fa-cart-plus"></i> Add to Cart
@@ -2250,7 +2250,7 @@ function updateCartDisplay() {
   const totalItems = cart.reduce((s, i) => s + i.qty, 0);
   const totalPrice = cart.reduce((s, i) => s + i.price * i.qty, 0);
   setEl('cartCount', totalItems);
-  setEl('cartTotalDisplay', '$' + totalPrice.toFixed(2));
+  setEl('cartTotalDisplay', 'EGP ' + totalPrice.toFixed(2));
 }
 
 function openCheckout() {
@@ -2343,7 +2343,7 @@ function buildDoctorCardHTML(doc) {
   const stars  = '★'.repeat(Math.floor(doc.rating)) + '☆'.repeat(5 - Math.floor(doc.rating));
   const price  = currentPayIsEmergency ? Math.round(doc.price * 1.75) : doc.price;
   const today  = new Date().toISOString().split('T')[0];
-  const maxDateStr = (() => {
+  const maxDateStr = currentPayIsEmergency ? today : (() => {
     const d = new Date(); d.setDate(d.getDate() + 60);
     return d.toISOString().split('T')[0];
   })();
