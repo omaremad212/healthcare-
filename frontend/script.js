@@ -2272,42 +2272,26 @@ function confirmDelivery() { deliveryContinue(); }
 
 // ── Doctor Booking ─────────────────────────────────────────────
 const SPECIALIZATIONS = [
-  { name:'Cardiology & Critical Care', icon:'fa-solid fa-heart-pulse'   },
-  { name:'General Medicine',           icon:'fa-solid fa-user-doctor'   },
-  { name:'Internal Medicine',          icon:'fa-solid fa-stethoscope'   },
-  { name:'Neurology',                  icon:'fa-solid fa-brain'         },
-  { name:'Pulmonology',                icon:'fa-solid fa-lungs'         },
-  { name:'Emergency Medicine',         icon:'fa-solid fa-truck-medical' },
-  { name:'Dermatology',                icon:'fa-solid fa-hand-dots'     },
-  { name:'Orthopedics',                icon:'fa-solid fa-bone'          },
-  { name:'Pediatrics',                 icon:'fa-solid fa-baby'          },
-  { name:'Ophthalmology',              icon:'fa-solid fa-eye'           },
-  { name:'Fitness Coaching',           icon:'fa-solid fa-dumbbell'      },
-];
-
-const DOCTORS_DATA = [
-  { name:'Dr. Ramy Fouad',    spec:'Cardiology & Critical Care', price:280, rating:4.7, location:'Maadi, Cairo',       phone:'+20 111 234 5670', role:'doctor' },
-  { name:'Dr. Dina Saad',     spec:'Cardiology & Critical Care', price:320, rating:4.8, location:'New Cairo',           phone:'+20 122 345 6781', role:'doctor' },
-  { name:'Dr. Sara Hossam',   spec:'General Medicine',           price:150, rating:4.7, location:'Maadi, Cairo',       phone:'+20 111 333 5678', role:'doctor' },
-  { name:'Dr. Amr Youssef',   spec:'General Medicine',           price:130, rating:4.5, location:'Heliopolis, Cairo',  phone:'+20 100 444 6789', role:'doctor' },
-  { name:'Dr. Ahmed Nabil',   spec:'Internal Medicine',          price:200, rating:4.6, location:'Heliopolis, Cairo',  phone:'+20 122 444 9900', role:'doctor' },
-  { name:'Dr. Hossam Refaat', spec:'Internal Medicine',          price:220, rating:4.8, location:'Downtown, Cairo',    phone:'+20 100 556 1234', role:'doctor' },
-  { name:'Dr. Nour El-Din',   spec:'Neurology',                  price:350, rating:4.8, location:'New Cairo',           phone:'+20 100 777 1122', role:'doctor' },
-  { name:'Dr. Tarek Mansour', spec:'Neurology',                  price:330, rating:4.7, location:'Nasr City, Cairo',   phone:'+20 111 888 2233', role:'doctor' },
-  { name:'Dr. Mona Tarek',    spec:'Pulmonology',                price:250, rating:4.5, location:'6th October City',   phone:'+20 112 888 3344', role:'doctor' },
-  { name:'Dr. Sherif Hamdy',  spec:'Pulmonology',                price:270, rating:4.7, location:'New Cairo',           phone:'+20 100 112 4455', role:'doctor' },
-  { name:'Dr. Karim Samir',   spec:'Emergency Medicine',         price:180, rating:4.7, location:'Downtown, Cairo',    phone:'+20 100 999 5566', role:'doctor' },
-  { name:'Dr. Noha Saber',    spec:'Emergency Medicine',         price:200, rating:4.8, location:'Maadi, Cairo',       phone:'+20 100 445 7788', role:'doctor' },
-  { name:'Dr. Hana Fahmy',    spec:'Dermatology',                price:220, rating:4.6, location:'Zamalek, Cairo',     phone:'+20 111 000 7788', role:'doctor' },
-  { name:'Dr. Mira Adel',     spec:'Dermatology',                price:240, rating:4.8, location:'New Cairo',           phone:'+20 122 556 8899', role:'doctor' },
-  { name:'Dr. Omar Saleh',    spec:'Orthopedics',                price:280, rating:4.8, location:'Nasr City, Cairo',   phone:'+20 122 111 8899', role:'doctor' },
-  { name:'Dr. Islam Khairy',  spec:'Orthopedics',                price:300, rating:4.7, location:'Heliopolis, Cairo',  phone:'+20 111 778 0011', role:'doctor' },
-  { name:'Dr. Rana Mostafa',  spec:'Pediatrics',                 price:160, rating:4.9, location:'Maadi, Cairo',       phone:'+20 100 222 9900', role:'doctor' },
-  { name:'Dr. Farah Mahmoud', spec:'Pediatrics',                 price:170, rating:4.8, location:'Zamalek, Cairo',     phone:'+20 111 101 3344', role:'doctor' },
-  { name:'Dr. Sameh Adel',    spec:'Ophthalmology',              price:200, rating:4.5, location:'Heliopolis, Cairo',  phone:'+20 111 333 0011', role:'doctor' },
-  { name:'Dr. Ghada Tawfik',  spec:'Ophthalmology',              price:220, rating:4.7, location:'Nasr City, Cairo',   phone:'+20 100 212 4455', role:'doctor' },
-  { name:'Coach Ahmed Ramzy', spec:'Fitness Coaching',           price:150, rating:4.8, location:'New Cairo',           phone:'+20 100 500 1234', role:'coach'  },
-  { name:'Coach Lina Hassan', spec:'Fitness Coaching',           price:120, rating:4.7, location:'Maadi, Cairo',       phone:'+20 111 600 5678', role:'coach'  },
+  { name:'Cardiology & Critical Care',  icon:'fa-solid fa-heart-pulse'      },
+  { name:'General Medicine',            icon:'fa-solid fa-user-doctor'      },
+  { name:'Internal Medicine',           icon:'fa-solid fa-stethoscope'      },
+  { name:'Neurology',                   icon:'fa-solid fa-brain'            },
+  { name:'Pulmonology',                 icon:'fa-solid fa-lungs'            },
+  { name:'Emergency Medicine',          icon:'fa-solid fa-truck-medical'    },
+  { name:'Dermatology',                 icon:'fa-solid fa-hand-dots'        },
+  { name:'Orthopedics',                 icon:'fa-solid fa-bone'             },
+  { name:'Pediatrics',                  icon:'fa-solid fa-baby'             },
+  { name:'Ophthalmology',               icon:'fa-solid fa-eye'              },
+  { name:'Dentistry',                   icon:'fa-solid fa-tooth'            },
+  { name:'Psychiatry & Mental Health',  icon:'fa-solid fa-brain'            },
+  { name:'Gynecology & Obstetrics',     icon:'fa-solid fa-venus'            },
+  { name:'ENT (Ear, Nose & Throat)',    icon:'fa-solid fa-ear-listen'       },
+  { name:'Gastroenterology',            icon:'fa-solid fa-circle-nodes'     },
+  { name:'Urology',                     icon:'fa-solid fa-kidneys'          },
+  { name:'Endocrinology',               icon:'fa-solid fa-droplet'          },
+  { name:'Oncology',                    icon:'fa-solid fa-ribbon'           },
+  { name:'Nephrology',                  icon:'fa-solid fa-filter'           },
+  { name:'Fitness Coaching',            icon:'fa-solid fa-dumbbell'         },
 ];
 
 const DOCTOR_SLOTS = ['9:00 AM','10:00 AM','11:30 AM','1:00 PM','3:00 PM','5:00 PM'];
@@ -2324,15 +2308,24 @@ function buildSpecGrid() {
   setDisplay('doctors-section', 'none');
 }
 
-function selectSpec(specName) {
+async function selectSpec(specName) {
   setDisplay('spec-section',    'none');
   setDisplay('doctors-section', 'block');
   setEl('specTitle', specName + ' Specialists');
   const grid = document.getElementById('doctorsGrid');
   if (!grid) return;
-  const docs = DOCTORS_DATA.filter(d => d.spec === specName);
+
+  grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1"><i class="fa-solid fa-spinner fa-spin"></i> Loading specialists…</p>';
+
+  const res = await apiCall('GET', `/doctors?specialty=${encodeURIComponent(specName)}`);
+  if (!res.ok) {
+    grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1">Failed to load specialists. Please try again.</p>';
+    return;
+  }
+
+  const docs = res.data?.data || [];
   if (!docs.length) {
-    grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1">No specialists found for this category.</p>';
+    grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1">No specialists registered yet for this category.</p>';
     return;
   }
   grid.innerHTML = docs.map(doc => buildDoctorCardHTML(doc)).join('');
@@ -2340,16 +2333,23 @@ function selectSpec(specName) {
 
 function buildDoctorCardHTML(doc) {
   const cardId = 'doc-' + doc.name.replace(/[\s.']/g, '');
-  const stars  = '★'.repeat(Math.floor(doc.rating)) + '☆'.repeat(5 - Math.floor(doc.rating));
-  const price  = currentPayIsEmergency ? Math.round(doc.price * 1.75) : doc.price;
+  const ratingNum = doc.rating != null ? doc.rating : null;
+  const starsHtml = ratingNum != null
+    ? `${'★'.repeat(Math.floor(ratingNum))}${'☆'.repeat(5 - Math.floor(ratingNum))} <span>${ratingNum} / 5</span>`
+    : '<span style="color:var(--text-muted);font-size:0.82rem">No ratings yet</span>';
+  const price  = currentPayIsEmergency
+    ? (doc.emergency_price || Math.round((doc.price || 200) * 1.75))
+    : (doc.price || 200);
   const today  = new Date().toISOString().split('T')[0];
   const maxDateStr = currentPayIsEmergency ? today : (() => {
     const d = new Date(); d.setDate(d.getDate() + 60);
     return d.toISOString().split('T')[0];
   })();
+  const docId = doc.id || '';
+  const expLine = doc.years_experience ? `<span><i class="fa-solid fa-briefcase" style="margin-right:4px;color:var(--text-muted)"></i>${doc.years_experience} yrs exp</span>` : '';
 
   return `
-    <div class="doctor-card" id="${cardId}">
+    <div class="doctor-card" id="${cardId}" data-doc-id="${escHtml(docId)}">
       <div class="doctor-card-header">
         <div class="doctor-avatar"><i class="fa-solid ${doc.role === 'coach' ? 'fa-dumbbell' : 'fa-user-doctor'}"></i></div>
         <div>
@@ -2358,13 +2358,15 @@ function buildDoctorCardHTML(doc) {
         </div>
       </div>
       <div class="doctor-meta">
-        <span><i class="fa-solid fa-location-dot" style="margin-right:5px;color:var(--text-muted)"></i>${escHtml(doc.location)}</span>
+        ${doc.location ? `<span><i class="fa-solid fa-location-dot" style="margin-right:5px;color:var(--text-muted)"></i>${escHtml(doc.location)}</span>` : ''}
+        ${expLine}
         <span class="doctor-price">
           EGP ${price}
           ${currentPayIsEmergency ? '<span style="font-size:0.72rem;font-weight:700;color:var(--danger);margin-left:4px">EMERGENCY</span>' : ''}
         </span>
       </div>
-      <div class="doctor-rating">${stars} <span>${doc.rating} / 5</span></div>
+      <div class="doctor-rating">${starsHtml}</div>
+      ${doc.bio ? `<p style="font-size:0.82rem;color:var(--text-muted);margin:6px 0 0">${escHtml(doc.bio)}</p>` : ''}
 
       <div class="booking-step-label">
         <span class="booking-step-num">1</span>
@@ -2386,12 +2388,9 @@ function buildDoctorCardHTML(doc) {
 
       <div class="doctor-actions">
         <button class="btn ${currentPayIsEmergency ? 'btn-emergency' : 'btn-primary'}" id="bookBtn-${cardId}" disabled
-          onclick="openPayment('${escHtml(doc.name)}',${price},'${cardId}','${doc.role || 'doctor'}')">
+          onclick="openPayment('${escHtml(doc.name)}',${price},'${cardId}','${doc.role || 'doctor'}','${escHtml(docId)}')">
           <i class="fa-solid fa-calendar-check"></i>
           ${currentPayIsEmergency ? 'Emergency Book' : 'Book Now'}
-        </button>
-        <button class="btn btn-outline" onclick="window.open('tel:${escHtml(doc.phone)}')">
-          <i class="fa-solid fa-phone"></i> Call
         </button>
       </div>
     </div>`;
@@ -2468,7 +2467,7 @@ function resetSpecSelection() {
 }
 
 // ── Payment ────────────────────────────────────────────────────
-function openPayment(docName, price, cardId, profRole) {
+function openPayment(docName, price, cardId, profRole, docId) {
   const sel = selectedSlots[cardId];
   if (!sel || !sel.date || !sel.time) {
     showToast('Please select both a date and a time first.', 'warning');
@@ -2483,7 +2482,7 @@ function openPayment(docName, price, cardId, profRole) {
   currentPayPrice  = price;
   currentPaySlot   = sel.time;
   currentPayDate   = sel.date;
-  currentPayDocId  = null;
+  currentPayDocId  = docId || null;
 
   resetPaymentModal();
   document.getElementById('payDocInfo').textContent  = `${docName} · EGP ${price}`;
