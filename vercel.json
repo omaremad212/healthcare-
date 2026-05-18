@@ -26,7 +26,7 @@
     { "src": "/api/feedback",               "dest": "/api/feedback.js"                             },
     { "src": "/api/emergency",              "dest": "/api/emergency.js"                            },
     { "src": "/api/messages",               "dest": "/api/messages.js"                             },
-    { "src": "/api/doctors",               "dest": "/api/doctors.js"                              },
+    { "src": "/api/doctors",               "dest": "/api/booking.js?action=doctors"               },
     { "src": "/admin",                      "dest": "/frontend/admin.html"                         },
     { "src": "/dashboard",                  "dest": "/frontend/dashboard.html"                     },
     { "src": "/(.*)",                       "dest": "/frontend/$1"                                 }
